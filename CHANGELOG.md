@@ -34,4 +34,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Full explainability and auditability
 - Safe for regulated domains (healthcare, finance)
 
-[0.1.0]: https://github.com/decision-agent/decision_agent/releases/tag/v0.1.0
+[0.1.0]: https://github.com/samaswin87/decision_agent/releases/tag/v0.1.0

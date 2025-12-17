@@ -1,14 +1,19 @@
 # DecisionAgent
 
+[![Gem Version](https://badge.fury.io/rb/decision_agent.svg)](https://badge.fury.io/rb/decision_agent)
+[![Build Status](https://github.com/samaswin87/decision_agent/workflows/Tests/badge.svg)](https://github.com/samaswin87/decision_agent/actions)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.txt)
+[![Ruby](https://img.shields.io/badge/ruby-%3E%3D%202.7.0-red.svg)](https://www.ruby-lang.org)
+
 A production-grade, deterministic, explainable, and auditable decision engine for Ruby.
 
 ## The Problem
 
 Enterprise applications need to make complex decisions based on business rules, but existing solutions fall short:
 
-- Excellent for data pipelines, but lack built-in conflict resolution, confidence scoring, and audit replay
-- Rails-dependent, no rule DSL, limited explainability
-- Non-deterministic, expensive, opaque, and unsuitable for regulated domains
+- **Traditional rule engines**: Often lack conflict resolution, confidence scoring, and audit replay capabilities
+- **Framework-coupled solutions**: Tightly bound to specific frameworks (Rails, etc.), limiting portability
+- **AI-first frameworks**: Non-deterministic, expensive, opaque, and unsuitable for regulated domains
 
 **DecisionAgent** solves these problems by providing:
 
@@ -451,24 +456,112 @@ end
 
 ### Feedback Loop
 
+The `feedback` parameter allows you to pass additional context about past decisions, manual overrides, or external signals that can influence decision-making in custom evaluators.
+
+#### Built-in Evaluators and Feedback
+
+**Built-in evaluators** (`JsonRuleEvaluator`, `StaticEvaluator`) **ignore feedback** to maintain determinism. This is intentional - the same context should always produce the same decision for auditability and replay purposes.
+
 ```ruby
-# Initial decision
+# Feedback is accepted but not used by built-in evaluators
 result = agent.decide(
   context: { issue_id: 123 },
-  feedback: { source: "automated" }
+  feedback: { source: "automated", past_accuracy: 0.95 }
 )
 
-# User provides feedback
-user_feedback = {
-  correct: false,
-  actual_decision: "escalate",
-  user_id: "manager_bob"
-}
-
-# Use feedback to improve (e.g., log for training, adjust weights)
-# DecisionAgent is deterministic, so feedback doesn't change rules
-# Use it for analysis and future rule adjustments
+# The feedback is stored in the audit trail for analysis
+puts result.audit_payload[:feedback]  # => { source: "automated", past_accuracy: 0.95 }
 ```
+
+#### Custom Feedback-Aware Evaluators
+
+For **adaptive behavior**, create custom evaluators that use feedback:
+
+```ruby
+# See examples/feedback_aware_evaluator.rb for a complete implementation
+class FeedbackAwareEvaluator < DecisionAgent::Evaluators::Base
+  def evaluate(context, feedback: {})
+    # Use feedback to adjust decisions
+    if feedback[:override]
+      return Evaluation.new(
+        decision: feedback[:override],
+        weight: 0.9,
+        reason: feedback[:reason] || "Manual override",
+        evaluator_name: evaluator_name
+      )
+    end
+
+    # Or adjust confidence based on past accuracy
+    adjusted_weight = base_weight * feedback[:past_accuracy].to_f
+
+    Evaluation.new(
+      decision: base_decision,
+      weight: adjusted_weight,
+      reason: "Adjusted by past performance",
+      evaluator_name: evaluator_name
+    )
+  end
+end
+```
+
+#### Common Feedback Patterns
+
+1. **Manual Override**: Human-in-the-loop corrections
+   ```ruby
+   agent.decide(
+     context: { user_id: 123 },
+     feedback: { override: "manual_review", reason: "Suspicious activity" }
+   )
+   ```
+
+2. **Historical Performance**: Adjust confidence based on past accuracy
+   ```ruby
+   agent.decide(
+     context: { transaction: tx },
+     feedback: { past_accuracy: 0.87 }  # This evaluator was 87% accurate historically
+   )
+   ```
+
+3. **Source Attribution**: Weight decisions differently based on origin
+   ```ruby
+   agent.decide(
+     context: { issue: issue },
+     feedback: { source: "expert_review" }  # Higher confidence for expert reviews
+   )
+   ```
+
+4. **Learning Signals**: Collect data for offline model training
+   ```ruby
+   # Initial decision
+   result = agent.decide(context: { user: user })
+
+   # Later: user provides feedback
+   user_feedback = {
+     correct: false,
+     actual_decision: "escalate",
+     user_id: "manager_bob",
+     timestamp: Time.now.utc.iso8601
+   }
+
+   # Log for analysis and future rule adjustments
+   # (DecisionAgent doesn't auto-update rules - this is for your ML/analysis pipeline)
+   FeedbackLog.create(
+     decision_hash: result.audit_payload[:deterministic_hash],
+     predicted: result.decision,
+     actual: user_feedback[:actual_decision],
+     feedback: user_feedback
+   )
+   ```
+
+#### Example: Complete Feedback-Aware System
+
+See [examples/feedback_aware_evaluator.rb](examples/feedback_aware_evaluator.rb) for a complete example that demonstrates:
+- Manual overrides with high confidence
+- Past accuracy-based weight adjustment
+- Source-based confidence boosting
+- Comprehensive metadata tracking
+
+**Key Principle**: Use feedback for **human oversight** and **continuous improvement**, but keep the core decision logic deterministic and auditable.
 
 ## Integration Examples
 
@@ -616,7 +709,7 @@ puts JSON.pretty_generate(output)
 
 - Simple if/else logic (just use Ruby)
 - Purely AI-driven decisions with no rules
-- Single-step validations (use dry-validation)
+- Single-step validations (use standard validation libraries)
 
 ## Testing
 
@@ -642,21 +735,277 @@ end
 
 All errors are namespaced under `DecisionAgent`:
 
+### NoEvaluationsError
+
+Raised when no evaluator returns a decision (all returned `nil` or raised exceptions).
+
 ```ruby
 begin
   agent.decide(context: {})
-rescue DecisionAgent::NoEvaluationsError
+rescue DecisionAgent::NoEvaluationsError => e
   # No evaluator returned a decision
-rescue DecisionAgent::InvalidRuleDslError => e
-  # JSON rule DSL is malformed
-  puts e.message
-rescue DecisionAgent::ReplayMismatchError => e
-  # Replay produced different result
-  puts "Expected: #{e.expected}"
-  puts "Actual: #{e.actual}"
-  puts "Differences: #{e.differences}"
+  puts e.message  # => "No evaluators returned a decision"
+
+  # Handle gracefully
+  fallback_decision = "manual_review"
 end
 ```
+
+### InvalidRuleDslError
+
+Raised when JSON rule DSL is malformed or invalid.
+
+```ruby
+begin
+  rules = { invalid: "structure" }
+  evaluator = DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
+rescue DecisionAgent::InvalidRuleDslError => e
+  # JSON rule DSL is malformed
+  puts e.message  # => "Invalid rule DSL structure"
+end
+```
+
+### ReplayMismatchError
+
+Raised in strict replay mode when replayed decision differs from original.
+
+```ruby
+begin
+  replayed_result = DecisionAgent::Replay.run(audit_payload, strict: true)
+rescue DecisionAgent::ReplayMismatchError => e
+  # Replay produced different result
+  puts "Expected: #{e.expected}"  # => "approve"
+  puts "Actual: #{e.actual}"      # => "reject"
+  puts "Differences: #{e.differences}"  # => ["decision changed", "confidence changed"]
+end
+```
+
+### InvalidConfidenceError
+
+Raised when confidence value is outside [0.0, 1.0] range.
+
+```ruby
+begin
+  decision = DecisionAgent::Decision.new(
+    decision: "approve",
+    confidence: 1.5,  # Invalid!
+    explanations: [],
+    evaluations: [],
+    audit_payload: {}
+  )
+rescue DecisionAgent::InvalidConfidenceError => e
+  puts e.message  # => "Confidence must be between 0.0 and 1.0, got: 1.5"
+end
+```
+
+### InvalidWeightError
+
+Raised when evaluation weight is outside [0.0, 1.0] range.
+
+```ruby
+begin
+  eval = DecisionAgent::Evaluation.new(
+    decision: "approve",
+    weight: -0.5,  # Invalid!
+    reason: "Test",
+    evaluator_name: "Test"
+  )
+rescue DecisionAgent::InvalidWeightError => e
+  puts e.message  # => "Weight must be between 0.0 and 1.0, got: -0.5"
+end
+```
+
+### Configuration Errors
+
+Raised during agent initialization when configuration is invalid.
+
+```ruby
+begin
+  # No evaluators provided
+  agent = DecisionAgent::Agent.new(evaluators: [])
+rescue DecisionAgent::InvalidConfigurationError => e
+  puts e.message  # => "At least one evaluator is required"
+end
+
+begin
+  # Invalid evaluator
+  agent = DecisionAgent::Agent.new(evaluators: ["not an evaluator"])
+rescue DecisionAgent::InvalidEvaluatorError => e
+  puts e.message  # => "Evaluator must respond to #evaluate"
+end
+```
+
+## API Reference
+
+### Agent
+
+Main orchestrator for decision-making.
+
+**Constructor:**
+```ruby
+DecisionAgent::Agent.new(
+  evaluators: [evaluator1, evaluator2],
+  scoring_strategy: DecisionAgent::Scoring::WeightedAverage.new,  # Optional, defaults to WeightedAverage
+  audit_adapter: DecisionAgent::Audit::NullAdapter.new            # Optional, defaults to NullAdapter
+)
+```
+
+**Public Methods:**
+
+- `#decide(context:, feedback: {})` → `Decision`
+  - Makes a decision based on context and optional feedback
+  - Raises `NoEvaluationsError` if no evaluators return decisions
+  - Returns a `Decision` object with decision, confidence, and explanations
+
+**Attributes:**
+- `#evaluators` → `Array` - Read-only access to configured evaluators
+- `#scoring_strategy` → `Scoring::Base` - Read-only access to scoring strategy
+- `#audit_adapter` → `Audit::Adapter` - Read-only access to audit adapter
+
+### Decision
+
+Immutable result object representing a decision.
+
+**Constructor:**
+```ruby
+DecisionAgent::Decision.new(
+  decision: "approve",
+  confidence: 0.85,
+  explanations: ["High priority rule matched"],
+  evaluations: [evaluation1, evaluation2],
+  audit_payload: {...}
+)
+```
+
+**Attributes:**
+- `#decision` → `String` - The final decision (frozen)
+- `#confidence` → `Float` - Confidence score between 0.0 and 1.0
+- `#explanations` → `Array<String>` - Human-readable explanations (frozen)
+- `#evaluations` → `Array<Evaluation>` - All evaluations that contributed (frozen)
+- `#audit_payload` → `Hash` - Complete audit trail for replay (frozen)
+
+**Public Methods:**
+
+- `#to_h` → `Hash` - Converts to hash representation
+- `#==(other)` → `Boolean` - Equality comparison (compares decision, confidence, explanations, evaluations)
+
+### Evaluation
+
+Immutable result from a single evaluator.
+
+**Constructor:**
+```ruby
+DecisionAgent::Evaluation.new(
+  decision: "approve",
+  weight: 0.8,
+  reason: "User meets criteria",
+  evaluator_name: "MyEvaluator",
+  metadata: { rule_id: "R1" }  # Optional, defaults to {}
+)
+```
+
+**Attributes:**
+- `#decision` → `String` - The evaluator's decision (frozen)
+- `#weight` → `Float` - Weight between 0.0 and 1.0
+- `#reason` → `String` - Human-readable reason (frozen)
+- `#evaluator_name` → `String` - Name of the evaluator (frozen)
+- `#metadata` → `Hash` - Additional context (frozen)
+
+**Public Methods:**
+
+- `#to_h` → `Hash` - Converts to hash representation
+- `#==(other)` → `Boolean` - Equality comparison
+
+### Context
+
+Immutable wrapper for decision context data.
+
+**Constructor:**
+```ruby
+DecisionAgent::Context.new(
+  user: "alice",
+  priority: "high",
+  nested: { role: "admin" }
+)
+```
+
+**Public Methods:**
+
+- `#[]` → `Object` - Access context value by key (supports both string and symbol keys)
+- `#to_h` → `Hash` - Returns underlying hash (frozen)
+- `#==(other)` → `Boolean` - Equality comparison
+
+### Evaluators::Base
+
+Base class for custom evaluators.
+
+**Public Methods:**
+
+- `#evaluate(context, feedback: {})` → `Evaluation | nil`
+  - Must be implemented by subclasses
+  - Returns `Evaluation` if a decision is made, `nil` otherwise
+  - `context` is a `Context` object
+  - `feedback` is an optional hash
+
+### Scoring::Base
+
+Base class for custom scoring strategies.
+
+**Public Methods:**
+
+- `#score(evaluations)` → `{ decision: String, confidence: Float }`
+  - Must be implemented by subclasses
+  - Takes array of `Evaluation` objects
+  - Returns hash with `:decision` and `:confidence` keys
+  - Confidence must be between 0.0 and 1.0
+
+**Protected Methods:**
+- `#normalize_confidence(value)` → `Float` - Clamps value to [0.0, 1.0]
+- `#round_confidence(value)` → `Float` - Rounds to 4 decimal places
+
+### Audit::Adapter
+
+Base class for custom audit adapters.
+
+**Public Methods:**
+
+- `#record(decision, context)` → `void`
+  - Must be implemented by subclasses
+  - Called after each decision is made
+  - `decision` is a `Decision` object
+  - `context` is a `Context` object
+
+### Replay
+
+Utilities for replaying historical decisions.
+
+**Class Methods:**
+
+- `DecisionAgent::Replay.run(audit_payload, strict: true)` → `Decision`
+  - Replays a decision from audit payload
+  - `strict: true` raises `ReplayMismatchError` on differences
+  - `strict: false` logs differences but allows evolution
+
+## Versioning
+
+DecisionAgent follows [Semantic Versioning 2.0.0](https://semver.org/):
+
+- **MAJOR** version for incompatible API changes
+- **MINOR** version for backwards-compatible functionality additions
+- **PATCH** version for backwards-compatible bug fixes
+
+### Stability Guarantees
+
+- **Public API**: All classes and methods documented in this README are stable
+- **Audit Payload Format**: The structure of `audit_payload` is stable and will remain replayable across versions
+- **Deterministic Hash**: The algorithm for computing `deterministic_hash` is frozen to ensure replay compatibility
+- **Breaking Changes**: Will only occur in major version bumps, with clear migration guides
+
+### Deprecation Policy
+
+- Deprecated features will be marked in documentation and emit warnings
+- Deprecated features will be maintained for at least one minor version before removal
+- Breaking changes will be documented in CHANGELOG.md with migration instructions
 
 ## Contributing
 
@@ -682,6 +1031,7 @@ MIT License. See [LICENSE.txt](LICENSE.txt).
 ## Support
 
 - GitHub Issues: [https://github.com/samaswin87/decision_agent/issues](https://github.com/samaswin87/decision_agent/issues)
+- Documentation: [https://github.com/samaswin87/decision_agent](https://github.com/samaswin87/decision_agent)
 
 ---
 

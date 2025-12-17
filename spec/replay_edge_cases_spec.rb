@@ -446,4 +446,254 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
       expect(replayed_result.audit_payload[:feedback]).to eq({})
     end
   end
+
+  describe "version mismatch scenarios" do
+    it "logs warning when agent_version differs in non-strict mode" do
+      evaluator = DecisionAgent::Evaluators::StaticEvaluator.new(
+        decision: "approve",
+        weight: 0.8,
+        reason: "Test"
+      )
+
+      agent = DecisionAgent::Agent.new(evaluators: [evaluator])
+      original_result = agent.decide(context: { test: true })
+
+      # Modify agent_version
+      modified_payload = original_result.audit_payload.dup
+      modified_payload[:agent_version] = "99.0.0"  # Different version
+
+      # Non-strict mode should log but not raise
+      expect {
+        DecisionAgent::Replay.run(modified_payload, strict: false)
+      }.not_to raise_error
+
+      # Should successfully replay despite version difference
+      replayed_result = DecisionAgent::Replay.run(modified_payload, strict: false)
+      expect(replayed_result.decision).to eq("approve")
+    end
+
+    it "accepts different agent_version in non-strict mode" do
+      audit_payload = {
+        timestamp: "2025-01-15T10:00:00.123456Z",
+        context: { test: true },
+        feedback: {},
+        evaluations: [
+          {
+            decision: "approve",
+            weight: 0.9,
+            reason: "Test",
+            evaluator_name: "TestEvaluator",
+            metadata: {}
+          }
+        ],
+        decision: "approve",
+        confidence: 1.0,
+        scoring_strategy: "DecisionAgent::Scoring::WeightedAverage",
+        agent_version: "0.0.1",  # Old version
+        deterministic_hash: "old_hash"
+      }
+
+      # Should accept and replay successfully
+      result = DecisionAgent::Replay.run(audit_payload, strict: false)
+      expect(result.decision).to eq("approve")
+    end
+
+    it "replays successfully in strict mode regardless of version" do
+      evaluator = DecisionAgent::Evaluators::StaticEvaluator.new(
+        decision: "approve",
+        weight: 0.8,
+        reason: "Test"
+      )
+
+      agent = DecisionAgent::Agent.new(evaluators: [evaluator])
+      original_result = agent.decide(context: { test: true })
+
+      # Modify agent_version
+      modified_payload = original_result.audit_payload.dup
+      modified_payload[:agent_version] = "2.0.0"
+
+      # Strict mode should still work because version is not part of deterministic comparison
+      # (only decision and confidence are compared in strict mode)
+      expect {
+        DecisionAgent::Replay.run(modified_payload, strict: true)
+      }.not_to raise_error
+    end
+  end
+
+  describe "corrupted audit payload scenarios" do
+    it "handles missing deterministic_hash gracefully" do
+      audit_payload = {
+        timestamp: "2025-01-15T10:00:00.123456Z",
+        context: { test: true },
+        feedback: {},
+        evaluations: [
+          {
+            decision: "approve",
+            weight: 0.9,
+            reason: "Test",
+            evaluator_name: "TestEvaluator",
+            metadata: {}
+          }
+        ],
+        decision: "approve",
+        confidence: 1.0,
+        scoring_strategy: "DecisionAgent::Scoring::WeightedAverage",
+        agent_version: "0.1.0"
+        # deterministic_hash is missing
+      }
+
+      # Should not raise error, just creates new hash during replay
+      expect {
+        DecisionAgent::Replay.run(audit_payload, strict: false)
+      }.not_to raise_error
+
+      result = DecisionAgent::Replay.run(audit_payload, strict: false)
+      expect(result.decision).to eq("approve")
+      expect(result.audit_payload[:deterministic_hash]).to be_a(String)
+    end
+
+    it "handles invalid deterministic_hash gracefully" do
+      audit_payload = {
+        timestamp: "2025-01-15T10:00:00.123456Z",
+        context: { test: true },
+        feedback: {},
+        evaluations: [
+          {
+            decision: "approve",
+            weight: 0.9,
+            reason: "Test",
+            evaluator_name: "TestEvaluator",
+            metadata: {}
+          }
+        ],
+        decision: "approve",
+        confidence: 1.0,
+        scoring_strategy: "DecisionAgent::Scoring::WeightedAverage",
+        agent_version: "0.1.0",
+        deterministic_hash: "corrupted_invalid_hash_12345"
+      }
+
+      # Should replay successfully, generating new hash
+      result = DecisionAgent::Replay.run(audit_payload, strict: false)
+      expect(result.decision).to eq("approve")
+      # New hash should be different from corrupted one
+      expect(result.audit_payload[:deterministic_hash]).not_to eq("corrupted_invalid_hash_12345")
+    end
+
+    it "validates required fields before replay" do
+      # Missing context
+      expect {
+        DecisionAgent::Replay.run({ decision: "test", confidence: 0.5, evaluations: [] }, strict: true)
+      }.to raise_error(DecisionAgent::InvalidRuleDslError, /context/)
+
+      # Missing evaluations
+      expect {
+        DecisionAgent::Replay.run({ context: {}, decision: "test", confidence: 0.5 }, strict: true)
+      }.to raise_error(DecisionAgent::InvalidRuleDslError, /evaluations/)
+
+      # Missing decision
+      expect {
+        DecisionAgent::Replay.run({ context: {}, evaluations: [], confidence: 0.5 }, strict: true)
+      }.to raise_error(DecisionAgent::InvalidRuleDslError, /decision/)
+
+      # Missing confidence
+      expect {
+        DecisionAgent::Replay.run({ context: {}, evaluations: [], decision: "test" }, strict: true)
+      }.to raise_error(DecisionAgent::InvalidRuleDslError, /confidence/)
+    end
+
+    it "handles evaluation with invalid weight" do
+      audit_payload = {
+        timestamp: "2025-01-15T10:00:00.123456Z",
+        context: { test: true },
+        feedback: {},
+        evaluations: [
+          {
+            decision: "approve",
+            weight: 2.5,  # Weight > 1.0, invalid
+            reason: "Test",
+            evaluator_name: "TestEvaluator",
+            metadata: {}
+          }
+        ],
+        decision: "approve",
+        confidence: 1.0,
+        scoring_strategy: "DecisionAgent::Scoring::WeightedAverage"
+      }
+
+      # Invalid weight (> 1.0) should raise error when creating Evaluation
+      expect {
+        DecisionAgent::Replay.run(audit_payload, strict: false)
+      }.to raise_error(DecisionAgent::InvalidWeightError)
+    end
+
+    it "handles completely empty audit payload" do
+      expect {
+        DecisionAgent::Replay.run({}, strict: false)
+      }.to raise_error(DecisionAgent::InvalidRuleDslError)
+    end
+
+    it "handles nil audit payload" do
+      expect {
+        DecisionAgent::Replay.run(nil, strict: false)
+      }.to raise_error
+    end
+  end
+
+  describe "scoring strategy class rename scenarios" do
+    it "handles renamed scoring strategy class in non-strict mode" do
+      audit_payload = {
+        timestamp: "2025-01-15T10:00:00.123456Z",
+        context: { test: true },
+        feedback: {},
+        evaluations: [
+          {
+            decision: "approve",
+            weight: 0.9,
+            reason: "Test",
+            evaluator_name: "TestEvaluator",
+            metadata: {}
+          }
+        ],
+        decision: "approve",
+        confidence: 0.9,
+        scoring_strategy: "DecisionAgent::Scoring::OldStrategyName",  # Renamed or deleted
+        agent_version: "0.1.0"
+      }
+
+      # Should fall back to default strategy (WeightedAverage)
+      expect {
+        DecisionAgent::Replay.run(audit_payload, strict: false)
+      }.not_to raise_error
+
+      result = DecisionAgent::Replay.run(audit_payload, strict: false)
+      expect(result.decision).to eq("approve")
+    end
+
+    it "handles custom scoring strategy not in current codebase" do
+      audit_payload = {
+        timestamp: "2025-01-15T10:00:00.123456Z",
+        context: { test: true },
+        feedback: {},
+        evaluations: [
+          {
+            decision: "approve",
+            weight: 0.85,
+            reason: "Test",
+            evaluator_name: "TestEvaluator",
+            metadata: {}
+          }
+        ],
+        decision: "approve",
+        confidence: 0.85,
+        scoring_strategy: "MyCompany::CustomMLBasedScoringStrategy",  # Custom strategy
+        agent_version: "0.1.0"
+      }
+
+      # Should use fallback strategy
+      result = DecisionAgent::Replay.run(audit_payload, strict: false)
+      expect(result).not_to be_nil
+      expect(result.decision).to eq("approve")
+    end
+  end
 end

@@ -184,6 +184,450 @@ RSpec.describe "Comprehensive Edge Cases" do
         # Current implementation doesn't support array indexing
         expect(evaluation).to be_nil
       end
+
+      it "returns nil for very deeply missing nested fields" do
+        rules = {
+          version: "1.0",
+          ruleset: "test",
+          rules: [
+            {
+              id: "rule_1",
+              if: { field: "a.b.c.d.e.f.g.h", op: "eq", value: "deep" },
+              then: { decision: "found" }
+            }
+          ]
+        }
+
+        evaluator = DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
+
+        # Missing at various levels
+        expect(evaluator.evaluate(DecisionAgent::Context.new({}))).to be_nil
+        expect(evaluator.evaluate(DecisionAgent::Context.new({ a: {} }))).to be_nil
+        expect(evaluator.evaluate(DecisionAgent::Context.new({ a: { b: { c: {} } } }))).to be_nil
+      end
+
+      it "handles partial path matches gracefully" do
+        rules = {
+          version: "1.0",
+          ruleset: "test",
+          rules: [
+            {
+              id: "rule_1",
+              if: { field: "user.settings.theme", op: "eq", value: "dark" },
+              then: { decision: "dark_mode" }
+            }
+          ]
+        }
+
+        evaluator = DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
+
+        # Path exists partially but value is wrong type
+        context = DecisionAgent::Context.new({ user: { settings: "not_a_hash" } })
+        expect(evaluator.evaluate(context)).to be_nil
+      end
+    end
+
+    describe "very deep nesting (5+ levels)" do
+      it "evaluates 5-level nested all/any combinations" do
+        rules = {
+          version: "1.0",
+          ruleset: "test",
+          rules: [
+            {
+              id: "rule_1",
+              if: {
+                all: [
+                  {
+                    any: [
+                      {
+                        all: [
+                          {
+                            any: [
+                              {
+                                all: [
+                                  { field: "a", op: "eq", value: 1 },
+                                  { field: "b", op: "eq", value: 2 }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              then: { decision: "very_nested_match" }
+            }
+          ]
+        }
+
+        evaluator = DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
+
+        # Should match
+        context1 = DecisionAgent::Context.new({ a: 1, b: 2 })
+        result = evaluator.evaluate(context1)
+        expect(result).not_to be_nil
+        expect(result.decision).to eq("very_nested_match")
+
+        # Should not match (missing b)
+        context2 = DecisionAgent::Context.new({ a: 1 })
+        expect(evaluator.evaluate(context2)).to be_nil
+      end
+
+      it "evaluates 7-level nested structures" do
+        rules = {
+          version: "1.0",
+          ruleset: "test",
+          rules: [
+            {
+              id: "rule_1",
+              if: {
+                all: [
+                  {
+                    any: [
+                      {
+                        all: [
+                          {
+                            any: [
+                              {
+                                all: [
+                                  {
+                                    any: [
+                                      {
+                                        all: [
+                                          { field: "x", op: "eq", value: true }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              then: { decision: "extremely_nested" }
+            }
+          ]
+        }
+
+        evaluator = DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
+
+        context = DecisionAgent::Context.new({ x: true })
+        result = evaluator.evaluate(context)
+        expect(result).not_to be_nil
+        expect(result.decision).to eq("extremely_nested")
+      end
+
+      it "handles mixed all/any at each level" do
+        rules = {
+          version: "1.0",
+          ruleset: "test",
+          rules: [
+            {
+              id: "rule_1",
+              if: {
+                all: [
+                  { field: "level1", op: "eq", value: 1 },
+                  {
+                    any: [
+                      { field: "level2a", op: "eq", value: 2 },
+                      {
+                        all: [
+                          { field: "level3a", op: "eq", value: 3 },
+                          {
+                            any: [
+                              { field: "level4a", op: "eq", value: 4 },
+                              {
+                                all: [
+                                  { field: "level5a", op: "eq", value: 5 },
+                                  { field: "level5b", op: "eq", value: 6 }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              then: { decision: "mixed_deep_match" }
+            }
+          ]
+        }
+
+        evaluator = DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
+
+        # Match via first branch (level2a)
+        context1 = DecisionAgent::Context.new({ level1: 1, level2a: 2 })
+        expect(evaluator.evaluate(context1)&.decision).to eq("mixed_deep_match")
+
+        # Match via nested path (level4a)
+        context2 = DecisionAgent::Context.new({ level1: 1, level3a: 3, level4a: 4 })
+        expect(evaluator.evaluate(context2)&.decision).to eq("mixed_deep_match")
+
+        # Match via deepest path
+        context3 = DecisionAgent::Context.new({ level1: 1, level3a: 3, level5a: 5, level5b: 6 })
+        expect(evaluator.evaluate(context3)&.decision).to eq("mixed_deep_match")
+
+        # No match (missing level1)
+        context4 = DecisionAgent::Context.new({ level2a: 2 })
+        expect(evaluator.evaluate(context4)).to be_nil
+      end
+    end
+
+    describe "large rule sets" do
+      it "evaluates 100 rules efficiently (first-match semantics)" do
+        rules_array = 100.times.map do |i|
+          {
+            id: "rule_#{i}",
+            if: { field: "number", op: "eq", value: i },
+            then: { decision: "matched_#{i}", weight: 0.5 + (i / 200.0) }
+          }
+        end
+
+        rules = {
+          version: "1.0",
+          ruleset: "large_set",
+          rules: rules_array
+        }
+
+        evaluator = DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
+
+        # Should match first rule
+        context1 = DecisionAgent::Context.new({ number: 0 })
+        result1 = evaluator.evaluate(context1)
+        expect(result1.decision).to eq("matched_0")
+        expect(result1.metadata[:rule_id]).to eq("rule_0")
+
+        # Should match middle rule
+        context2 = DecisionAgent::Context.new({ number: 50 })
+        result2 = evaluator.evaluate(context2)
+        expect(result2.decision).to eq("matched_50")
+
+        # Should match last rule
+        context3 = DecisionAgent::Context.new({ number: 99 })
+        result3 = evaluator.evaluate(context3)
+        expect(result3.decision).to eq("matched_99")
+
+        # Should not match any rule
+        context4 = DecisionAgent::Context.new({ number: 100 })
+        expect(evaluator.evaluate(context4)).to be_nil
+      end
+
+      it "handles 500 rules without stack overflow" do
+        rules_array = 500.times.map do |i|
+          {
+            id: "rule_#{i}",
+            if: {
+              all: [
+                { field: "category", op: "eq", value: "test" },
+                { field: "id", op: "eq", value: i }
+              ]
+            },
+            then: { decision: "rule_#{i}" }
+          }
+        end
+
+        rules = {
+          version: "1.0",
+          ruleset: "very_large_set",
+          rules: rules_array
+        }
+
+        evaluator = DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
+
+        # Should evaluate without error
+        context = DecisionAgent::Context.new({ category: "test", id: 250 })
+        result = evaluator.evaluate(context)
+        expect(result.decision).to eq("rule_250")
+      end
+    end
+
+    describe "unicode support" do
+      it "handles unicode field names" do
+        rules = {
+          version: "1.0",
+          ruleset: "test",
+          rules: [
+            {
+              id: "rule_1",
+              if: { field: "user.名前", op: "eq", value: "太郎" },
+              then: { decision: "japanese_match" }
+            }
+          ]
+        }
+
+        evaluator = DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
+
+        context = DecisionAgent::Context.new({ user: { "名前": "太郎" } })
+        result = evaluator.evaluate(context)
+        expect(result).not_to be_nil
+        expect(result.decision).to eq("japanese_match")
+      end
+
+      it "compares unicode values correctly" do
+        rules = {
+          version: "1.0",
+          ruleset: "test",
+          rules: [
+            {
+              id: "rule_1",
+              if: { field: "message", op: "eq", value: "Héllo Wörld 🌍" },
+              then: { decision: "unicode_match" }
+            }
+          ]
+        }
+
+        evaluator = DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
+
+        context = DecisionAgent::Context.new({ message: "Héllo Wörld 🌍" })
+        result = evaluator.evaluate(context)
+        expect(result).not_to be_nil
+        expect(result.decision).to eq("unicode_match")
+
+        # Should not match with different unicode
+        context2 = DecisionAgent::Context.new({ message: "Hello World 🌍" })
+        expect(evaluator.evaluate(context2)).to be_nil
+      end
+
+      it "handles emoji in decision values" do
+        rules = {
+          version: "1.0",
+          ruleset: "test",
+          rules: [
+            {
+              id: "rule_1",
+              if: { field: "status", op: "eq", value: "happy" },
+              then: { decision: "😊_approved", reason: "User is happy 🎉" }
+            }
+          ]
+        }
+
+        evaluator = DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
+
+        context = DecisionAgent::Context.new({ status: "happy" })
+        result = evaluator.evaluate(context)
+        expect(result.decision).to eq("😊_approved")
+        expect(result.reason).to eq("User is happy 🎉")
+      end
+
+      it "handles mixed unicode in nested field paths" do
+        rules = {
+          version: "1.0",
+          ruleset: "test",
+          rules: [
+            {
+              id: "rule_1",
+              if: { field: "用户.配置.语言", op: "eq", value: "中文" },
+              then: { decision: "chinese_locale" }
+            }
+          ]
+        }
+
+        evaluator = DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
+
+        context = DecisionAgent::Context.new({
+          "用户": {
+            "配置": {
+              "语言": "中文"
+            }
+          }
+        })
+        result = evaluator.evaluate(context)
+        expect(result).not_to be_nil
+        expect(result.decision).to eq("chinese_locale")
+      end
+    end
+
+    describe "malformed dot notation edge cases" do
+      it "rejects leading dots in field paths" do
+        rules = {
+          version: "1.0",
+          ruleset: "test",
+          rules: [
+            {
+              id: "rule_1",
+              if: { field: ".field", op: "eq", value: "test" },
+              then: { decision: "match" }
+            }
+          ]
+        }
+
+        # Validator catches empty segments and raises error
+        expect {
+          DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
+        }.to raise_error(DecisionAgent::InvalidRuleDslError, /empty segments/)
+      end
+
+      it "handles trailing dots in field paths" do
+        rules = {
+          version: "1.0",
+          ruleset: "test",
+          rules: [
+            {
+              id: "rule_1",
+              if: { field: "field.nested.", op: "eq", value: "test" },
+              then: { decision: "match" }
+            }
+          ]
+        }
+
+        # Trailing dots might be accepted but won't match in practice
+        # Or they might be rejected - test actual behavior
+        evaluator = DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
+        context = DecisionAgent::Context.new({ field: { nested: { "": "test" } } })
+
+        # Evaluation behavior depends on implementation
+        # Just verify it doesn't crash
+        result = evaluator.evaluate(context)
+        # Result may be nil or match depending on how empty string keys are handled
+        expect(result).to be_a(DecisionAgent::Evaluation).or be_nil
+      end
+
+      it "rejects consecutive dots in field paths" do
+        rules = {
+          version: "1.0",
+          ruleset: "test",
+          rules: [
+            {
+              id: "rule_1",
+              if: { field: "field..nested", op: "eq", value: "test" },
+              then: { decision: "match" }
+            }
+          ]
+        }
+
+        # Validator catches empty segments and raises error
+        expect {
+          DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
+        }.to raise_error(DecisionAgent::InvalidRuleDslError, /empty segments/)
+      end
+
+      it "rejects multiple consecutive dots in field paths" do
+        rules = {
+          version: "1.0",
+          ruleset: "test",
+          rules: [
+            {
+              id: "rule_1",
+              if: { field: "a..b..c", op: "eq", value: "test" },
+              then: { decision: "match" }
+            }
+          ]
+        }
+
+        # Validator catches empty segments and raises error
+        expect {
+          DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
+        }.to raise_error(DecisionAgent::InvalidRuleDslError, /empty segments/)
+      end
     end
   end
 
@@ -428,6 +872,50 @@ RSpec.describe "Comprehensive Edge Cases" do
         expect(result.confidence).to be_between(0.0, 1.0)
         expect(result.evaluations.size).to eq(10)
       end
+
+      it "handles 50 evaluators with diverse decisions" do
+        evaluators = 50.times.map do |i|
+          DecisionAgent::Evaluators::StaticEvaluator.new(
+            decision: "decision_#{i % 10}",  # 10 different decisions
+            weight: 0.02 * (i + 1),          # Varying weights 0.02 to 1.0
+            name: "Eval#{i}"
+          )
+        end
+
+        agent = DecisionAgent::Agent.new(
+          evaluators: evaluators,
+          scoring_strategy: DecisionAgent::Scoring::WeightedAverage.new
+        )
+
+        result = agent.decide(context: {})
+
+        expect(result.decision).to be_a(String)
+        expect(result.decision).to match(/decision_\d/)
+        expect(result.confidence).to be_between(0.0, 1.0)
+        expect(result.evaluations.size).to eq(50)
+      end
+
+      it "handles all evaluators with same decision but different weights" do
+        evaluators = 20.times.map do |i|
+          DecisionAgent::Evaluators::StaticEvaluator.new(
+            decision: "unanimous",
+            weight: 0.05 * (i + 1),  # Weights from 0.05 to 1.0
+            name: "Eval#{i}"
+          )
+        end
+
+        agent = DecisionAgent::Agent.new(
+          evaluators: evaluators,
+          scoring_strategy: DecisionAgent::Scoring::WeightedAverage.new
+        )
+
+        result = agent.decide(context: {})
+
+        expect(result.decision).to eq("unanimous")
+        # All weights point to same decision, confidence should be high
+        expect(result.confidence).to eq(1.0)
+        expect(result.evaluations.size).to eq(20)
+      end
     end
   end
 
@@ -662,6 +1150,222 @@ RSpec.describe "Comprehensive Edge Cases" do
         result = agent.decide(context: {})
 
         expect(result.decision).to eq("uncertain")
+      end
+    end
+
+    describe "stress tests with large evaluator counts" do
+      it "handles 100 evaluators efficiently with WeightedAverage" do
+        evaluators = 100.times.map do |i|
+          DecisionAgent::Evaluators::StaticEvaluator.new(
+            decision: "decision_#{i % 10}",
+            weight: (i + 1) / 200.0,  # Weights from 0.005 to 0.505
+            name: "Eval#{i}"
+          )
+        end
+
+        agent = DecisionAgent::Agent.new(
+          evaluators: evaluators,
+          scoring_strategy: DecisionAgent::Scoring::WeightedAverage.new
+        )
+
+        result = agent.decide(context: {})
+
+        expect(result.decision).to be_a(String)
+        expect(result.confidence).to be_between(0.0, 1.0)
+        expect(result.evaluations.size).to eq(100)
+      end
+
+      it "handles 100 evaluators with all same decision" do
+        evaluators = 100.times.map do |i|
+          DecisionAgent::Evaluators::StaticEvaluator.new(
+            decision: "consensus",
+            weight: 0.5 + (i / 200.0),  # Weights from 0.5 to 0.995
+            name: "Eval#{i}"
+          )
+        end
+
+        agent = DecisionAgent::Agent.new(
+          evaluators: evaluators,
+          scoring_strategy: DecisionAgent::Scoring::WeightedAverage.new
+        )
+
+        result = agent.decide(context: {})
+
+        expect(result.decision).to eq("consensus")
+        expect(result.confidence).to eq(1.0)
+      end
+
+      it "handles 100 evaluators with MaxWeight strategy" do
+        evaluators = 100.times.map do |i|
+          DecisionAgent::Evaluators::StaticEvaluator.new(
+            decision: "decision_#{i}",
+            weight: i / 100.0,  # Weights from 0.0 to 0.99
+            name: "Eval#{i}"
+          )
+        end
+
+        agent = DecisionAgent::Agent.new(
+          evaluators: evaluators,
+          scoring_strategy: DecisionAgent::Scoring::MaxWeight.new
+        )
+
+        result = agent.decide(context: {})
+
+        # Should pick the last one with highest weight (0.99)
+        expect(result.decision).to eq("decision_99")
+        expect(result.confidence).to be_within(0.001).of(0.99)
+      end
+
+      it "handles 100 evaluators with Consensus strategy" do
+        # Create 60 "approve" votes and 40 "reject" votes
+        evaluators = []
+        60.times do |i|
+          evaluators << DecisionAgent::Evaluators::StaticEvaluator.new(
+            decision: "approve",
+            weight: 0.6,
+            name: "ApproveEval#{i}"
+          )
+        end
+        40.times do |i|
+          evaluators << DecisionAgent::Evaluators::StaticEvaluator.new(
+            decision: "reject",
+            weight: 0.7,
+            name: "RejectEval#{i}"
+          )
+        end
+
+        agent = DecisionAgent::Agent.new(
+          evaluators: evaluators,
+          scoring_strategy: DecisionAgent::Scoring::Consensus.new(minimum_agreement: 0.5)
+        )
+
+        result = agent.decide(context: {})
+
+        # Approve has 60% agreement, should win
+        expect(result.decision).to eq("approve")
+        expect(result.evaluations.size).to eq(100)
+      end
+    end
+
+    describe "floating point precision edge cases" do
+      it "handles repeating decimals (0.333333...)" do
+        eval1 = DecisionAgent::Evaluators::StaticEvaluator.new(
+          decision: "approve",
+          weight: 1.0 / 3.0,  # 0.333333...
+          name: "Eval1"
+        )
+
+        eval2 = DecisionAgent::Evaluators::StaticEvaluator.new(
+          decision: "approve",
+          weight: 1.0 / 3.0,
+          name: "Eval2"
+        )
+
+        eval3 = DecisionAgent::Evaluators::StaticEvaluator.new(
+          decision: "approve",
+          weight: 1.0 / 3.0,
+          name: "Eval3"
+        )
+
+        agent = DecisionAgent::Agent.new(
+          evaluators: [eval1, eval2, eval3],
+          scoring_strategy: DecisionAgent::Scoring::WeightedAverage.new
+        )
+
+        result = agent.decide(context: {})
+
+        expect(result.decision).to eq("approve")
+        # Sum should be very close to 1.0
+        expect(result.confidence).to be_within(0.0001).of(1.0)
+      end
+
+      it "normalizes confidence to 4 decimal places" do
+        eval1 = DecisionAgent::Evaluators::StaticEvaluator.new(
+          decision: "approve",
+          weight: 0.123456789,  # Many decimal places
+          name: "Eval1"
+        )
+
+        agent = DecisionAgent::Agent.new(
+          evaluators: [eval1],
+          scoring_strategy: DecisionAgent::Scoring::WeightedAverage.new
+        )
+
+        result = agent.decide(context: {})
+
+        # Confidence should be rounded to 4 decimal places
+        expect(result.confidence.to_s.split('.').last.length).to be <= 4
+      end
+
+      it "handles very small weights (0.0001)" do
+        eval1 = DecisionAgent::Evaluators::StaticEvaluator.new(
+          decision: "approve",
+          weight: 0.0001,
+          name: "Eval1"
+        )
+
+        eval2 = DecisionAgent::Evaluators::StaticEvaluator.new(
+          decision: "reject",
+          weight: 0.0001,
+          name: "Eval2"
+        )
+
+        agent = DecisionAgent::Agent.new(
+          evaluators: [eval1, eval2],
+          scoring_strategy: DecisionAgent::Scoring::WeightedAverage.new
+        )
+
+        result = agent.decide(context: {})
+
+        # Should handle small weights without precision errors
+        expect(result.decision).to be_a(String)
+        expect(result.confidence).to be_between(0.0, 1.0)
+      end
+
+      it "handles weights that sum to slightly above 1.0 due to precision" do
+        eval1 = DecisionAgent::Evaluators::StaticEvaluator.new(
+          decision: "approve",
+          weight: 0.7,
+          name: "Eval1"
+        )
+
+        eval2 = DecisionAgent::Evaluators::StaticEvaluator.new(
+          decision: "approve",
+          weight: 0.3 + 0.0000001,  # Slightly above to create >1.0 sum
+          name: "Eval2"
+        )
+
+        agent = DecisionAgent::Agent.new(
+          evaluators: [eval1, eval2],
+          scoring_strategy: DecisionAgent::Scoring::WeightedAverage.new
+        )
+
+        result = agent.decide(context: {})
+
+        # Should normalize to 1.0 or below
+        expect(result.confidence).to be <= 1.0
+      end
+
+      it "handles Consensus with floating point agreement rates" do
+        # Create evaluators where agreement is not a clean fraction
+        evaluators = 7.times.map do |i|
+          DecisionAgent::Evaluators::StaticEvaluator.new(
+            decision: i < 4 ? "approve" : "reject",  # 4/7 = 0.571428...
+            weight: 0.6,
+            name: "Eval#{i}"
+          )
+        end
+
+        agent = DecisionAgent::Agent.new(
+          evaluators: evaluators,
+          scoring_strategy: DecisionAgent::Scoring::Consensus.new(minimum_agreement: 0.57)
+        )
+
+        result = agent.decide(context: {})
+
+        # Should handle fractional agreement correctly
+        expect(result.decision).to eq("approve")
+        expect(result.confidence).to be_a(Float)
       end
     end
   end
