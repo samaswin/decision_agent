@@ -681,8 +681,7 @@ MIT License. See [LICENSE.txt](LICENSE.txt).
 
 ## Support
 
-- GitHub Issues: [https://github.com/decision-agent/decision_agent/issues](https://github.com/decision-agent/decision_agent/issues)
-- Documentation: [https://decision-agent.dev](https://decision-agent.dev)
+- GitHub Issues: [https://github.com/samaswin87/decision_agent/issues](https://github.com/samaswin87/decision_agent/issues)
 
 ---
 
