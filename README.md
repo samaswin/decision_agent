@@ -1,7 +1,7 @@
 # DecisionAgent
 
 [![Gem Version](https://badge.fury.io/rb/decision_agent.svg)](https://badge.fury.io/rb/decision_agent)
-[![Build Status](https://github.com/samaswin87/decision_agent/workflows/Tests/badge.svg)](https://github.com/samaswin87/decision_agent/actions)
+[![CI](https://github.com/samaswin87/decision_agent/actions/workflows/ci.yml/badge.svg)](https://github.com/samaswin87/decision_agent/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.txt)
 [![Ruby](https://img.shields.io/badge/ruby-%3E%3D%202.7.0-red.svg)](https://www.ruby-lang.org)
 
