@@ -1,3 +1,9 @@
+require "simplecov"
+SimpleCov.start do
+  add_filter "/spec/"
+  add_filter "/examples/"
+end
+
 require "decision_agent"
 
 RSpec.configure do |config|

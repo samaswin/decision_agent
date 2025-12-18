@@ -16,9 +16,15 @@ Gem::Specification.new do |spec|
   spec.metadata["source_code_uri"] = "https://github.com/samaswin87/decision_agent"
   spec.metadata["changelog_uri"] = "https://github.com/samaswin87/decision_agent/blob/main/CHANGELOG.md"
 
-  spec.files = Dir.glob("{lib,spec}/**/*") + %w[README.md LICENSE.txt]
+  spec.files = Dir.glob("{lib,spec,bin}/**/*") + %w[README.md LICENSE.txt]
+  spec.bindir = "bin"
+  spec.executables = ["decision_agent"]
   spec.require_paths = ["lib"]
 
+  # Runtime dependencies
+  spec.add_dependency "sinatra", "~> 3.0"
+
+  # Development dependencies
   spec.add_development_dependency "rspec", "~> 3.12"
   spec.add_development_dependency "rake", "~> 13.0"
 end

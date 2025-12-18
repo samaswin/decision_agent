@@ -1,0 +1,104 @@
+#!/usr/bin/env ruby
+
+require "bundler/setup"
+require_relative "../lib/decision_agent"
+require_relative "../lib/decision_agent/web/server"
+
+def print_help
+  puts <<~HELP
+    DecisionAgent CLI
+
+    Usage:
+      decision_agent [command] [options]
+
+    Commands:
+      web [PORT]         Start the web UI rule builder (default port: 4567)
+      validate FILE      Validate a rules JSON file
+      version            Show version
+      help               Show this help message
+
+    Examples:
+      decision_agent web               # Start web UI on port 4567
+      decision_agent web 8080          # Start web UI on port 8080
+      decision_agent validate rules.json
+      decision_agent version
+
+    For more information, visit:
+    https://github.com/yourusername/decision_agent
+  HELP
+end
+
+def start_web_ui(port = 4567)
+  puts "🎯 Starting DecisionAgent Rule Builder..."
+  puts "📍 Server: http://localhost:#{port}"
+  puts "⚡️ Press Ctrl+C to stop"
+  puts ""
+
+  DecisionAgent::Web::Server.start!(port: port)
+end
+
+def validate_file(filepath)
+  unless File.exist?(filepath)
+    puts "❌ Error: File not found: #{filepath}"
+    exit 1
+  end
+
+  begin
+    puts "🔍 Validating #{filepath}..."
+
+    json_content = File.read(filepath)
+    data = JSON.parse(json_content)
+
+    DecisionAgent::Dsl::SchemaValidator.validate!(data)
+
+    puts "✅ Validation successful!"
+    puts "   Version: #{data['version'] || data[:version]}"
+    puts "   Ruleset: #{data['ruleset'] || data[:ruleset]}"
+    puts "   Rules: #{data['rules']&.size || 0}"
+
+  rescue JSON::ParserError => e
+    puts "❌ JSON Parsing Error:"
+    puts "   #{e.message}"
+    exit 1
+
+  rescue DecisionAgent::InvalidRuleDslError => e
+    puts "❌ Validation Failed:"
+    puts ""
+    puts e.message
+    exit 1
+
+  rescue => e
+    puts "❌ Unexpected Error:"
+    puts "   #{e.message}"
+    exit 1
+  end
+end
+
+# Main CLI handler
+command = ARGV[0] || "help"
+
+case command
+when "web"
+  port = ARGV[1] ? ARGV[1].to_i : 4567
+  start_web_ui(port)
+
+when "validate"
+  if ARGV[1].nil?
+    puts "❌ Error: Please provide a file path"
+    puts "Usage: decision_agent validate FILE"
+    exit 1
+  end
+  validate_file(ARGV[1])
+
+when "version"
+  puts "DecisionAgent version #{DecisionAgent::VERSION}"
+
+when "help", "-h", "--help"
+  print_help
+
+else
+  puts "❌ Unknown command: #{command}"
+  puts ""
+  print_help
+  exit 1
+end

@@ -38,6 +38,25 @@ Or install directly:
 gem install decision_agent
 ```
 
+## Web UI - Visual Rule Builder 🎯
+
+For non-technical users, DecisionAgent includes a web-based visual rule builder:
+
+```bash
+decision_agent web
+```
+
+Then open [http://localhost:4567](http://localhost:4567) in your browser.
+
+The Web UI provides:
+- 📝 **Visual rule creation** - Build rules using forms and dropdowns
+- 🔍 **Live validation** - Instant feedback on rule correctness
+- 📤 **Export/Import** - Download or upload rules as JSON
+- 📚 **Example templates** - Pre-built rule sets to get started
+- ✨ **No coding required** - Perfect for business analysts and domain experts
+
+See [WEB_UI.md](WEB_UI.md) for detailed documentation.
+
 ## Quick Start
 
 ```ruby
@@ -1021,9 +1040,9 @@ MIT License. See [LICENSE.txt](LICENSE.txt).
 
 ## Roadmap
 
+- [x] Rule validation CLI ✓
+- [x] Web UI for rule editing ✓
 - [ ] Performance benchmarks
-- [ ] Rule validation CLI
-- [ ] Web UI for rule editing
 - [ ] Prometheus metrics adapter
 - [ ] Additional scoring strategies (Bayesian, etc.)
 - [ ] AI evaluator adapter (optional, non-deterministic mode)

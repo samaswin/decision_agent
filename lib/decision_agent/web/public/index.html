@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DecisionAgent Rule Builder</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 DecisionAgent Rule Builder</h1>
+            <p class="subtitle">Visual rule editor for non-technical users</p>
+        </header>
+
+        <div class="main-layout">
+            <!-- Left Panel: Rule Builder -->
+            <div class="panel builder-panel">
+                <div class="panel-header">
+                    <h2>Rule Configuration</h2>
+                    <button class="btn btn-secondary" id="loadExampleBtn">Load Example</button>
+                </div>
+
+                <!-- Ruleset Metadata -->
+                <div class="section">
+                    <h3>Ruleset Information</h3>
+                    <div class="form-group">
+                        <label for="rulesetVersion">Version:</label>
+                        <input type="text" id="rulesetVersion" value="1.0" class="input">
+                    </div>
+                    <div class="form-group">
+                        <label for="rulesetName">Ruleset Name:</label>
+                        <input type="text" id="rulesetName" placeholder="my_ruleset" class="input">
+                    </div>
+                </div>
+
+                <!-- Rules List -->
+                <div class="section">
+                    <div class="section-header">
+                        <h3>Rules</h3>
+                        <button class="btn btn-primary" id="addRuleBtn">+ Add Rule</button>
+                    </div>
+                    <div id="rulesContainer" class="rules-container">
+                        <!-- Rules will be added here dynamically -->
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="actions">
+                    <button class="btn btn-success" id="validateBtn">✓ Validate Rules</button>
+                    <button class="btn btn-secondary" id="clearBtn">Clear All</button>
+                </div>
+            </div>
+
+            <!-- Right Panel: JSON Preview & Validation -->
+            <div class="panel preview-panel">
+                <div class="panel-header">
+                    <h2>JSON Output</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary" id="copyBtn">📋 Copy</button>
+                        <button class="btn btn-secondary" id="downloadBtn">⬇ Download</button>
+                        <label for="importFile" class="btn btn-secondary">📁 Import
+                            <input type="file" id="importFile" accept=".json" style="display: none;">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- JSON Preview -->
+                <div class="json-preview">
+                    <pre id="jsonOutput" class="json-code">{}</pre>
+                </div>
+
+                <!-- Validation Status -->
+                <div id="validationStatus" class="validation-status hidden">
+                    <div class="status-icon"></div>
+                    <div class="status-message"></div>
+                </div>
+
+                <!-- Validation Errors -->
+                <div id="validationErrors" class="validation-errors hidden">
+                    <h4>Validation Errors:</h4>
+                    <ul id="errorList"></ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rule Editor Modal -->
+        <div id="ruleModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modalTitle">Edit Rule</h2>
+                    <button class="close-btn" id="closeModalBtn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <!-- Rule ID -->
+                    <div class="form-group">
+                        <label for="ruleId">Rule ID: <span class="required">*</span></label>
+                        <input type="text" id="ruleId" class="input" placeholder="unique_rule_id" required>
+                    </div>
+
+                    <!-- Condition Builder -->
+                    <div class="form-group">
+                        <label>Condition (IF): <span class="required">*</span></label>
+                        <div id="conditionBuilder" class="condition-builder">
+                            <!-- Condition will be built here -->
+                        </div>
+                    </div>
+
+                    <!-- Then Clause -->
+                    <div class="form-group">
+                        <label>Then (Action): <span class="required">*</span></label>
+                        <div class="then-clause">
+                            <div class="form-row">
+                                <div class="form-col">
+                                    <label for="thenDecision">Decision: <span class="required">*</span></label>
+                                    <input type="text" id="thenDecision" class="input" placeholder="approve" required>
+                                </div>
+                                <div class="form-col">
+                                    <label for="thenWeight">Weight (0.0-1.0):</label>
+                                    <input type="number" id="thenWeight" class="input" min="0" max="1" step="0.1" value="0.8">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-col full-width">
+                                    <label for="thenReason">Reason:</label>
+                                    <textarea id="thenReason" class="input" rows="2" placeholder="Explanation for this decision"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="cancelModalBtn">Cancel</button>
+                    <button class="btn btn-primary" id="saveRuleBtn">Save Rule</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Condition Builder Template -->
+        <template id="fieldConditionTemplate">
+            <div class="condition-item field-condition">
+                <select class="condition-type-select">
+                    <option value="field">Field Condition</option>
+                    <option value="all">All (AND)</option>
+                    <option value="any">Any (OR)</option>
+                </select>
+                <div class="field-condition-inputs">
+                    <input type="text" class="field-path input-sm" placeholder="field.path">
+                    <select class="operator-select input-sm">
+                        <option value="eq">equals (==)</option>
+                        <option value="neq">not equals (!=)</option>
+                        <option value="gt">greater than (>)</option>
+                        <option value="gte">greater or equal (>=)</option>
+                        <option value="lt">less than (<)</option>
+                        <option value="lte">less or equal (<=)</option>
+                        <option value="in">in array</option>
+                        <option value="present">is present</option>
+                        <option value="blank">is blank</option>
+                    </select>
+                    <input type="text" class="field-value input-sm" placeholder="value">
+                </div>
+                <button class="btn-remove" title="Remove condition">×</button>
+            </div>
+        </template>
+
+        <template id="compositeConditionTemplate">
+            <div class="condition-item composite-condition">
+                <div class="composite-header">
+                    <select class="condition-type-select">
+                        <option value="field">Field Condition</option>
+                        <option value="all">All (AND)</option>
+                        <option value="any">Any (OR)</option>
+                    </select>
+                    <button class="btn-add-subcondition btn-sm">+ Add Condition</button>
+                    <button class="btn-remove" title="Remove">×</button>
+                </div>
+                <div class="subconditions-container">
+                    <!-- Subconditions will be added here -->
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <footer class="footer">
+        <p>DecisionAgent Rule Builder | <a href="https://github.com/yourusername/decision_agent" target="_blank">Documentation</a></p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
