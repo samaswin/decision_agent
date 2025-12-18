@@ -46,7 +46,6 @@ GEM
 
 PLATFORMS
   arm64-darwin-23
-  ruby
 
 DEPENDENCIES
   decision_agent!
@@ -55,4 +54,4 @@ DEPENDENCIES
   simplecov (~> 0.22)
 
 BUNDLED WITH
-   2.5.22
+   2.4.22
