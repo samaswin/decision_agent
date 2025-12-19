@@ -57,6 +57,9 @@ The Web UI provides:
 
 See [WEB_UI.md](WEB_UI.md) for detailed documentation.
 
+<img width="1602" height="770" alt="Screenshot 2025-12-19 at 3 06 07 PM" src="https://github.com/user-attachments/assets/6ee6859c-f9f2-4f93-8bff-923986ccb1bc" />
+
+
 ## Quick Start
 
 ```ruby
