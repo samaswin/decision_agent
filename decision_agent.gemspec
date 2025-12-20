@@ -24,6 +24,9 @@ Gem::Specification.new do |spec|
   # Runtime dependencies
   spec.add_dependency "sinatra", "~> 3.0"
 
+  # Optional dependencies for Rails integration
+  # spec.add_dependency "activerecord", "~> 7.0"  # Uncomment when using with Rails
+
   # Development dependencies
   spec.add_development_dependency "rspec", "~> 3.12"
   spec.add_development_dependency "rake", "~> 13.0"

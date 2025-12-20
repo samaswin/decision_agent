@@ -1,0 +1,47 @@
+===============================================================================
+
+DecisionAgent has been installed!
+
+Next steps:
+
+1. Run the migrations:
+
+   rails db:migrate
+
+2. The following models have been created:
+   - Rule (app/models/rule.rb)
+   - RuleVersion (app/models/rule_version.rb)
+
+3. Start using the versioning system:
+
+   # Create a rule with a version
+   rule = Rule.create!(
+     rule_id: 'approval_rule_001',
+     ruleset: 'approval',
+     description: 'Approval decision rules'
+   )
+
+   # Create a version
+   rule.create_version(
+     content: { /* your rule JSON */ },
+     created_by: 'admin',
+     changelog: 'Initial version'
+   )
+
+   # Or use the VersionManager directly
+   manager = DecisionAgent::Versioning::VersionManager.new
+   manager.save_version(
+     rule_id: 'approval_rule_001',
+     rule_content: { /* your rule JSON */ },
+     created_by: 'admin'
+   )
+
+4. Optional: Mount the DecisionAgent routes in config/routes.rb:
+
+   # This is planned for a future release
+   # mount DecisionAgent::Engine => '/decision_agent'
+
+For more information, visit:
+https://github.com/samaswin87/decision_agent
+
+===============================================================================

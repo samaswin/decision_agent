@@ -1,0 +1,105 @@
+require_relative "adapter"
+
+module DecisionAgent
+  module Versioning
+    # ActiveRecord-based version storage adapter for Rails applications
+    # Requires ActiveRecord models to be set up in the Rails app
+    class ActiveRecordAdapter < Adapter
+      def initialize
+        unless defined?(ActiveRecord)
+          raise DecisionAgent::ConfigurationError,
+                "ActiveRecord is not available. Please ensure Rails/ActiveRecord is loaded."
+        end
+      end
+
+      def create_version(rule_id:, content:, metadata: {})
+        # Get the next version number for this rule
+        last_version = rule_version_class.where(rule_id: rule_id)
+                                        .order(version_number: :desc)
+                                        .first
+        next_version_number = last_version ? last_version.version_number + 1 : 1
+
+        # Deactivate previous active versions
+        rule_version_class.where(rule_id: rule_id, status: "active")
+                         .update_all(status: "archived")
+
+        # Create new version
+        version = rule_version_class.create!(
+          rule_id: rule_id,
+          version_number: next_version_number,
+          content: content.to_json,
+          created_by: metadata[:created_by] || "system",
+          changelog: metadata[:changelog] || "Version #{next_version_number}",
+          status: metadata[:status] || "active"
+        )
+
+        serialize_version(version)
+      end
+
+      def list_versions(rule_id:, limit: nil)
+        query = rule_version_class.where(rule_id: rule_id)
+                                  .order(version_number: :desc)
+        query = query.limit(limit) if limit
+
+        query.map { |v| serialize_version(v) }
+      end
+
+      def get_version(version_id:)
+        version = rule_version_class.find_by(id: version_id)
+        version ? serialize_version(version) : nil
+      end
+
+      def get_version_by_number(rule_id:, version_number:)
+        version = rule_version_class.find_by(
+          rule_id: rule_id,
+          version_number: version_number
+        )
+        version ? serialize_version(version) : nil
+      end
+
+      def get_active_version(rule_id:)
+        version = rule_version_class.find_by(rule_id: rule_id, status: "active")
+        version ? serialize_version(version) : nil
+      end
+
+      def activate_version(version_id:)
+        version = rule_version_class.find(version_id)
+
+        # Deactivate all other versions for this rule
+        rule_version_class.where(rule_id: version.rule_id, status: "active")
+                         .where.not(id: version_id)
+                         .update_all(status: "archived")
+
+        # Activate this version
+        version.update!(status: "active")
+
+        serialize_version(version)
+      end
+
+      private
+
+      def rule_version_class
+        # Look for the RuleVersion model in the main app
+        if defined?(::RuleVersion)
+          ::RuleVersion
+        else
+          raise DecisionAgent::ConfigurationError,
+                "RuleVersion model not found. Please run the generator to create it."
+        end
+      end
+
+      def serialize_version(version)
+        {
+          id: version.id,
+          rule_id: version.rule_id,
+          version_number: version.version_number,
+          content: JSON.parse(version.content),
+          created_by: version.created_by,
+          created_at: version.created_at,
+          changelog: version.changelog,
+          status: version.status
+        }
+      end
+    end
+  end
+end

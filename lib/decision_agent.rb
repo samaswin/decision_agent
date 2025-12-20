@@ -25,5 +25,8 @@ require_relative "decision_agent/audit/logger_adapter"
 
 require_relative "decision_agent/replay/replay"
 
+require_relative "decision_agent/versioning/adapter"
+require_relative "decision_agent/versioning/version_manager"
+
 module DecisionAgent
 end

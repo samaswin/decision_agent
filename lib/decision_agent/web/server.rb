@@ -223,7 +223,146 @@ module DecisionAgent
         { status: "ok", version: DecisionAgent::VERSION }.to_json
       end
 
+      # Versioning API endpoints
+
+      # Create a new version
+      post "/api/versions" do
+        content_type :json
+
+        begin
+          request_body = request.body.read
+          data = JSON.parse(request_body)
+
+          rule_id = data["rule_id"]
+          rule_content = data["content"]
+          created_by = data["created_by"] || "system"
+          changelog = data["changelog"]
+
+          version = version_manager.save_version(
+            rule_id: rule_id,
+            rule_content: rule_content,
+            created_by: created_by,
+            changelog: changelog
+          )
+
+          status 201
+          version.to_json
+
+        rescue => e
+          status 500
+          { error: e.message }.to_json
+        end
+      end
+
+      # List all versions for a rule
+      get "/api/rules/:rule_id/versions" do
+        content_type :json
+
+        begin
+          rule_id = params[:rule_id]
+          limit = params[:limit]&.to_i
+
+          versions = version_manager.get_versions(rule_id: rule_id, limit: limit)
+
+          versions.to_json
+
+        rescue => e
+          status 500
+          { error: e.message }.to_json
+        end
+      end
+
+      # Get version history with metadata
+      get "/api/rules/:rule_id/history" do
+        content_type :json
+
+        begin
+          rule_id = params[:rule_id]
+          history = version_manager.get_history(rule_id: rule_id)
+
+          history.to_json
+
+        rescue => e
+          status 500
+          { error: e.message }.to_json
+        end
+      end
+
+      # Get a specific version
+      get "/api/versions/:version_id" do
+        content_type :json
+
+        begin
+          version_id = params[:version_id]
+          version = version_manager.get_version(version_id: version_id)
+
+          if version
+            version.to_json
+          else
+            status 404
+            { error: "Version not found" }.to_json
+          end
+
+        rescue => e
+          status 500
+          { error: e.message }.to_json
+        end
+      end
+
+      # Activate a version (rollback)
+      post "/api/versions/:version_id/activate" do
+        content_type :json
+
+        begin
+          version_id = params[:version_id]
+          request_body = request.body.read
+          data = request_body.empty? ? {} : JSON.parse(request_body)
+          performed_by = data["performed_by"] || "system"
+
+          version = version_manager.rollback(
+            version_id: version_id,
+            performed_by: performed_by
+          )
+
+          version.to_json
+
+        rescue => e
+          status 500
+          { error: e.message }.to_json
+        end
+      end
+
+      # Compare two versions
+      get "/api/versions/:version_id_1/compare/:version_id_2" do
+        content_type :json
+
+        begin
+          version_id_1 = params[:version_id_1]
+          version_id_2 = params[:version_id_2]
+
+          comparison = version_manager.compare(
+            version_id_1: version_id_1,
+            version_id_2: version_id_2
+          )
+
+          if comparison
+            comparison.to_json
+          else
+            status 404
+            { error: "One or both versions not found" }.to_json
+          end
+
+        rescue => e
+          status 500
+          { error: e.message }.to_json
+        end
+      end
+
       private
+
+      def version_manager
+        @version_manager ||= DecisionAgent::Versioning::VersionManager.new
+      end
 
       def parse_validation_errors(error_message)
         # Extract individual errors from the formatted error message
