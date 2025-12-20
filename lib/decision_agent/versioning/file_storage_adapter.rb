@@ -134,7 +134,16 @@ module DecisionAgent
         filename = "#{version[:version_number]}.json"
         filepath = File.join(rule_dir, filename)
 
-        File.write(filepath, JSON.pretty_generate(version))
+        # Use atomic write to prevent race conditions during concurrent access
+        # Write to temp file first, then atomically rename
+        temp_file = "#{filepath}.tmp.#{Process.pid}.#{Thread.current.object_id}"
+        begin
+          File.write(temp_file, JSON.pretty_generate(version))
+          File.rename(temp_file, filepath)
+        ensure
+          # Clean up temp file if rename failed
+          File.delete(temp_file) if File.exist?(temp_file)
+        end
       end
 
       def generate_version_id(rule_id, version_number)
