@@ -2,6 +2,7 @@ require_relative "decision_agent/version"
 require_relative "decision_agent/errors"
 require_relative "decision_agent/context"
 require_relative "decision_agent/evaluation"
+require_relative "decision_agent/evaluation_validator"
 require_relative "decision_agent/decision"
 require_relative "decision_agent/agent"
 

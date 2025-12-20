@@ -10,6 +10,8 @@ module DecisionAgent
       @reason = reason.to_s.freeze
       @evaluator_name = evaluator_name.to_s.freeze
       @metadata = deep_freeze(metadata)
+
+      freeze
     end
 
     def to_h

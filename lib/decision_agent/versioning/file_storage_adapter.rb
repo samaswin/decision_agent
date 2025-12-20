@@ -27,13 +27,13 @@ module DecisionAgent
 
       def create_version_unsafe(rule_id:, content:, metadata: {})
         # Get the next version number
-        versions = list_versions(rule_id: rule_id)
+        versions = list_versions_unsafe(rule_id: rule_id)
         next_version_number = versions.empty? ? 1 : versions.first[:version_number] + 1
 
         # Deactivate previous active versions
         versions.each do |v|
           if v[:status] == "active"
-            update_version_status(v[:id], "archived")
+            update_version_status_unsafe(v[:id], "archived")
           end
         end
 
@@ -59,42 +59,40 @@ module DecisionAgent
       public
 
       def list_versions(rule_id:, limit: nil)
-        versions = []
-        rule_dir = File.join(@storage_path, sanitize_filename(rule_id))
-
-        return versions unless Dir.exist?(rule_dir)
-
-        Dir.glob(File.join(rule_dir, "*.json")).each do |file|
-          versions << JSON.parse(File.read(file), symbolize_names: true)
+        @mutex.synchronize do
+          list_versions_unsafe(rule_id: rule_id, limit: limit)
         end
-
-        versions.sort_by! { |v| -v[:version_number] }
-        limit ? versions.take(limit) : versions
       end
 
       def get_version(version_id:)
-        all_versions.find { |v| v[:id] == version_id }
+        @mutex.synchronize do
+          all_versions_unsafe.find { |v| v[:id] == version_id }
+        end
       end
 
       def get_version_by_number(rule_id:, version_number:)
-        versions = list_versions(rule_id: rule_id)
-        versions.find { |v| v[:version_number] == version_number }
+        @mutex.synchronize do
+          versions = list_versions_unsafe(rule_id: rule_id)
+          versions.find { |v| v[:version_number] == version_number }
+        end
       end
 
       def get_active_version(rule_id:)
-        versions = list_versions(rule_id: rule_id)
-        versions.find { |v| v[:status] == "active" }
+        @mutex.synchronize do
+          versions = list_versions_unsafe(rule_id: rule_id)
+          versions.find { |v| v[:status] == "active" }
+        end
       end
 
       def activate_version(version_id:)
         @mutex.synchronize do
-          version = get_version(version_id: version_id)
+          version = all_versions_unsafe.find { |v| v[:id] == version_id }
           raise DecisionAgent::NotFoundError, "Version not found: #{version_id}" unless version
 
           # Deactivate all other versions for this rule
-          list_versions(rule_id: version[:rule_id]).each do |v|
+          list_versions_unsafe(rule_id: version[:rule_id]).each do |v|
             if v[:id] != version_id && v[:status] == "active"
-              update_version_status(v[:id], "archived")
+              update_version_status_unsafe(v[:id], "archived")
             end
           end
 
@@ -108,7 +106,7 @@ module DecisionAgent
 
       def delete_version(version_id:)
         @mutex.synchronize do
-          version = get_version(version_id: version_id)
+          version = all_versions_unsafe.find { |v| v[:id] == version_id }
           raise DecisionAgent::NotFoundError, "Version not found: #{version_id}" unless version
 
           # Prevent deletion of active versions
@@ -132,7 +130,21 @@ module DecisionAgent
 
       private
 
-      def all_versions
+      def list_versions_unsafe(rule_id:, limit: nil)
+        versions = []
+        rule_dir = File.join(@storage_path, sanitize_filename(rule_id))
+
+        return versions unless Dir.exist?(rule_dir)
+
+        Dir.glob(File.join(rule_dir, "*.json")).each do |file|
+          versions << JSON.parse(File.read(file), symbolize_names: true)
+        end
+
+        versions.sort_by! { |v| -v[:version_number] }
+        limit ? versions.take(limit) : versions
+      end
+
+      def all_versions_unsafe
         versions = []
         return versions unless Dir.exist?(@storage_path)
 
@@ -143,8 +155,8 @@ module DecisionAgent
         versions
       end
 
-      def update_version_status(version_id, status)
-        version = get_version(version_id: version_id)
+      def update_version_status_unsafe(version_id, status)
+        version = all_versions_unsafe.find { |v| v[:id] == version_id }
         return unless version
 
         version[:status] = status

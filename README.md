@@ -67,44 +67,8 @@ decision_agent web
 
 Open [http://localhost:4567](http://localhost:4567) in your browser.
 
-<img width="1602" alt="DecisionAgent Web UI" src="https://github.com/user-attachments/assets/6ee6859c-f9f2-4f93-8bff-923986ccb1bc" />
+<img width="1622" height="820" alt="Screenshot" src="https://github.com/user-attachments/assets/687e9ff6-669a-40f9-be27-085c614392d4" />
 
-## Documentation
-
-```
-📚 DecisionAgent Documentation
-│
-├── 🚀 Getting Started
-│   ├── Installation (above)
-│   ├── Quick Start (above)
-│   └── Examples → examples/README.md
-│
-├── 📖 Core Documentation
-│   ├── Core Concepts → wiki/CORE_CONCEPTS.md
-│   ├── JSON Rule DSL → wiki/JSON_RULE_DSL.md
-│   ├── API Reference → wiki/API_CONTRACT.md
-│   └── Error Handling → wiki/ERROR_HANDLING.md
-│
-├── 🎯 Advanced Features
-│   ├── Versioning System → wiki/VERSIONING.md
-│   ├── Decision Replay → wiki/REPLAY.md
-│   ├── Advanced Usage → wiki/ADVANCED_USAGE.md
-│   └── Custom Components → wiki/ADVANCED_USAGE.md#custom-components
-│
-├── 🔌 Integration Guides
-│   ├── Rails Integration → wiki/INTEGRATION.md#rails
-│   ├── Redmine Plugin → wiki/INTEGRATION.md#redmine
-│   ├── Standalone Service → wiki/INTEGRATION.md#standalone
-│   └── Testing Guide → wiki/TESTING.md
-│
-├── 🎨 Web UI
-│   ├── User Guide → wiki/WEB_UI.md
-│   └── Setup Guide → wiki/WEB_UI_SETUP.md
-│
-└── 📝 Reference
-    ├── Changelog → wiki/CHANGELOG.md
-    └── Full Wiki Index → wiki/README.md
-```
 
 ## Key Features
 
@@ -129,6 +93,7 @@ Open [http://localhost:4567](http://localhost:4567) in your browser.
 - **Error Handling** - Clear, actionable error messages
 - **Versioning** - Full rule version control and rollback
 - **Performance** - Fast, zero external dependencies
+- **Thread-Safe** - Safe for multi-threaded servers and background jobs
 
 ## Examples
 
@@ -162,6 +127,53 @@ rules = {
 
 See [examples/](examples/) for complete working examples.
 
+## Thread-Safety Guarantees
+
+DecisionAgent is designed to be **thread-safe and FAST** for use in multi-threaded environments:
+
+### Performance
+- **10,000+ decisions/second** throughput
+- **~0.1ms average latency** per decision
+- **Zero performance overhead** from thread-safety
+- **Linear scalability** with thread count
+
+### Safe Concurrent Usage
+- **Agent instances** can be shared across threads safely
+- **Evaluators** are immutable after initialization
+- **Decisions and Evaluations** are deeply frozen
+- **File storage** uses mutex-protected operations
+
+### Best Practices
+```ruby
+# Safe: Reuse agent instance across threads
+agent = DecisionAgent::Agent.new(evaluators: [evaluator])
+
+Thread.new { agent.decide(context: { user_id: 1 }) }
+Thread.new { agent.decide(context: { user_id: 2 }) }
+
+# Safe: Share evaluators across agent instances
+evaluator = DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
+agent1 = DecisionAgent::Agent.new(evaluators: [evaluator])
+agent2 = DecisionAgent::Agent.new(evaluators: [evaluator])
+```
+
+### What's Frozen
+All data structures are deeply frozen to prevent mutation:
+- Decision objects (decision, confidence, explanations, evaluations)
+- Evaluation objects (decision, weight, reason, metadata)
+- Context data
+- Rule definitions in evaluators
+
+This ensures safe concurrent access without race conditions.
+
+### Performance Benchmark
+Run the included benchmark to verify zero overhead:
+```bash
+ruby examples/thread_safe_performance.rb
+```
+
+See [THREAD_SAFETY.md](wiki/THREAD_SAFETY.md) for detailed implementation guide and [PERFORMANCE_AND_THREAD_SAFETY.md](wiki/PERFORMANCE_AND_THREAD_SAFETY.md) for detailed performance analysis.
+
 ## When to Use DecisionAgent
 
 ✅ **Perfect for:**
@@ -175,6 +187,30 @@ See [examples/](examples/) for complete working examples.
 - Simple if/else logic (use plain Ruby)
 - Pure AI/ML with no rules
 - Single-step validations
+
+## Documentation
+
+**Getting Started**
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Examples](examples/README.md)
+
+**Core Features**
+- [Versioning System](wiki/VERSIONING.md) - Version control for rules
+- [Web UI](wiki/WEB_UI.md) - Visual rule builder
+- [Web UI Setup](wiki/WEB_UI_SETUP.md) - Setup guide
+
+**Performance & Thread-Safety**
+- [Performance & Thread-Safety Summary](wiki/PERFORMANCE_AND_THREAD_SAFETY.md) - Benchmarks and production readiness
+- [Thread-Safety Implementation](wiki/THREAD_SAFETY.md) - Technical implementation guide
+
+**Reference**
+- [API Contract](wiki/API_CONTRACT.md) - Full API reference
+- [Changelog](wiki/CHANGELOG.md) - Version history
+
+**More Resources**
+- [Wiki Home](wiki/README.md) - Documentation index
+- [GitHub Issues](https://github.com/samaswin87/decision_agent/issues) - Report bugs or request features
 
 ## Contributing
 

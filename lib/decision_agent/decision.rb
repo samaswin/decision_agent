@@ -10,6 +10,8 @@ module DecisionAgent
       @explanations = Array(explanations).map(&:freeze).freeze
       @evaluations = Array(evaluations).freeze
       @audit_payload = deep_freeze(audit_payload)
+
+      freeze
     end
 
     def to_h
