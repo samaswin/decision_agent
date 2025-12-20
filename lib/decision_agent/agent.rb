@@ -11,6 +11,9 @@ module DecisionAgent
       @audit_adapter = audit_adapter || Audit::NullAdapter.new
 
       validate_configuration!
+
+      # Freeze instance variables for thread-safety
+      @evaluators.freeze
     end
 
     def decide(context:, feedback: {})
@@ -19,6 +22,9 @@ module DecisionAgent
       evaluations = collect_evaluations(ctx, feedback)
 
       raise NoEvaluationsError if evaluations.empty?
+
+      # Validate all evaluations for correctness and thread-safety
+      EvaluationValidator.validate_all!(evaluations)
 
       scored_result = @scoring_strategy.score(evaluations)
 
@@ -74,7 +80,7 @@ module DecisionAgent
       @evaluators.map do |evaluator|
         begin
           evaluator.evaluate(context, feedback: feedback)
-        rescue => e
+        rescue StandardError
           nil
         end
       end.compact

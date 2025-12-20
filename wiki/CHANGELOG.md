@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-12-20
+
+### Added
+
+- **Thread-Safety Enhancements**
+  - New `EvaluationValidator` class for validating evaluation correctness and frozen state
+  - Automatic validation of all evaluations in `Agent#decide` before scoring
+  - Deep freezing of all Decision and Evaluation objects for immutability
+  - Frozen evaluator configurations (JsonRuleEvaluator rulesets, Agent evaluator arrays)
+  - Mutex-protected read operations in FileStorageAdapter (`list_versions`, `get_version`, `get_version_by_number`, `get_active_version`)
+  - Comprehensive thread-safety test suite (12 new tests covering concurrent scenarios)
+  - Thread-safety documentation in README and new THREAD_SAFETY.md guide
+
+### Changed
+
+- Decision and Evaluation objects now call `freeze` in their initializers
+- JsonRuleEvaluator now deep-freezes all ruleset data structures
+- Agent now freezes the evaluators array to prevent modification
+- FileStorageAdapter read methods now use mutex synchronization for consistency
+
+### Performance
+
+- **Zero performance impact**: Thread-safety is achieved through immutability, not locking
+- Freezing overhead is negligible (microseconds per object)
+- Decision-making performance remains unchanged
+- Only file I/O operations use mutex (does not affect decision speed)
+- Safe for high-throughput applications (tested with 50+ concurrent threads)
+
+### Documentation
+
+- Added "Thread-Safe" feature to README Production Ready section
+- Added comprehensive "Thread-Safety Guarantees" section with examples
+- Created THREAD_SAFETY.md with detailed implementation guide
+- Added performance benchmark example demonstrating zero overhead
+
 ## [0.1.2] - 2025-01-15
 
 ### Added

@@ -2,31 +2,46 @@
 
 Welcome to the DecisionAgent documentation wiki.
 
-## 📚 Available Documentation
+## 📚 Documentation Tree
 
 ### Getting Started
 - [Main README](../README.md) - Installation, quick start, and overview
 - [Examples](../examples/README.md) - Code examples and tutorials
 
 ### Core Features
-- [**Versioning System**](VERSIONING.md) - Rule version control, rollback, and history ✅
-- [**Web UI**](WEB_UI.md) - Visual rule builder interface ✅
-- [**Web UI Setup**](WEB_UI_SETUP.md) - Setup and configuration guide ✅
+- [**Versioning System**](VERSIONING.md) - Rule version control, rollback, and history
+- [**Web UI**](WEB_UI.md) - Visual rule builder interface
+- [**Web UI Setup**](WEB_UI_SETUP.md) - Setup and configuration guide
+
+### Performance & Thread-Safety
+- [**Performance & Thread-Safety Summary**](PERFORMANCE_AND_THREAD_SAFETY.md) - Executive summary, benchmarks, and production readiness
+- [**Thread-Safety Implementation**](THREAD_SAFETY.md) - Detailed implementation guide and migration notes
 
 ### Reference
-- [**API Contract**](API_CONTRACT.md) - Complete API specifications ✅
-- [**Changelog**](CHANGELOG.md) - Version history and updates ✅
+- [**API Contract**](API_CONTRACT.md) - Complete API specifications
+- [**Changelog**](CHANGELOG.md) - Version history and updates
 
 ## 📝 Documentation Structure
 
 ```
 wiki/
-├── README.md (this file)
-├── VERSIONING.md        - Rule version control and management
-├── WEB_UI.md            - Web interface user guide
-├── WEB_UI_SETUP.md      - Web interface setup
-├── API_CONTRACT.md      - Full API reference
-└── CHANGELOG.md         - Release notes and history
+├── README.md (this file) - Documentation index and navigation
+│
+├── Getting Started
+│   └── See ../README.md and ../examples/README.md
+│
+├── Core Features
+│   ├── VERSIONING.md               - Rule version control and management
+│   ├── WEB_UI.md                   - Web interface user guide
+│   └── WEB_UI_SETUP.md             - Web interface setup
+│
+├── Performance & Thread-Safety
+│   ├── PERFORMANCE_AND_THREAD_SAFETY.md  - Executive summary and benchmarks
+│   └── THREAD_SAFETY.md                  - Implementation details
+│
+└── Reference
+    ├── API_CONTRACT.md             - Full API reference
+    └── CHANGELOG.md                - Release notes and history
 ```
 
 ## 🔗 Quick Links

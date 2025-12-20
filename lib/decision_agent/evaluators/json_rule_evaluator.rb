@@ -10,6 +10,12 @@ module DecisionAgent
         @ruleset = Dsl::RuleParser.parse(@rules_json)
         @ruleset_name = @ruleset["ruleset"] || "unknown"
         @name = name || "JsonRuleEvaluator(#{@ruleset_name})"
+
+        # Freeze ruleset to ensure thread-safety
+        deep_freeze(@ruleset)
+        @rules_json.freeze
+        @ruleset_name.freeze
+        @name.freeze
       end
 
       def evaluate(context, feedback: {})
@@ -45,6 +51,23 @@ module DecisionAgent
 
           Dsl::ConditionEvaluator.evaluate(if_clause, context)
         end
+      end
+
+      # Deep freeze helper method
+      def deep_freeze(obj)
+        case obj
+        when Hash
+          obj.each { |k, v| deep_freeze(k); deep_freeze(v) }
+          obj.freeze
+        when Array
+          obj.each { |item| deep_freeze(item) }
+          obj.freeze
+        when String, Symbol, Numeric, TrueClass, FalseClass, NilClass
+          obj.freeze
+        else
+          obj.freeze if obj.respond_to?(:freeze)
+        end
+        obj
       end
     end
   end
