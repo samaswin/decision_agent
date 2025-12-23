@@ -150,7 +150,7 @@ RSpec.describe DecisionAgent::Monitoring::PrometheusExporter do
       )
 
       output = exporter.export
-      expect(output).to include('message=\"Contains \\"quotes\\"\"')
+      expect(output).to include('message="Contains \"quotes\""')
     end
   end
 

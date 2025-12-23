@@ -226,7 +226,7 @@ module DecisionAgent
       end
 
       def sanitize_label(value)
-        value.to_s.gsub(/"/, '\\"')
+        value.to_s.gsub("\\", "\\\\").gsub('"', '\\"').gsub("\n", "\\n")
       end
 
       def counter_metric(name, value)

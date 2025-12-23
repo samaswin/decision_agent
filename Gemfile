@@ -7,4 +7,6 @@ group :development, :test do
   gem "rspec", "~> 3.12"
   gem "simplecov", "~> 0.22", require: false
   gem "puma"
+  gem "activerecord", "~> 7.0"
+  gem "sqlite3", "~> 1.6"
 end
