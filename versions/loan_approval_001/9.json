@@ -1,7 +1,7 @@
 {
-  "id": "loan_approval_001_v5",
+  "id": "loan_approval_001_v9",
   "rule_id": "loan_approval_001",
-  "version_number": 5,
+  "version_number": 9,
   "content": {
     "version": "1.0",
     "ruleset": "loan_approval",
@@ -40,11 +40,24 @@
           "weight": 0.95,
           "reason": "Large loan requires manual review"
         }
+      },
+      {
+        "id": "fraud_check",
+        "if": {
+          "field": "fraud_risk_score",
+          "op": "gt",
+          "value": 0.8
+        },
+        "then": {
+          "decision": "reject",
+          "weight": 1.0,
+          "reason": "High fraud risk detected"
+        }
       }
     ]
   },
-  "created_by": "risk_team",
-  "created_at": "2025-12-21T16:33:35Z",
-  "changelog": "Increased minimum credit score to 700",
+  "created_by": "security_team",
+  "created_at": "2025-12-23T23:49:00Z",
+  "changelog": "Added fraud detection rule",
   "status": "archived"
 }

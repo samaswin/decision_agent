@@ -168,19 +168,24 @@ RSpec.describe DecisionAgent::Monitoring::MonitoredAgent do
 
   describe "thread safety" do
     it "handles concurrent decisions safely" do
+      # Materialize let variables before creating threads
+      test_context = { amount: 1000 }
+      test_monitored_agent = monitored_agent
+      test_collector = collector
+
       threads = 10.times.map do
         Thread.new do
           10.times do
-            monitored_agent.decide(context: context)
+            test_monitored_agent.decide(context: test_context)
           end
         end
       end
 
       threads.each(&:join)
 
-      expect(collector.metrics_count[:decisions]).to eq(100)
-      expect(collector.metrics_count[:evaluations]).to eq(100)
-      expect(collector.metrics_count[:performance]).to eq(100)
+      expect(test_collector.metrics_count[:decisions]).to eq(100)
+      expect(test_collector.metrics_count[:evaluations]).to eq(100)
+      expect(test_collector.metrics_count[:performance]).to eq(100)
     end
   end
 
