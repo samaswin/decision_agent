@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# encoding: UTF-8
 
 require "spec_helper"
 
@@ -10,8 +9,14 @@ if defined?(ActiveRecord)
     before(:all) do
       ActiveRecord::Base.establish_connection(
         adapter: "sqlite3",
-        database: ":memory:"
+        database: "file::memory:?cache=shared",
+        timeout: 10_000,
+        pool: 110 # Support 100 thread test + some overhead
       )
+
+      # Enable WAL mode and busy timeout for better concurrency
+      ActiveRecord::Base.connection.execute("PRAGMA journal_mode=WAL")
+      ActiveRecord::Base.connection.execute("PRAGMA busy_timeout=10000")
 
       # Create the schema
       ActiveRecord::Schema.define do
@@ -25,12 +30,12 @@ if defined?(ActiveRecord)
           t.timestamps
         end
 
-        add_index :rule_versions, [:rule_id, :version_number], unique: true
-        add_index :rule_versions, [:rule_id, :status]
+        add_index :rule_versions, %i[rule_id version_number], unique: true
+        add_index :rule_versions, %i[rule_id status]
       end
 
       # Define RuleVersion model if not already defined
-      unless defined?(::RuleVersion)
+      unless defined?(RuleVersion)
         class ::RuleVersion < ActiveRecord::Base
           validates :rule_id, presence: true
           validates :version_number, presence: true, uniqueness: { scope: :rule_id }
@@ -57,8 +62,8 @@ if defined?(ActiveRecord)
           def activate!
             transaction do
               self.class.where(rule_id: rule_id, status: "active")
-                        .where.not(id: id)
-                        .update_all(status: "archived")
+                  .where.not(id: id)
+                  .update_all(status: "archived")
               update!(status: "active")
             end
           end
@@ -70,9 +75,9 @@ if defined?(ActiveRecord)
 
             # Use pessimistic locking to prevent race conditions
             last_version = self.class.where(rule_id: rule_id)
-                                     .order(version_number: :desc)
-                                     .lock
-                                     .first
+                               .order(version_number: :desc)
+                               .lock
+                               .first
 
             self.version_number = last_version ? last_version.version_number + 1 : 1
           end
@@ -100,6 +105,20 @@ if defined?(ActiveRecord)
       }
     end
 
+    # Helper method to retry on SQLite busy exceptions (concurrency limitation)
+    def with_retry(max_retries: 3, &block)
+      retries = 0
+      begin
+        block.call
+      rescue ActiveRecord::StatementInvalid => e
+        raise unless e.message.include?("database is locked") && retries < max_retries
+
+        retries += 1
+        sleep(0.01 * retries) # Exponential backoff
+        retry
+      end
+    end
+
     describe "concurrent version creation" do
       it "prevents duplicate version numbers with pessimistic locking" do
         thread_count = 20
@@ -110,11 +129,13 @@ if defined?(ActiveRecord)
         # Spawn multiple threads creating versions concurrently
         thread_count.times do |i|
           threads << Thread.new do
-            version = adapter.create_version(
-              rule_id: rule_id,
-              content: rule_content.merge(thread_id: i),
-              metadata: { created_by: "thread_#{i}" }
-            )
+            version = with_retry do
+              adapter.create_version(
+                rule_id: rule_id,
+                content: rule_content.merge(thread_id: i),
+                metadata: { created_by: "thread_#{i}" }
+              )
+            end
             mutex.synchronize { results << version }
           end
         end
@@ -142,15 +163,15 @@ if defined?(ActiveRecord)
 
         thread_count.times do |i|
           threads << Thread.new do
-            begin
+            with_retry(max_retries: 10) do # Increased retry count for high concurrency
               adapter.create_version(
                 rule_id: rule_id,
                 content: rule_content,
                 metadata: { created_by: "thread_#{i}" }
               )
-            rescue => e
-              mutex.synchronize { errors << e }
             end
+          rescue StandardError => e
+            mutex.synchronize { errors << e }
           end
         end
 
@@ -175,17 +196,17 @@ if defined?(ActiveRecord)
 
         thread_count.times do |i|
           threads << Thread.new do
-            begin
-              version = adapter.create_version(
+            version = with_retry do
+              adapter.create_version(
                 rule_id: rule_id,
                 content: rule_content,
                 metadata: { created_by: "thread_#{i}" }
               )
-              mutex.synchronize { successes << version }
-            rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
-              # These errors are acceptable - they mean the unique constraint caught duplicates
-              mutex.synchronize { failures << e }
             end
+            mutex.synchronize { successes << version }
+          rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
+            # These errors are acceptable - they mean the unique constraint caught duplicates
+            mutex.synchronize { failures << e }
           end
         end
 
@@ -223,23 +244,25 @@ if defined?(ActiveRecord)
 
         # Mix of readers and writers
         20.times do |i|
-          if i % 3 == 0
-            # Write thread
-            threads << Thread.new do
-              version = adapter.create_version(
-                rule_id: rule_id,
-                content: rule_content,
-                metadata: { created_by: "writer_#{i}" }
-              )
-              write_mutex.synchronize { write_results << version }
-            end
-          else
-            # Read thread
-            threads << Thread.new do
-              versions = adapter.list_versions(rule_id: rule_id)
-              read_mutex.synchronize { read_results << versions }
-            end
-          end
+          threads << if i % 3 == 0
+                       # Write thread
+                       Thread.new do
+                         version = with_retry do
+                           adapter.create_version(
+                             rule_id: rule_id,
+                             content: rule_content,
+                             metadata: { created_by: "writer_#{i}" }
+                           )
+                         end
+                         write_mutex.synchronize { write_results << version }
+                       end
+                     else
+                       # Read thread
+                       Thread.new do
+                         versions = adapter.list_versions(rule_id: rule_id)
+                         read_mutex.synchronize { read_results << versions }
+                       end
+                     end
         end
 
         threads.each(&:join)
@@ -266,11 +289,13 @@ if defined?(ActiveRecord)
 
         thread_count.times do |i|
           threads << Thread.new do
-            adapter.create_version(
-              rule_id: rule_id,
-              content: rule_content,
-              metadata: { created_by: "thread_#{i}", status: "active" }
-            )
+            with_retry do
+              adapter.create_version(
+                rule_id: rule_id,
+                content: rule_content,
+                metadata: { created_by: "thread_#{i}", status: "active" }
+              )
+            end
           end
         end
 
@@ -299,11 +324,13 @@ if defined?(ActiveRecord)
         rule_ids.each do |rid|
           5.times do |version_index|
             threads << Thread.new do
-              version = adapter.create_version(
-                rule_id: rid,
-                content: rule_content,
-                metadata: { created_by: "creator_#{version_index}" }
-              )
+              version = with_retry do
+                adapter.create_version(
+                  rule_id: rid,
+                  content: rule_content,
+                  metadata: { created_by: "creator_#{version_index}" }
+                )
+              end
               mutex.synchronize do
                 results[rid] ||= []
                 results[rid] << version
@@ -328,12 +355,12 @@ if defined?(ActiveRecord)
         # Create a scenario where create might fail
         allow(RuleVersion).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(RuleVersion.new))
 
-        expect {
+        expect do
           adapter.create_version(
             rule_id: rule_id,
             content: rule_content
           )
-        }.to raise_error(ActiveRecord::RecordInvalid)
+        end.to raise_error(ActiveRecord::RecordInvalid)
 
         # No versions should be created
         expect(RuleVersion.where(rule_id: rule_id).count).to eq(0)
@@ -349,16 +376,14 @@ if defined?(ActiveRecord)
 
         thread_count.times do |i|
           threads << Thread.new do
-            begin
-              RuleVersion.create!(
-                rule_id: rule_id,
-                content: rule_content.to_json,
-                created_by: "thread_#{i}",
-                status: "draft"
-              )
-            rescue => e
-              mutex.synchronize { errors << e }
-            end
+            RuleVersion.create!(
+              rule_id: rule_id,
+              content: rule_content.to_json,
+              created_by: "thread_#{i}",
+              status: "draft"
+            )
+          rescue StandardError => e
+            mutex.synchronize { errors << e }
           end
         end
 
@@ -378,11 +403,13 @@ if defined?(ActiveRecord)
       it "prevents multiple active versions with pessimistic locking" do
         # Create 5 versions
         versions = 5.times.map do |i|
-          adapter.create_version(
-            rule_id: rule_id,
-            content: rule_content.merge(version: "#{i + 1}.0"),
-            metadata: { created_by: "setup_#{i}" }
-          )
+          with_retry do
+            adapter.create_version(
+              rule_id: rule_id,
+              content: rule_content.merge(version: "#{i + 1}.0"),
+              metadata: { created_by: "setup_#{i}" }
+            )
+          end
         end
 
         # Try to activate different versions concurrently
@@ -395,7 +422,9 @@ if defined?(ActiveRecord)
           threads << Thread.new do
             # Each thread tries to activate a different version (cycling through versions)
             version_to_activate = versions[i % versions.size]
-            activated = adapter.activate_version(version_id: version_to_activate[:id])
+            activated = with_retry do
+              adapter.activate_version(version_id: version_to_activate[:id])
+            end
             mutex.synchronize { activated_versions << activated }
           end
         end
@@ -405,7 +434,7 @@ if defined?(ActiveRecord)
         # CRITICAL: Only ONE version should be active at the end
         active_versions = RuleVersion.where(rule_id: rule_id, status: "active")
         expect(active_versions.count).to eq(1),
-          "Expected exactly 1 active version, but found #{active_versions.count}: #{active_versions.pluck(:version_number)}"
+                                         "Expected exactly 1 active version, but found #{active_versions.count}: #{active_versions.pluck(:version_number)}"
 
         # All other versions should be archived
         archived_versions = RuleVersion.where(rule_id: rule_id, status: "archived")
@@ -418,44 +447,58 @@ if defined?(ActiveRecord)
 
       it "handles race condition when two threads activate different versions simultaneously" do
         # Create 3 versions
-        v1 = adapter.create_version(
-          rule_id: rule_id,
-          content: rule_content.merge(version: "1.0"),
-          metadata: { created_by: "setup" }
-        )
-        v2 = adapter.create_version(
-          rule_id: rule_id,
-          content: rule_content.merge(version: "2.0"),
-          metadata: { created_by: "setup" }
-        )
-        adapter.create_version(
-          rule_id: rule_id,
-          content: rule_content.merge(version: "3.0"),
-          metadata: { created_by: "setup" }
-        )
+        v1 = with_retry do
+          adapter.create_version(
+            rule_id: rule_id,
+            content: rule_content.merge(version: "1.0"),
+            metadata: { created_by: "setup" }
+          )
+        end
+        v2 = with_retry do
+          adapter.create_version(
+            rule_id: rule_id,
+            content: rule_content.merge(version: "2.0"),
+            metadata: { created_by: "setup" }
+          )
+        end
+        with_retry do
+          adapter.create_version(
+            rule_id: rule_id,
+            content: rule_content.merge(version: "3.0"),
+            metadata: { created_by: "setup" }
+          )
+        end
 
         # At this point v3 is active, v1 and v2 are archived
 
         # Spawn two threads trying to activate v1 and v2 at the same time
-        barrier = Concurrent::CyclicBarrier.new(2) rescue Thread::Barrier.new(2) rescue nil
+        begin
+          barrier = begin
+            Concurrent::CyclicBarrier.new(2)
+          rescue StandardError
+            Thread::Barrier.new(2)
+          end
+        rescue StandardError
+          nil
+        end
         threads = []
 
         if barrier
           threads << Thread.new do
             barrier.wait
-            adapter.activate_version(version_id: v1[:id])
+            with_retry { adapter.activate_version(version_id: v1[:id]) }
           end
 
           threads << Thread.new do
             barrier.wait
-            adapter.activate_version(version_id: v2[:id])
+            with_retry { adapter.activate_version(version_id: v2[:id]) }
           end
 
           threads.each(&:join)
         else
           # Fallback without barrier - still tests thread safety
-          t1 = Thread.new { adapter.activate_version(version_id: v1[:id]) }
-          t2 = Thread.new { adapter.activate_version(version_id: v2[:id]) }
+          t1 = Thread.new { with_retry { adapter.activate_version(version_id: v1[:id]) } }
+          t2 = Thread.new { with_retry { adapter.activate_version(version_id: v2[:id]) } }
           t1.join
           t2.join
         end
@@ -463,24 +506,28 @@ if defined?(ActiveRecord)
         # CRITICAL: Only ONE version should be active
         active_count = RuleVersion.where(rule_id: rule_id, status: "active").count
         expect(active_count).to eq(1),
-          "Race condition detected: #{active_count} active versions found instead of 1"
+                                "Race condition detected: #{active_count} active versions found instead of 1"
       end
 
       it "maintains consistency across 100 concurrent activation attempts" do
         # Create 10 versions
         versions = 10.times.map do |i|
-          adapter.create_version(
-            rule_id: rule_id,
-            content: rule_content.merge(version: "#{i + 1}.0"),
-            metadata: { created_by: "setup_#{i}" }
-          )
+          with_retry do
+            adapter.create_version(
+              rule_id: rule_id,
+              content: rule_content.merge(version: "#{i + 1}.0"),
+              metadata: { created_by: "setup_#{i}" }
+            )
+          end
         end
 
         # 100 threads each randomly activating versions
         threads = 100.times.map do
           Thread.new do
             random_version = versions.sample
-            adapter.activate_version(version_id: random_version[:id])
+            with_retry do
+              adapter.activate_version(version_id: random_version[:id])
+            end
             sleep(rand * 0.01) # Small random delay to increase race condition likelihood
           end
         end
@@ -490,7 +537,7 @@ if defined?(ActiveRecord)
         # Check consistency
         active_versions = RuleVersion.where(rule_id: rule_id, status: "active")
         expect(active_versions.count).to eq(1),
-          "Consistency violation: #{active_versions.count} active versions after concurrent activations"
+                                         "Consistency violation: #{active_versions.count} active versions after concurrent activations"
 
         # All versions should still exist
         expect(RuleVersion.where(rule_id: rule_id).count).to eq(10)

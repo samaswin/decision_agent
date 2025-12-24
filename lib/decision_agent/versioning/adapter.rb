@@ -91,9 +91,7 @@ module DecisionAgent
         changes = {}
         hash1.each do |key, value1|
           value2 = hash2[key]
-          if value1 != value2 && !value2.nil?
-            changes[key] = { old: value1, new: value2 }
-          end
+          changes[key] = { old: value1, new: value2 } if value1 != value2 && !value2.nil?
         end
         changes
       end

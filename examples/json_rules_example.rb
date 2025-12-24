@@ -97,6 +97,6 @@ test_cases.each_with_index do |test_case, idx|
   end
 end
 
-puts "\n" + "=" * 60
+puts "\n#{'=' * 60}"
 puts "Example complete"
 puts "=" * 60

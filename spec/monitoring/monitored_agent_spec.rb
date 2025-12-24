@@ -39,7 +39,7 @@ RSpec.describe DecisionAgent::Monitoring::MonitoredAgent do
     end
 
     it "records decision metrics with duration" do
-      result = monitored_agent.decide(context: context)
+      monitored_agent.decide(context: context)
 
       stats = collector.statistics
       expect(stats[:decisions][:total]).to eq(1)
@@ -47,7 +47,7 @@ RSpec.describe DecisionAgent::Monitoring::MonitoredAgent do
     end
 
     it "records evaluation metrics" do
-      result = monitored_agent.decide(context: context)
+      monitored_agent.decide(context: context)
 
       stats = collector.statistics
       expect(stats[:evaluations][:total]).to eq(1)
@@ -55,7 +55,7 @@ RSpec.describe DecisionAgent::Monitoring::MonitoredAgent do
     end
 
     it "records performance metrics as successful" do
-      result = monitored_agent.decide(context: context)
+      monitored_agent.decide(context: context)
 
       stats = collector.statistics
       expect(stats[:performance][:total_operations]).to eq(1)
@@ -66,7 +66,7 @@ RSpec.describe DecisionAgent::Monitoring::MonitoredAgent do
     it "includes metadata in performance metrics" do
       monitored_agent.decide(context: context)
 
-      stats = collector.statistics
+      collector.statistics
       perf_metric = collector.instance_variable_get(:@metrics)[:performance].first
 
       expect(perf_metric[:metadata][:evaluators_count]).to eq(1)
@@ -80,17 +80,17 @@ RSpec.describe DecisionAgent::Monitoring::MonitoredAgent do
       end
 
       it "records error metrics" do
-        expect {
+        expect do
           monitored_agent.decide(context: context)
-        }.to raise_error(StandardError, "Test error")
+        end.to raise_error(StandardError, "Test error")
 
         expect(collector.metrics_count[:errors]).to eq(1)
       end
 
       it "records failed performance metrics" do
-        expect {
+        expect do
           monitored_agent.decide(context: context)
-        }.to raise_error(StandardError)
+        end.to raise_error(StandardError)
 
         stats = collector.statistics
         expect(stats[:performance][:total_operations]).to eq(1)
@@ -99,9 +99,9 @@ RSpec.describe DecisionAgent::Monitoring::MonitoredAgent do
       end
 
       it "includes error details in metrics" do
-        expect {
+        expect do
           monitored_agent.decide(context: context)
-        }.to raise_error(StandardError)
+        end.to raise_error(StandardError)
 
         error_metric = collector.instance_variable_get(:@metrics)[:errors].first
         expect(error_metric[:error_class]).to eq("StandardError")
@@ -110,9 +110,9 @@ RSpec.describe DecisionAgent::Monitoring::MonitoredAgent do
       end
 
       it "re-raises the error" do
-        expect {
+        expect do
           monitored_agent.decide(context: context)
-        }.to raise_error(StandardError, "Test error")
+        end.to raise_error(StandardError, "Test error")
       end
     end
 
@@ -134,7 +134,7 @@ RSpec.describe DecisionAgent::Monitoring::MonitoredAgent do
     it "measures decision duration accurately" do
       # Mock agent to introduce delay
       allow(agent).to receive(:decide) do |*args|
-        sleep 0.01  # 10ms delay
+        sleep 0.01 # 10ms delay
         evaluator.evaluate(args.first)
         DecisionAgent::Decision.new(
           decision: "approve",
@@ -168,19 +168,24 @@ RSpec.describe DecisionAgent::Monitoring::MonitoredAgent do
 
   describe "thread safety" do
     it "handles concurrent decisions safely" do
+      # Materialize let variables before creating threads
+      test_context = { amount: 1000 }
+      test_monitored_agent = monitored_agent
+      test_collector = collector
+
       threads = 10.times.map do
         Thread.new do
           10.times do
-            monitored_agent.decide(context: context)
+            test_monitored_agent.decide(context: test_context)
           end
         end
       end
 
       threads.each(&:join)
 
-      expect(collector.metrics_count[:decisions]).to eq(100)
-      expect(collector.metrics_count[:evaluations]).to eq(100)
-      expect(collector.metrics_count[:performance]).to eq(100)
+      expect(test_collector.metrics_count[:decisions]).to eq(100)
+      expect(test_collector.metrics_count[:evaluations]).to eq(100)
+      expect(test_collector.metrics_count[:performance]).to eq(100)
     end
   end
 

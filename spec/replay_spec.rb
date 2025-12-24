@@ -34,9 +34,9 @@ RSpec.describe DecisionAgent::Replay do
       modified_payload = original_result.audit_payload.dup
       modified_payload[:decision] = "reject"
 
-      expect {
+      expect do
         DecisionAgent::Replay.run(modified_payload, strict: true)
-      }.to raise_error(DecisionAgent::ReplayMismatchError) do |error|
+      end.to raise_error(DecisionAgent::ReplayMismatchError) do |error|
         expect(error.differences).to include(/decision mismatch/)
         expect(error.expected[:decision]).to eq("reject")
         expect(error.actual[:decision]).to eq("approve")
@@ -50,9 +50,9 @@ RSpec.describe DecisionAgent::Replay do
       modified_payload = original_result.audit_payload.dup
       modified_payload[:confidence] = 0.5
 
-      expect {
+      expect do
         DecisionAgent::Replay.run(modified_payload, strict: true)
-      }.to raise_error(DecisionAgent::ReplayMismatchError) do |error|
+      end.to raise_error(DecisionAgent::ReplayMismatchError) do |error|
         expect(error.differences).to include(/confidence mismatch/)
       end
     end
@@ -64,9 +64,9 @@ RSpec.describe DecisionAgent::Replay do
       modified_payload = original_result.audit_payload.dup
       modified_payload[:decision] = "reject"
 
-      expect {
+      expect do
         DecisionAgent::Replay.run(modified_payload, strict: false)
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "logs differences in non-strict mode" do
@@ -76,17 +76,17 @@ RSpec.describe DecisionAgent::Replay do
       modified_payload = original_result.audit_payload.dup
       modified_payload[:decision] = "reject"
 
-      expect {
+      expect do
         DecisionAgent::Replay.run(modified_payload, strict: false)
-      }.to output(/Decision changed/).to_stderr
+      end.to output(/Decision changed/).to_stderr
     end
 
     it "validates required fields in audit payload" do
       invalid_payload = { context: {} }
 
-      expect {
+      expect do
         DecisionAgent::Replay.run(invalid_payload, strict: true)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /missing required key/)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /missing required key/)
     end
 
     it "reconstructs evaluations from audit payload" do
@@ -112,7 +112,7 @@ RSpec.describe DecisionAgent::Replay do
       )
 
       expect(replayed_result.evaluations.size).to eq(2)
-      expect(replayed_result.evaluations.map(&:evaluator_name)).to match_array(["Evaluator1", "Evaluator2"])
+      expect(replayed_result.evaluations.map(&:evaluator_name)).to match_array(%w[Evaluator1 Evaluator2])
     end
 
     it "uses correct scoring strategy from audit payload" do

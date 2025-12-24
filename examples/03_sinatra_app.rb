@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+
 # Example 3: Complete Sinatra Application with Versioning
 #
 # This example demonstrates how to build a complete Sinatra app
@@ -8,32 +9,32 @@
 # Run: ruby examples/03_sinatra_app.rb
 # Visit: http://localhost:4567
 
-require 'bundler/setup'
-require 'sinatra/base'
-require 'json'
-require 'decision_agent'
+require "bundler/setup"
+require "sinatra/base"
+require "json"
+require "decision_agent"
 
 class RuleVersioningApp < Sinatra::Base
   set :port, 4567
-  set :bind, '0.0.0.0'
+  set :bind, "0.0.0.0"
 
   # Initialize version manager
   configure do
     set :version_manager, DecisionAgent::Versioning::VersionManager.new(
       adapter: DecisionAgent::Versioning::FileStorageAdapter.new(
-        storage_path: './data/versions'
+        storage_path: "./data/versions"
       )
     )
   end
 
   # Enable CORS
   before do
-    headers['Access-Control-Allow-Origin'] = '*'
-    headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-    headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    headers["Access-Control-Allow-Origin"] = "*"
+    headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    headers["Access-Control-Allow-Headers"] = "Content-Type"
   end
 
-  options '*' do
+  options "*" do
     200
   end
 
@@ -42,7 +43,7 @@ class RuleVersioningApp < Sinatra::Base
   # ========================================
 
   # Home page
-  get '/' do
+  get "/" do
     content_type :json
     {
       name: "Rule Versioning API",
@@ -64,7 +65,7 @@ class RuleVersioningApp < Sinatra::Base
   end
 
   # Create a new version
-  post '/rules/:rule_id/versions' do
+  post "/rules/:rule_id/versions" do
     content_type :json
 
     begin
@@ -73,29 +74,26 @@ class RuleVersioningApp < Sinatra::Base
       version = settings.version_manager.save_version(
         rule_id: params[:rule_id],
         rule_content: data[:content],
-        created_by: data[:created_by] || 'api_user',
+        created_by: data[:created_by] || "api_user",
         changelog: data[:changelog]
       )
 
       status 201
       version.to_json
-
     rescue DecisionAgent::ValidationError => e
       status 422
-      { error: 'Validation failed', message: e.message }.to_json
-
+      { error: "Validation failed", message: e.message }.to_json
     rescue JSON::ParserError => e
       status 400
-      { error: 'Invalid JSON', message: e.message }.to_json
-
-    rescue => e
+      { error: "Invalid JSON", message: e.message }.to_json
+    rescue StandardError => e
       status 500
-      { error: 'Internal error', message: e.message }.to_json
+      { error: "Internal error", message: e.message }.to_json
     end
   end
 
   # List versions for a rule
-  get '/rules/:rule_id/versions' do
+  get "/rules/:rule_id/versions" do
     content_type :json
 
     begin
@@ -107,29 +105,27 @@ class RuleVersioningApp < Sinatra::Base
       )
 
       versions.to_json
-
-    rescue => e
+    rescue StandardError => e
       status 500
       { error: e.message }.to_json
     end
   end
 
   # Get version history with metadata
-  get '/rules/:rule_id/history' do
+  get "/rules/:rule_id/history" do
     content_type :json
 
     begin
       history = settings.version_manager.get_history(rule_id: params[:rule_id])
       history.to_json
-
-    rescue => e
+    rescue StandardError => e
       status 500
       { error: e.message }.to_json
     end
   end
 
   # Get specific version
-  get '/versions/:version_id' do
+  get "/versions/:version_id" do
     content_type :json
 
     begin
@@ -139,17 +135,16 @@ class RuleVersioningApp < Sinatra::Base
         version.to_json
       else
         status 404
-        { error: 'Version not found' }.to_json
+        { error: "Version not found" }.to_json
       end
-
-    rescue => e
+    rescue StandardError => e
       status 500
       { error: e.message }.to_json
     end
   end
 
   # Activate a version (rollback)
-  post '/versions/:version_id/activate' do
+  post "/versions/:version_id/activate" do
     content_type :json
 
     begin
@@ -158,19 +153,18 @@ class RuleVersioningApp < Sinatra::Base
 
       version = settings.version_manager.rollback(
         version_id: params[:version_id],
-        performed_by: parsed_data[:performed_by] || 'api_user'
+        performed_by: parsed_data[:performed_by] || "api_user"
       )
 
       version.to_json
-
-    rescue => e
+    rescue StandardError => e
       status 500
       { error: e.message }.to_json
     end
   end
 
   # Compare two versions
-  get '/versions/:v1/compare/:v2' do
+  get "/versions/:v1/compare/:v2" do
     content_type :json
 
     begin
@@ -183,17 +177,16 @@ class RuleVersioningApp < Sinatra::Base
         comparison.to_json
       else
         status 404
-        { error: 'One or both versions not found' }.to_json
+        { error: "One or both versions not found" }.to_json
       end
-
-    rescue => e
+    rescue StandardError => e
       status 500
       { error: e.message }.to_json
     end
   end
 
   # Evaluate rules (bonus feature)
-  post '/evaluate' do
+  post "/evaluate" do
     content_type :json
 
     begin
@@ -206,7 +199,7 @@ class RuleVersioningApp < Sinatra::Base
 
       unless active_version
         status 404
-        return { error: 'No active version found for this rule' }.to_json
+        return { error: "No active version found for this rule" }.to_json
       end
 
       # Create evaluator with the active version's rules
@@ -231,29 +224,28 @@ class RuleVersioningApp < Sinatra::Base
         {
           success: true,
           decision: nil,
-          message: 'No rules matched',
+          message: "No rules matched",
           version: active_version[:version_number]
         }.to_json
       end
-
-    rescue => e
+    rescue StandardError => e
       status 500
       { error: e.message }.to_json
     end
   end
 
   # Health check
-  get '/health' do
+  get "/health" do
     content_type :json
     {
-      status: 'ok',
+      status: "ok",
       version: DecisionAgent::VERSION,
       timestamp: Time.now.utc.iso8601
     }.to_json
   end
 
   # Start the server
-  run! if app_file == $0
+  run! if app_file == $PROGRAM_NAME
 end
 
 # ========================================

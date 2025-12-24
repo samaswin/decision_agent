@@ -5,12 +5,12 @@ class Rule < ApplicationRecord
   validates :ruleset, presence: true
   validates :status, inclusion: { in: %w[active inactive archived] }
 
-  scope :active, -> { where(status: 'active') }
+  scope :active, -> { where(status: "active") }
   scope :by_ruleset, ->(ruleset) { where(ruleset: ruleset) }
 
   # Get the active version for this rule
   def active_version
-    rule_versions.find_by(status: 'active')
+    rule_versions.find_by(status: "active")
   end
 
   # Get all versions ordered by version number
@@ -19,7 +19,7 @@ class Rule < ApplicationRecord
   end
 
   # Create a new version
-  def create_version(content:, created_by: 'system', changelog: nil)
+  def create_version(content:, created_by: "system", changelog: nil)
     DecisionAgent::Versioning::VersionManager.new.save_version(
       rule_id: rule_id,
       rule_content: content,

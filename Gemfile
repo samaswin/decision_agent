@@ -3,8 +3,14 @@ source "https://rubygems.org"
 gemspec
 
 group :development, :test do
+  gem "activerecord", "~> 7.0"
+  gem "activesupport", "< 7.2" # Pin to version compatible with Ruby 3.0+
+  gem "connection_pool", "< 3.0" # Pin to version compatible with Ruby 3.0+
+  gem "minitest", "< 6.0" # Pin to version compatible with Ruby 3.0+
+  gem "puma"
   gem "rake", "~> 13.0"
   gem "rspec", "~> 3.12"
+  gem "securerandom", "< 0.4" # Pin to version compatible with Ruby 3.0+
   gem "simplecov", "~> 0.22", require: false
-  gem "puma"
+  gem "sqlite3", "~> 1.6"
 end

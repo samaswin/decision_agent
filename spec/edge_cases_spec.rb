@@ -47,7 +47,7 @@ RSpec.describe "Edge Cases" do
 
   describe "confidence edge cases" do
     it "raises error when confidence exceeds 1.0" do
-      expect {
+      expect do
         DecisionAgent::Decision.new(
           decision: "test",
           confidence: 1.5,
@@ -55,11 +55,11 @@ RSpec.describe "Edge Cases" do
           evaluations: [],
           audit_payload: {}
         )
-      }.to raise_error(DecisionAgent::InvalidConfidenceError)
+      end.to raise_error(DecisionAgent::InvalidConfidenceError)
     end
 
     it "raises error when confidence is negative" do
-      expect {
+      expect do
         DecisionAgent::Decision.new(
           decision: "test",
           confidence: -0.1,
@@ -67,7 +67,7 @@ RSpec.describe "Edge Cases" do
           evaluations: [],
           audit_payload: {}
         )
-      }.to raise_error(DecisionAgent::InvalidConfidenceError)
+      end.to raise_error(DecisionAgent::InvalidConfidenceError)
     end
 
     it "accepts confidence at boundary values" do
@@ -94,25 +94,25 @@ RSpec.describe "Edge Cases" do
 
   describe "weight edge cases" do
     it "raises error when weight exceeds 1.0" do
-      expect {
+      expect do
         DecisionAgent::Evaluation.new(
           decision: "test",
           weight: 1.5,
           reason: "test",
           evaluator_name: "test"
         )
-      }.to raise_error(DecisionAgent::InvalidWeightError)
+      end.to raise_error(DecisionAgent::InvalidWeightError)
     end
 
     it "raises error when weight is negative" do
-      expect {
+      expect do
         DecisionAgent::Evaluation.new(
           decision: "test",
           weight: -0.1,
           reason: "test",
           evaluator_name: "test"
         )
-      }.to raise_error(DecisionAgent::InvalidWeightError)
+      end.to raise_error(DecisionAgent::InvalidWeightError)
     end
 
     it "accepts weight at boundary values" do
@@ -206,9 +206,9 @@ RSpec.describe "Edge Cases" do
     it "freezes context data to prevent modification" do
       context = DecisionAgent::Context.new({ user: "alice" })
 
-      expect {
+      expect do
         context.to_h[:user] = "bob"
-      }.to raise_error(FrozenError)
+      end.to raise_error(FrozenError)
     end
 
     it "freezes evaluation fields" do
@@ -313,16 +313,16 @@ RSpec.describe "Edge Cases" do
 
       evaluator = DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
       context = DecisionAgent::Context.new({
-        a: {
-          b: {
-            c: {
-              d: {
-                e: "deep"
-              }
-            }
-          }
-        }
-      })
+                                             a: {
+                                               b: {
+                                                 c: {
+                                                   d: {
+                                                     e: "deep"
+                                                   }
+                                                 }
+                                               }
+                                             }
+                                           })
 
       evaluation = evaluator.evaluate(context)
 
@@ -334,7 +334,7 @@ RSpec.describe "Edge Cases" do
   describe "audit adapter errors" do
     it "propagates errors from audit adapter" do
       failing_adapter = Class.new(DecisionAgent::Audit::Adapter) do
-        def record(decision, context)
+        def record(_decision, _context)
           raise StandardError, "Audit failed"
         end
       end
@@ -345,9 +345,9 @@ RSpec.describe "Edge Cases" do
         audit_adapter: failing_adapter.new
       )
 
-      expect {
+      expect do
         agent.decide(context: {})
-      }.to raise_error(StandardError, "Audit failed")
+      end.to raise_error(StandardError, "Audit failed")
     end
   end
 end

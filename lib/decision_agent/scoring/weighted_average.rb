@@ -14,7 +14,7 @@ module DecisionAgent
         winning_decision, winning_weight = weighted_scores.max_by { |_, weight| weight }
 
         total_weight = evaluations.sum(&:weight)
-        confidence = total_weight > 0 ? winning_weight / total_weight : 0.0
+        confidence = total_weight.positive? ? winning_weight / total_weight : 0.0
 
         {
           decision: winning_decision,

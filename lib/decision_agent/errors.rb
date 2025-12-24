@@ -3,13 +3,13 @@ module DecisionAgent
 
   class InvalidRuleDslError < Error
     def initialize(message = "Invalid rule DSL structure")
-      super(message)
+      super
     end
   end
 
   class NoEvaluationsError < Error
     def initialize(message = "No evaluators returned a decision")
-      super(message)
+      super
     end
   end
 
@@ -26,25 +26,25 @@ module DecisionAgent
 
   class InvalidConfigurationError < Error
     def initialize(message = "Invalid agent configuration")
-      super(message)
+      super
     end
   end
 
   class InvalidEvaluatorError < Error
     def initialize(message = "Evaluator must respond to #evaluate")
-      super(message)
+      super
     end
   end
 
   class InvalidScoringStrategyError < Error
     def initialize(message = "Scoring strategy must respond to #score")
-      super(message)
+      super
     end
   end
 
   class InvalidAuditAdapterError < Error
     def initialize(message = "Audit adapter must respond to #record")
-      super(message)
+      super
     end
   end
 
@@ -62,13 +62,13 @@ module DecisionAgent
 
   class NotFoundError < Error
     def initialize(message = "Resource not found")
-      super(message)
+      super
     end
   end
 
   class ValidationError < Error
     def initialize(message = "Validation failed")
-      super(message)
+      super
     end
   end
 

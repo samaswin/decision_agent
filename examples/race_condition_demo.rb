@@ -7,17 +7,26 @@
 require "bundler/setup"
 require "active_record"
 require "decision_agent"
+require "decision_agent/versioning/activerecord_adapter"
 
 puts "=" * 80
 puts "RACE CONDITION DEMONSTRATION - ActiveRecordAdapter"
 puts "=" * 80
 puts
 
-# Setup in-memory database
+# Setup in-memory database with shared cache for thread safety
+# Using file::memory:?cache=shared allows multiple threads to access the same in-memory database
 ActiveRecord::Base.establish_connection(
   adapter: "sqlite3",
-  database: ":memory:"
+  database: "file::memory:?cache=shared",
+  timeout: 10_000, # 10 second timeout for busy database
+  pool: 25 # Increase pool size to handle 20 concurrent threads
 )
+
+# Enable WAL mode for better concurrent write performance
+ActiveRecord::Base.connection.execute("PRAGMA journal_mode=WAL")
+# Increase busy timeout at SQLite level
+ActiveRecord::Base.connection.execute("PRAGMA busy_timeout=10000")
 
 # Create schema
 ActiveRecord::Schema.define do
@@ -31,8 +40,8 @@ ActiveRecord::Schema.define do
     t.timestamps
   end
 
-  add_index :rule_versions, [:rule_id, :version_number], unique: true
-  add_index :rule_versions, [:rule_id, :status]
+  add_index :rule_versions, %i[rule_id version_number], unique: true
+  add_index :rule_versions, %i[rule_id status]
 end
 
 # Define RuleVersion model (with the fix)
@@ -52,9 +61,9 @@ class RuleVersion < ActiveRecord::Base
 
     # ✅ WITH FIX: Pessimistic locking prevents race conditions
     last_version = self.class.where(rule_id: rule_id)
-                             .order(version_number: :desc)
-                             .lock  # This line prevents the race condition!
-                             .first
+                       .order(version_number: :desc)
+                       .lock # This line prevents the race condition!
+                       .first
 
     self.version_number = last_version ? last_version.version_number + 1 : 1
   end
@@ -77,7 +86,7 @@ puts "Setting up ActiveRecordAdapter..."
 adapter = DecisionAgent::Versioning::ActiveRecordAdapter.new
 rule_id = "concurrent_demo_rule"
 
-puts "Creating versions concurrently with #{20} threads..."
+puts "Creating versions concurrently with 20 threads..."
 puts
 
 threads = []
@@ -89,6 +98,9 @@ start_time = Time.now
 
 20.times do |i|
   threads << Thread.new do
+    retries = 0
+    max_retries = 3
+
     begin
       version = adapter.create_version(
         rule_id: rule_id,
@@ -100,7 +112,19 @@ start_time = Time.now
         results << version
         print "."
       end
-    rescue => e
+    rescue ActiveRecord::StatementInvalid => e
+      # Retry on database locked errors (SQLite concurrency limitation)
+      if e.message.include?("database is locked") && retries < max_retries
+        retries += 1
+        sleep(0.01 * retries) # Exponential backoff
+        retry
+      else
+        mutex.synchronize do
+          errors << { thread: i, error: e }
+          print "X"
+        end
+      end
+    rescue StandardError => e
       mutex.synchronize do
         errors << { thread: i, error: e }
         print "X"

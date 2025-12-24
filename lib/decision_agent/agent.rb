@@ -58,32 +58,24 @@ module DecisionAgent
     private
 
     def validate_configuration!
-      if @evaluators.empty?
-        raise InvalidConfigurationError, "At least one evaluator is required"
-      end
+      raise InvalidConfigurationError, "At least one evaluator is required" if @evaluators.empty?
 
       @evaluators.each do |evaluator|
-        unless evaluator.respond_to?(:evaluate)
-          raise InvalidEvaluatorError
-        end
+        raise InvalidEvaluatorError unless evaluator.respond_to?(:evaluate)
       end
 
-      unless @scoring_strategy.respond_to?(:score)
-        raise InvalidScoringStrategyError
-      end
+      raise InvalidScoringStrategyError unless @scoring_strategy.respond_to?(:score)
 
-      unless @audit_adapter.respond_to?(:record)
-        raise InvalidAuditAdapterError
-      end
+      return if @audit_adapter.respond_to?(:record)
+
+      raise InvalidAuditAdapterError
     end
 
     def collect_evaluations(context, feedback)
       @evaluators.map do |evaluator|
-        begin
-          evaluator.evaluate(context, feedback: feedback)
-        rescue StandardError
-          nil
-        end
+        evaluator.evaluate(context, feedback: feedback)
+      rescue StandardError
+        nil
       end.compact
     end
 

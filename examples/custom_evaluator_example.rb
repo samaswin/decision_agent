@@ -58,8 +58,6 @@ class RiskScoreEvaluator < DecisionAgent::Evaluators::Base
         evaluator_name: "RiskEvaluator",
         metadata: { risk_score: risk_score }
       )
-    else
-      nil
     end
   end
 end
@@ -105,6 +103,6 @@ test_cases.each do |test_case|
   end
 end
 
-puts "\n" + "=" * 60
+puts "\n#{'=' * 60}"
 puts "Custom evaluator example complete"
 puts "=" * 60

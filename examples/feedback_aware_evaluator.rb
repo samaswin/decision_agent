@@ -42,21 +42,15 @@ module Examples
       @base_weight = base_weight
     end
 
-    def evaluate(context, feedback: {})
+    def evaluate(_context, feedback: {})
       # Priority 1: Check for explicit override in feedback
-      if feedback[:override]
-        return override_decision(feedback)
-      end
+      return override_decision(feedback) if feedback[:override]
 
       # Priority 2: Check for confidence adjustment based on historical performance
-      if feedback[:past_accuracy]
-        return adjusted_decision(feedback)
-      end
+      return adjusted_decision(feedback) if feedback[:past_accuracy]
 
       # Priority 3: Check for source-based weight adjustment
-      if feedback[:source]
-        return source_adjusted_decision(feedback)
-      end
+      return source_adjusted_decision(feedback) if feedback[:source]
 
       # Default: Return base decision with no adjustments
       base_decision(feedback)

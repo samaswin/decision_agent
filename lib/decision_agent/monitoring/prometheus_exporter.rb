@@ -6,7 +6,7 @@ module DecisionAgent
     class PrometheusExporter
       include MonitorMixin
 
-      CONTENT_TYPE = "text/plain; version=0.0.4"
+      CONTENT_TYPE = "text/plain; version=0.0.4".freeze
 
       def initialize(metrics_collector:, namespace: "decision_agent")
         super()
@@ -71,8 +71,10 @@ module DecisionAgent
             },
             performance: {
               success_rate: gauge_metric("success_rate", stats.dig(:performance, :success_rate) || 0),
-              avg_duration_ms: gauge_metric("operation_duration_ms_avg", stats.dig(:performance, :avg_duration_ms) || 0),
-              p95_duration_ms: gauge_metric("operation_duration_ms_p95", stats.dig(:performance, :p95_duration_ms) || 0),
+              avg_duration_ms: gauge_metric("operation_duration_ms_avg",
+                                            stats.dig(:performance, :avg_duration_ms) || 0),
+              p95_duration_ms: gauge_metric("operation_duration_ms_p95",
+                                            stats.dig(:performance, :p95_duration_ms) || 0),
               p99_duration_ms: gauge_metric("operation_duration_ms_p99", stats.dig(:performance, :p99_duration_ms) || 0)
             },
             errors: {
@@ -226,7 +228,7 @@ module DecisionAgent
       end
 
       def sanitize_label(value)
-        value.to_s.gsub(/"/, '\\"')
+        value.to_s.gsub("\\", "\\\\").gsub('"', '\\"').gsub("\n", "\\n")
       end
 
       def counter_metric(name, value)

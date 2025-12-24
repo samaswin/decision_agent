@@ -4,15 +4,15 @@ RSpec.describe "DSL Validation" do
   describe DecisionAgent::Dsl::SchemaValidator do
     describe "root structure validation" do
       it "rejects non-hash input" do
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!([1, 2, 3])
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /Root element must be a hash/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /Root element must be a hash/)
       end
 
       it "rejects string input" do
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!("not a hash")
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /Root element must be a hash/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /Root element must be a hash/)
       end
 
       it "accepts valid hash input" do
@@ -21,9 +21,9 @@ RSpec.describe "DSL Validation" do
           "rules" => []
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(valid_rules)
-        }.not_to raise_error
+        end.not_to raise_error
       end
     end
 
@@ -33,9 +33,9 @@ RSpec.describe "DSL Validation" do
           "rules" => []
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'version'/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'version'/)
       end
 
       it "accepts version as symbol key" do
@@ -44,9 +44,9 @@ RSpec.describe "DSL Validation" do
           rules: []
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.not_to raise_error
+        end.not_to raise_error
       end
     end
 
@@ -56,9 +56,9 @@ RSpec.describe "DSL Validation" do
           "version" => "1.0"
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'rules'/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'rules'/)
       end
 
       it "rejects non-array rules" do
@@ -67,9 +67,9 @@ RSpec.describe "DSL Validation" do
           "rules" => "not an array"
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /must be an array/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /must be an array/)
       end
 
       it "accepts empty rules array" do
@@ -78,9 +78,9 @@ RSpec.describe "DSL Validation" do
           "rules" => []
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.not_to raise_error
+        end.not_to raise_error
       end
     end
 
@@ -91,9 +91,9 @@ RSpec.describe "DSL Validation" do
           "rules" => ["not a hash"]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /rules\[0\].*must be a hash/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /rules\[0\].*must be a hash/)
       end
 
       it "requires rule id" do
@@ -107,9 +107,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'id'/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'id'/)
       end
 
       it "requires rule if clause" do
@@ -123,9 +123,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'if'/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'if'/)
       end
 
       it "requires rule then clause" do
@@ -139,9 +139,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'then'/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'then'/)
       end
     end
 
@@ -158,9 +158,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /Condition must have one of: 'field', 'all', or 'any'/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /Condition must have one of: 'field', 'all', or 'any'/)
       end
 
       it "rejects non-hash condition" do
@@ -175,9 +175,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /Condition must be a hash/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /Condition must be a hash/)
       end
     end
 
@@ -194,9 +194,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError) do |error|
+        end.to raise_error(DecisionAgent::InvalidRuleDslError) do |error|
           expect(error.message).to match(/Condition must have one of: 'field', 'all', or 'any'/)
         end
       end
@@ -213,9 +213,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /missing 'op'/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /missing 'op'/)
       end
 
       it "validates operator is supported" do
@@ -230,9 +230,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError) do |error|
+        end.to raise_error(DecisionAgent::InvalidRuleDslError) do |error|
           expect(error.message).to include("Unsupported operator 'invalid_op'")
           expect(error.message).to include("eq, neq, gt, gte, lt, lte, in, present, blank")
         end
@@ -250,9 +250,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /missing 'value' key/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /missing 'value' key/)
       end
 
       it "allows missing value for present operator" do
@@ -267,9 +267,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.not_to raise_error
+        end.not_to raise_error
       end
 
       it "allows missing value for blank operator" do
@@ -284,9 +284,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.not_to raise_error
+        end.not_to raise_error
       end
 
       it "rejects empty field path" do
@@ -301,9 +301,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /Field path cannot be empty/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /Field path cannot be empty/)
       end
 
       it "rejects invalid dot-notation" do
@@ -318,9 +318,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /cannot have empty segments/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /cannot have empty segments/)
       end
 
       it "accepts valid dot-notation" do
@@ -335,9 +335,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.not_to raise_error
+        end.not_to raise_error
       end
     end
 
@@ -354,9 +354,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /'all' condition must contain an array/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /'all' condition must contain an array/)
       end
 
       it "requires array for any condition" do
@@ -371,9 +371,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /'any' condition must contain an array/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /'any' condition must contain an array/)
       end
 
       it "validates nested conditions in all" do
@@ -392,9 +392,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /Unsupported operator/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /Unsupported operator/)
       end
 
       it "validates nested conditions in any" do
@@ -405,7 +405,7 @@ RSpec.describe "DSL Validation" do
               "id" => "rule_1",
               "if" => {
                 "any" => [
-                  { "field" => "priority" }  # Missing op
+                  { "field" => "priority" } # Missing op
                 ]
               },
               "then" => { "decision" => "escalate" }
@@ -413,9 +413,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /missing 'op'/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /missing 'op'/)
       end
     end
 
@@ -432,9 +432,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /then.*Must be a hash/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /then.*Must be a hash/)
       end
 
       it "requires decision field in then clause" do
@@ -449,9 +449,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'decision'/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'decision'/)
       end
 
       it "validates weight is numeric" do
@@ -466,9 +466,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /weight.*Must be a number/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /weight.*Must be a number/)
       end
 
       it "validates weight is between 0 and 1" do
@@ -483,9 +483,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /weight.*between 0.0 and 1.0/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /weight.*between 0.0 and 1.0/)
       end
 
       it "validates reason is a string" do
@@ -500,9 +500,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /reason.*Must be a string/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /reason.*Must be a string/)
       end
 
       it "accepts valid then clause with all fields" do
@@ -521,9 +521,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.not_to raise_error
+        end.not_to raise_error
       end
     end
 
@@ -533,16 +533,16 @@ RSpec.describe "DSL Validation" do
           "version" => "1.0",
           "rules" => [
             {
-              "id" => "rule_1",
+              "id" => "rule_1"
               # Missing if clause
               # Missing then clause
             }
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError) do |error|
+        end.to raise_error(DecisionAgent::InvalidRuleDslError) do |error|
           expect(error.message).to include("1.")
           expect(error.message).to include("2.")
           expect(error.message).to match(/validation failed with 2 errors/)
@@ -561,9 +561,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError) do |error|
+        end.to raise_error(DecisionAgent::InvalidRuleDslError) do |error|
           expect(error.message).to include("rules[0].if")
           expect(error.message).to include("Supported operators:")
         end
@@ -592,9 +592,9 @@ RSpec.describe "DSL Validation" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError) do |error|
+        end.to raise_error(DecisionAgent::InvalidRuleDslError) do |error|
           expect(error.message).to include("rules[0].if.all[0].any[1]")
           expect(error.message).to include("Unsupported operator")
         end
@@ -606,17 +606,17 @@ RSpec.describe "DSL Validation" do
     it "uses SchemaValidator for validation" do
       invalid_json = '{"version": "1.0", "rules": "not an array"}'
 
-      expect {
+      expect do
         DecisionAgent::Dsl::RuleParser.parse(invalid_json)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /must be an array/)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /must be an array/)
     end
 
     it "provides helpful error for malformed JSON" do
       malformed_json = '{"version": "1.0", "rules": [,,,]}'
 
-      expect {
+      expect do
         DecisionAgent::Dsl::RuleParser.parse(malformed_json)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError) do |error|
+      end.to raise_error(DecisionAgent::InvalidRuleDslError) do |error|
         expect(error.message).to include("Invalid JSON syntax")
         expect(error.message).to include("Common issues")
       end
@@ -634,15 +634,15 @@ RSpec.describe "DSL Validation" do
         ]
       }
 
-      expect {
+      expect do
         DecisionAgent::Dsl::RuleParser.parse(rules_hash)
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "rejects invalid input types" do
-      expect {
-        DecisionAgent::Dsl::RuleParser.parse(12345)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /Expected JSON string or Hash/)
+      expect do
+        DecisionAgent::Dsl::RuleParser.parse(12_345)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /Expected JSON string or Hash/)
     end
   end
 end

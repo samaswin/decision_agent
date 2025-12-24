@@ -91,7 +91,7 @@ RSpec.describe "Scoring Strategies" do
       strategy = DecisionAgent::Scoring::MaxWeight.new
       result = strategy.score([eval_a, eval_b])
 
-      expect(["option_a", "option_b"]).to include(result[:decision])
+      expect(%w[option_a option_b]).to include(result[:decision])
       expect(result[:confidence]).to eq(0.7)
     end
 

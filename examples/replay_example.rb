@@ -78,6 +78,6 @@ puts "\n4. Audit Payload Structure"
 puts "-" * 60
 puts JSON.pretty_generate(original_result.audit_payload)
 
-puts "\n" + "=" * 60
+puts "\n#{'=' * 60}"
 puts "Replay example complete"
 puts "=" * 60

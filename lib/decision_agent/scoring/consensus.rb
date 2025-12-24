@@ -24,11 +24,11 @@ module DecisionAgent
 
         winning_decision, agreement, avg_weight = candidates.first
 
-        if agreement >= @minimum_agreement
-          confidence = agreement * avg_weight
-        else
-          confidence = agreement * avg_weight * 0.5
-        end
+        confidence = if agreement >= @minimum_agreement
+                       agreement * avg_weight
+                     else
+                       agreement * avg_weight * 0.5
+                     end
 
         {
           decision: winning_decision,

@@ -36,7 +36,7 @@ module DecisionAgent
 
     def validate_confidence!(confidence)
       c = confidence.to_f
-      raise InvalidConfidenceError.new(confidence) unless c >= 0.0 && c <= 1.0
+      raise InvalidConfidenceError, confidence unless c.between?(0.0, 1.0)
     end
 
     def deep_freeze(obj)

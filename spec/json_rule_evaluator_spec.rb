@@ -302,7 +302,7 @@ RSpec.describe DecisionAgent::Evaluators::JsonRuleEvaluator do
         rules: [
           {
             id: "rule_1",
-            if: { field: "status", op: "in", value: ["open", "pending", "review"] },
+            if: { field: "status", op: "in", value: %w[open pending review] },
             then: { decision: "active" }
           }
         ]
@@ -418,25 +418,25 @@ RSpec.describe DecisionAgent::Evaluators::JsonRuleEvaluator do
 
   describe "invalid DSL handling" do
     it "raises InvalidRuleDslError for malformed JSON" do
-      expect {
+      expect do
         DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: "{ invalid json")
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /Invalid JSON/)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /Invalid JSON/)
     end
 
     it "raises InvalidRuleDslError when version is missing" do
       rules = { rules: [] }
 
-      expect {
+      expect do
         DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /version/)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /version/)
     end
 
     it "raises InvalidRuleDslError when rules array is missing" do
       rules = { version: "1.0" }
 
-      expect {
+      expect do
         DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /rules/)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /rules/)
     end
 
     it "raises InvalidRuleDslError when rule is missing id" do
@@ -450,9 +450,9 @@ RSpec.describe DecisionAgent::Evaluators::JsonRuleEvaluator do
         ]
       }
 
-      expect {
+      expect do
         DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'id'/)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'id'/)
     end
 
     it "raises InvalidRuleDslError when rule is missing if clause" do
@@ -466,9 +466,9 @@ RSpec.describe DecisionAgent::Evaluators::JsonRuleEvaluator do
         ]
       }
 
-      expect {
+      expect do
         DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'if'/)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'if'/)
     end
 
     it "raises InvalidRuleDslError when rule is missing then clause" do
@@ -482,9 +482,9 @@ RSpec.describe DecisionAgent::Evaluators::JsonRuleEvaluator do
         ]
       }
 
-      expect {
+      expect do
         DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'then'/)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'then'/)
     end
 
     it "raises InvalidRuleDslError when then clause is missing decision" do
@@ -499,9 +499,9 @@ RSpec.describe DecisionAgent::Evaluators::JsonRuleEvaluator do
         ]
       }
 
-      expect {
+      expect do
         DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'decision'/)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'decision'/)
     end
   end
 

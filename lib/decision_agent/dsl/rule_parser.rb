@@ -13,13 +13,11 @@ module DecisionAgent
       rescue JSON::ParserError => e
         raise InvalidRuleDslError, "Invalid JSON syntax: #{e.message}\n\n" \
                                    "Please ensure your JSON is properly formatted. " \
-                                   "Common issues:\n" \
-                                   "  - Missing or extra commas\n" \
-                                   "  - Unquoted keys or values\n" \
-                                   "  - Unmatched brackets or braces"
+                                   "Common issues:\n  " \
+                                   "- Missing or extra commas\n  " \
+                                   "- Unquoted keys or values\n  " \
+                                   "- Unmatched brackets or braces"
       end
-
-      private
 
       def self.parse_json(input)
         if input.is_a?(String)

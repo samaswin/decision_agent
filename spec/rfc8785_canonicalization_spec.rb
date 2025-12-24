@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# encoding: utf-8
 
 require "spec_helper"
 
@@ -107,7 +106,7 @@ RSpec.describe "RFC 8785 JSON Canonicalization" do
           id: 123,
           profile: {
             name: "Alice",
-            tags: ["premium", "verified"]
+            tags: %w[premium verified]
           }
         }
       }
@@ -121,8 +120,8 @@ RSpec.describe "RFC 8785 JSON Canonicalization" do
 
     it "handles arrays consistently" do
       # Array order should be preserved (not sorted)
-      context1 = { amount: 100, tags: ["a", "b", "c"] }
-      context2 = { amount: 100, tags: ["c", "b", "a"] }
+      context1 = { amount: 100, tags: %w[a b c] }
+      context2 = { amount: 100, tags: %w[c b a] }
 
       decision1 = agent.decide(context: context1)
       decision2 = agent.decide(context: context2)

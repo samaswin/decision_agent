@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# encoding: UTF-8
 
 require "spec_helper"
 
@@ -34,7 +33,7 @@ RSpec.describe "Thread-Safety" do
       # Create 50 threads making concurrent decisions
       50.times do |i|
         threads << Thread.new do
-          context = { amount: (i % 2 == 0) ? 1500 : 500 }
+          context = { amount: i.even? ? 1500 : 500 }
           results[i] = agent.decide(context: context)
         end
       end
@@ -53,7 +52,7 @@ RSpec.describe "Thread-Safety" do
         expect(decision.audit_payload).to be_frozen
 
         # Verify correctness based on input
-        if i % 2 == 0
+        if i.even?
           expect(decision.decision).to eq("approve")
         else
           expect(decision.decision).to eq("reject")
@@ -66,17 +65,17 @@ RSpec.describe "Thread-Safety" do
       expect(evaluator.instance_variable_get(:@ruleset)).to be_frozen
 
       # Attempt to modify should raise error
-      expect {
+      expect do
         evaluator.instance_variable_get(:@ruleset)["rules"] << { id: "new_rule" }
-      }.to raise_error(FrozenError)
+      end.to raise_error(FrozenError)
     end
 
     it "prevents modification of evaluators array in Agent" do
       expect(agent.evaluators).to be_frozen
 
-      expect {
+      expect do
         agent.evaluators << DecisionAgent::Evaluators::StaticEvaluator.new(decision: true, weight: 1.0)
-      }.to raise_error(FrozenError)
+      end.to raise_error(FrozenError)
     end
   end
 
@@ -102,13 +101,12 @@ RSpec.describe "Thread-Safety" do
       agent2 = DecisionAgent::Agent.new(evaluators: [evaluator])
       agent3 = DecisionAgent::Agent.new(evaluators: [evaluator])
 
-      threads = []
       results = []
       mutex = Mutex.new
 
       # Each agent makes decisions in parallel
-      [agent1, agent2, agent3].each do |agent|
-        threads << Thread.new do
+      threads = [agent1, agent2, agent3].map do |agent|
+        Thread.new do
           10.times do
             decision = agent.decide(context: { value: "yes" })
             mutex.synchronize { results << decision }
@@ -192,11 +190,11 @@ RSpec.describe "Thread-Safety" do
     let(:adapter) { DecisionAgent::Versioning::FileStorageAdapter.new(storage_path: storage_path) }
 
     before do
-      FileUtils.rm_rf(storage_path) if Dir.exist?(storage_path)
+      FileUtils.rm_rf(storage_path)
     end
 
     after do
-      FileUtils.rm_rf(storage_path) if Dir.exist?(storage_path)
+      FileUtils.rm_rf(storage_path)
     end
 
     it "handles concurrent version creation safely" do
@@ -249,23 +247,23 @@ RSpec.describe "Thread-Safety" do
 
       # Mix of read and write operations
       10.times do |i|
-        if i % 2 == 0
-          # Read operations
-          threads << Thread.new do
-            versions = adapter.list_versions(rule_id: "read_write_test")
-            read_mutex.synchronize { read_results << versions }
-          end
-        else
-          # Write operations
-          threads << Thread.new do
-            version = adapter.create_version(
-              rule_id: "read_write_test",
-              content: { rule: "version_#{i}" },
-              metadata: { created_by: "thread_#{i}" }
-            )
-            write_mutex.synchronize { write_results << version }
-          end
-        end
+        threads << if i.even?
+                     # Read operations
+                     Thread.new do
+                       versions = adapter.list_versions(rule_id: "read_write_test")
+                       read_mutex.synchronize { read_results << versions }
+                     end
+                   else
+                     # Write operations
+                     Thread.new do
+                       version = adapter.create_version(
+                         rule_id: "read_write_test",
+                         content: { rule: "version_#{i}" },
+                         metadata: { created_by: "thread_#{i}" }
+                       )
+                       write_mutex.synchronize { write_results << version }
+                     end
+                   end
       end
 
       threads.each(&:join)
@@ -295,9 +293,9 @@ RSpec.describe "Thread-Safety" do
         evaluator_name: "TestEvaluator"
       )
 
-      expect {
+      expect do
         DecisionAgent::EvaluationValidator.validate!(evaluation)
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "raises error for unfrozen evaluations" do
@@ -308,9 +306,9 @@ RSpec.describe "Thread-Safety" do
       evaluation.instance_variable_set(:@reason, "Test")
       evaluation.instance_variable_set(:@evaluator_name, "Test")
 
-      expect {
+      expect do
         DecisionAgent::EvaluationValidator.validate!(evaluation)
-      }.to raise_error(DecisionAgent::EvaluationValidator::ValidationError, /must be frozen/)
+      end.to raise_error(DecisionAgent::EvaluationValidator::ValidationError, /must be frozen/)
     end
 
     it "validates arrays of evaluations" do
@@ -329,9 +327,9 @@ RSpec.describe "Thread-Safety" do
         )
       ]
 
-      expect {
+      expect do
         DecisionAgent::EvaluationValidator.validate_all!(evaluations)
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 
@@ -368,7 +366,7 @@ RSpec.describe "Thread-Safety" do
       threads = thread_count.times.map do |thread_id|
         Thread.new do
           decisions_per_thread.times do |i|
-            context = { value: (thread_id * decisions_per_thread + i) % 100 }
+            context = { value: ((thread_id * decisions_per_thread) + i) % 100 }
             decision = agent.decide(context: context)
             mutex.synchronize { results << decision }
           end
@@ -379,7 +377,7 @@ RSpec.describe "Thread-Safety" do
 
       expect(results.size).to eq(total_decisions)
       expect(results).to all(be_frozen)
-      expect(results.map(&:decision).uniq.sort).to eq(["high", "low"])
+      expect(results.map(&:decision).uniq.sort).to eq(%w[high low])
     end
 
     it "handles rapid-fire decisions with deterministic results" do
@@ -407,8 +405,8 @@ RSpec.describe "Thread-Safety" do
           user: {
             id: i,
             profile: {
-              age: 20 + i % 50,
-              score: 0.5 + (i % 10) * 0.05
+              age: 20 + (i % 50),
+              score: 0.5 + ((i % 10) * 0.05)
             }
           },
           metadata: {
