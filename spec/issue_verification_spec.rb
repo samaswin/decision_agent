@@ -12,10 +12,10 @@ RSpec.describe "Issue Verification Tests" do
   if defined?(ActiveRecord)
     describe "Issue #4: Database Constraints" do
       before(:all) do
-        # Setup in-memory SQLite database
+        # Setup in-memory SQLite database with shared cache for multi-threading
         ActiveRecord::Base.establish_connection(
           adapter: "sqlite3",
-          database: ":memory:"
+          database: "file::memory:?cache=shared"
         )
       end
 
@@ -122,30 +122,40 @@ RSpec.describe "Issue Verification Tests" do
             self.table_name = "rule_versions"
           end
 
+          # Clear schema cache to ensure all threads see the table
+          ActiveRecord::Base.connection.schema_cache.clear!
+          TestRuleVersion3.reset_column_information
+
           # Simulate race condition
           threads = []
           results = []
           mutex = Mutex.new
 
-          10.times do |i|
-            threads << Thread.new do
-              # Calculate next version (simulating adapter logic)
-              last = TestRuleVersion3.where(rule_id: "test_rule")
-                                     .order(version_number: :desc)
-                                     .first
-              next_version = last ? last.version_number + 1 : 1
+          begin
+            10.times do |i|
+              threads << Thread.new do
+                # Each thread needs to reopen the connection in threaded environment
+                ActiveRecord::Base.connection_pool.with_connection do
+                  # Calculate next version (simulating adapter logic)
+                  last = TestRuleVersion3.where(rule_id: "test_rule")
+                                         .order(version_number: :desc)
+                                         .first
+                  next_version = last ? last.version_number + 1 : 1
 
-              # Create version (race window here!)
-              version = TestRuleVersion3.create!(
-                rule_id: "test_rule",
-                version_number: next_version,
-                content: { thread: i }.to_json
-              )
-              mutex.synchronize { results << version }
+                  # Create version (race window here!)
+                  version = TestRuleVersion3.create!(
+                    rule_id: "test_rule",
+                    version_number: next_version,
+                    content: { thread: i }.to_json
+                  )
+                  mutex.synchronize { results << version }
+                end
+              end
             end
+          ensure
+            # CRITICAL: Join all threads before test completes to prevent table being dropped while threads are running
+            threads.each(&:join)
           end
-
-          threads.each(&:join)
 
           # Check for duplicate version numbers
           version_numbers = results.map(&:version_number).sort
