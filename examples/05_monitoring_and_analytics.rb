@@ -292,17 +292,6 @@ puts
 puts "11. Starting monitoring dashboard..."
 puts
 
-puts "   🚀 Dashboard server starting on http://localhost:4568"
-puts
-puts "   Available endpoints:"
-puts "   - Dashboard UI:        http://localhost:4568/"
-puts "   - Prometheus metrics:  http://localhost:4568/metrics"
-puts "   - API statistics:      http://localhost:4568/api/stats"
-puts "   - Health check:        http://localhost:4568/health"
-puts
-puts "   Press Ctrl+C to stop the server"
-puts
-
 # Configure and start dashboard
 DecisionAgent::Monitoring::DashboardServer.configure_monitoring(
   metrics_collector: collector,
@@ -313,16 +302,42 @@ DecisionAgent::Monitoring::DashboardServer.configure_monitoring(
 # Start background monitoring
 alert_manager.start_monitoring(interval: 30)
 
-# Start dashboard server
-begin
-  DecisionAgent::Monitoring::DashboardServer.start!(
-    port: 4568,
-    metrics_collector: collector,
-    prometheus_exporter: prometheus_exporter,
-    alert_manager: alert_manager
-  )
-rescue Interrupt
-  puts "\n\n   Shutting down gracefully..."
+# In CI environments, just verify the dashboard can be configured and skip the server start
+# to avoid hanging indefinitely
+if ENV["CI"] || ENV["GITHUB_ACTIONS"]
+  puts "   ✓ Dashboard configured successfully (skipping server start in CI)"
+  puts "   ✓ Available endpoints when running locally:"
+  puts "     - Dashboard UI:        http://localhost:4568/"
+  puts "     - Prometheus metrics:  http://localhost:4568/metrics"
+  puts "     - API statistics:      http://localhost:4568/api/stats"
+  puts "     - Health check:        http://localhost:4568/health"
+  puts
+
   alert_manager.stop_monitoring
-  puts "   ✓ Server stopped"
+  puts "   ✓ Monitoring stopped"
+else
+  puts "   🚀 Dashboard server starting on http://localhost:4568"
+  puts
+  puts "   Available endpoints:"
+  puts "   - Dashboard UI:        http://localhost:4568/"
+  puts "   - Prometheus metrics:  http://localhost:4568/metrics"
+  puts "   - API statistics:      http://localhost:4568/api/stats"
+  puts "   - Health check:        http://localhost:4568/health"
+  puts
+  puts "   Press Ctrl+C to stop the server"
+  puts
+
+  # Start dashboard server
+  begin
+    DecisionAgent::Monitoring::DashboardServer.start!(
+      port: 4568,
+      metrics_collector: collector,
+      prometheus_exporter: prometheus_exporter,
+      alert_manager: alert_manager
+    )
+  rescue Interrupt
+    puts "\n\n   Shutting down gracefully..."
+    alert_manager.stop_monitoring
+    puts "   ✓ Server stopped"
+  end
 end
