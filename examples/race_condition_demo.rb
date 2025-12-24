@@ -19,8 +19,14 @@ puts
 ActiveRecord::Base.establish_connection(
   adapter: "sqlite3",
   database: "file::memory:?cache=shared",
-  timeout: 5000 # 5 second timeout for busy database (default is 0)
+  timeout: 10_000, # 10 second timeout for busy database
+  pool: 25 # Increase pool size to handle 20 concurrent threads
 )
+
+# Enable WAL mode for better concurrent write performance
+ActiveRecord::Base.connection.execute("PRAGMA journal_mode=WAL")
+# Increase busy timeout at SQLite level
+ActiveRecord::Base.connection.execute("PRAGMA busy_timeout=10000")
 
 # Create schema
 ActiveRecord::Schema.define do
@@ -92,20 +98,37 @@ start_time = Time.now
 
 20.times do |i|
   threads << Thread.new do
-    version = adapter.create_version(
-      rule_id: rule_id,
-      content: RULE_CONTENT,
-      metadata: { created_by: "thread_#{i}" }
-    )
+    retries = 0
+    max_retries = 3
 
-    mutex.synchronize do
-      results << version
-      print "."
-    end
-  rescue StandardError => e
-    mutex.synchronize do
-      errors << { thread: i, error: e }
-      print "X"
+    begin
+      version = adapter.create_version(
+        rule_id: rule_id,
+        content: RULE_CONTENT,
+        metadata: { created_by: "thread_#{i}" }
+      )
+
+      mutex.synchronize do
+        results << version
+        print "."
+      end
+    rescue ActiveRecord::StatementInvalid => e
+      # Retry on database locked errors (SQLite concurrency limitation)
+      if e.message.include?("database is locked") && retries < max_retries
+        retries += 1
+        sleep(0.01 * retries) # Exponential backoff
+        retry
+      else
+        mutex.synchronize do
+          errors << { thread: i, error: e }
+          print "X"
+        end
+      end
+    rescue StandardError => e
+      mutex.synchronize do
+        errors << { thread: i, error: e }
+        print "X"
+      end
     end
   end
 end
