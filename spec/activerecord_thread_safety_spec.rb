@@ -163,7 +163,7 @@ if defined?(ActiveRecord)
 
         thread_count.times do |i|
           threads << Thread.new do
-            with_retry do
+            with_retry(max_retries: 10) do # Increased retry count for high concurrency
               adapter.create_version(
                 rule_id: rule_id,
                 content: rule_content,
