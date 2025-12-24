@@ -155,7 +155,7 @@ module DecisionAgent
       # Clear all metrics
       def clear!
         synchronize do
-          @metrics.each { |_, v| v.clear }
+          @metrics.each_value(&:clear)
         end
       end
 
@@ -175,13 +175,14 @@ module DecisionAgent
       def cleanup_old_metrics!
         cutoff_time = Time.now.utc - @window_size
 
-        @metrics.each do |type, data|
+        @metrics.each_value do |data|
           data.delete_if { |m| m[:timestamp] < cutoff_time }
         end
       end
 
       def filter_by_time(data, start_time)
         return data unless start_time
+
         data.select { |m| m[:timestamp] >= start_time }
       end
 
@@ -192,7 +193,7 @@ module DecisionAgent
         durations = decisions.map { |d| d[:duration_ms] }.compact
 
         decision_distribution = decisions.group_by { |d| d[:decision] }
-          .transform_values(&:size)
+                                         .transform_values(&:size)
 
         {
           total: decisions.size,
@@ -210,14 +211,14 @@ module DecisionAgent
 
         weights = evaluations.map { |e| e[:weight] }
         evaluator_distribution = evaluations.group_by { |e| e[:evaluator_name] }
-          .transform_values(&:size)
+                                            .transform_values(&:size)
 
         {
           total: evaluations.size,
           avg_weight: (weights.sum / weights.size.to_f).round(4),
           evaluator_distribution: evaluator_distribution,
           decision_distribution: evaluations.group_by { |e| e[:decision] }
-            .transform_values(&:size)
+                                            .transform_values(&:size)
         }
       end
 
@@ -258,6 +259,7 @@ module DecisionAgent
 
       def percentile(array, percentile)
         return 0 if array.empty?
+
         sorted = array.sort
         index = (percentile * sorted.length).ceil - 1
         sorted[[index, 0].max]
@@ -265,12 +267,10 @@ module DecisionAgent
 
       def notify_observers(event_type, metric)
         @observers.each do |observer|
-          begin
-            observer.call(event_type, metric)
-          rescue => e
-            # Silently fail observer notifications to prevent disruption
-            warn "Observer notification failed: #{e.message}"
-          end
+          observer.call(event_type, metric)
+        rescue StandardError => e
+          # Silently fail observer notifications to prevent disruption
+          warn "Observer notification failed: #{e.message}"
         end
       end
     end

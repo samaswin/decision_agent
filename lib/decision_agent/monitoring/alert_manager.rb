@@ -69,12 +69,10 @@ module DecisionAgent
           @check_interval = interval
           @monitoring_thread = Thread.new do
             loop do
-              begin
-                check_rules
-                sleep @check_interval
-              rescue => e
-                warn "Alert monitoring error: #{e.message}"
-              end
+              check_rules
+              sleep @check_interval
+            rescue StandardError => e
+              warn "Alert monitoring error: #{e.message}"
             end
           end
         end
@@ -96,9 +94,7 @@ module DecisionAgent
           next unless rule[:enabled]
           next if in_cooldown?(rule)
 
-          if evaluate_condition(rule[:condition], stats)
-            trigger_alert(rule, stats)
-          end
+          trigger_alert(rule, stats) if evaluate_condition(rule[:condition], stats)
         end
       end
 
@@ -141,7 +137,7 @@ module DecisionAgent
       end
 
       # Clear old alerts
-      def clear_old_alerts(older_than: 86400)
+      def clear_old_alerts(older_than: 86_400)
         synchronize do
           cutoff = Time.now.utc - older_than
           @alerts.reject! { |a| a[:triggered_at] < cutoff && a[:status] != :active }
@@ -150,9 +146,9 @@ module DecisionAgent
 
       # Built-in alert conditions
       def self.high_error_rate(threshold: 0.1)
-        ->(stats) do
+        lambda do |stats|
           total_ops = stats.dig(:performance, :total_operations) || 0
-          return false if total_ops == 0
+          return false if total_ops.zero?
 
           success_rate = stats.dig(:performance, :success_rate) || 1.0
           (1.0 - success_rate) > threshold
@@ -160,28 +156,28 @@ module DecisionAgent
       end
 
       def self.low_confidence(threshold: 0.5)
-        ->(stats) do
+        lambda do |stats|
           avg_confidence = stats.dig(:decisions, :avg_confidence)
           avg_confidence && avg_confidence < threshold
         end
       end
 
       def self.high_latency(threshold_ms: 1000)
-        ->(stats) do
+        lambda do |stats|
           p95 = stats.dig(:performance, :p95_duration_ms)
           p95 && p95 > threshold_ms
         end
       end
 
       def self.error_spike(threshold: 10, time_window: 300)
-        ->(stats) do
+        lambda do |stats|
           recent_errors = stats.dig(:errors, :total) || 0
           recent_errors > threshold
         end
       end
 
       def self.decision_anomaly(expected_rate: 100, variance: 0.3)
-        ->(stats) do
+        lambda do |stats|
           total = stats.dig(:decisions, :total) || 0
           time_range = stats.dig(:summary, :time_range)
 
@@ -211,6 +207,7 @@ module DecisionAgent
 
       def in_cooldown?(rule)
         return false unless rule[:last_triggered]
+
         Time.now.utc - rule[:last_triggered] < rule[:cooldown]
       end
 
@@ -252,7 +249,7 @@ module DecisionAgent
 
       def trigger_alert(rule, stats)
         alert = {
-          id: "alert_#{Time.now.to_i}_#{rand(10000)}",
+          id: "alert_#{Time.now.to_i}_#{rand(10_000)}",
           rule_id: rule[:id],
           rule_name: rule[:name],
           severity: rule[:severity],
@@ -275,11 +272,9 @@ module DecisionAgent
 
       def notify_handlers(alert)
         @alert_handlers.each do |handler|
-          begin
-            handler.call(alert)
-          rescue => e
-            warn "Alert handler failed: #{e.message}"
-          end
+          handler.call(alert)
+        rescue StandardError => e
+          warn "Alert handler failed: #{e.message}"
         end
       end
     end

@@ -3,41 +3,41 @@ require "spec_helper"
 RSpec.describe DecisionAgent::Agent do
   describe "#initialize" do
     it "requires at least one evaluator" do
-      expect {
+      expect do
         DecisionAgent::Agent.new(evaluators: [])
-      }.to raise_error(DecisionAgent::InvalidConfigurationError, /at least one evaluator/i)
+      end.to raise_error(DecisionAgent::InvalidConfigurationError, /at least one evaluator/i)
     end
 
     it "validates evaluators respond to #evaluate" do
       invalid_evaluator = Object.new
 
-      expect {
+      expect do
         DecisionAgent::Agent.new(evaluators: [invalid_evaluator])
-      }.to raise_error(DecisionAgent::InvalidEvaluatorError)
+      end.to raise_error(DecisionAgent::InvalidEvaluatorError)
     end
 
     it "validates scoring strategy responds to #score" do
       evaluator = DecisionAgent::Evaluators::StaticEvaluator.new(decision: "approve")
       invalid_strategy = Object.new
 
-      expect {
+      expect do
         DecisionAgent::Agent.new(
           evaluators: [evaluator],
           scoring_strategy: invalid_strategy
         )
-      }.to raise_error(DecisionAgent::InvalidScoringStrategyError)
+      end.to raise_error(DecisionAgent::InvalidScoringStrategyError)
     end
 
     it "validates audit adapter responds to #record" do
       evaluator = DecisionAgent::Evaluators::StaticEvaluator.new(decision: "approve")
       invalid_adapter = Object.new
 
-      expect {
+      expect do
         DecisionAgent::Agent.new(
           evaluators: [evaluator],
           audit_adapter: invalid_adapter
         )
-      }.to raise_error(DecisionAgent::InvalidAuditAdapterError)
+      end.to raise_error(DecisionAgent::InvalidAuditAdapterError)
     end
 
     it "uses defaults when optional parameters are omitted" do
@@ -82,21 +82,21 @@ RSpec.describe DecisionAgent::Agent do
 
     it "raises NoEvaluationsError when no evaluators return decisions" do
       failing_evaluator = Class.new(DecisionAgent::Evaluators::Base) do
-        def evaluate(context, feedback: {})
+        def evaluate(_context, feedback: {})
           nil
         end
       end
 
       agent = DecisionAgent::Agent.new(evaluators: [failing_evaluator.new])
 
-      expect {
+      expect do
         agent.decide(context: {})
-      }.to raise_error(DecisionAgent::NoEvaluationsError)
+      end.to raise_error(DecisionAgent::NoEvaluationsError)
     end
 
     it "includes feedback in evaluation" do
       feedback_evaluator = Class.new(DecisionAgent::Evaluators::Base) do
-        def evaluate(context, feedback: {})
+        def evaluate(_context, feedback: {})
           decision = feedback[:override] ? "reject" : "approve"
           DecisionAgent::Evaluation.new(
             decision: decision,
@@ -234,7 +234,7 @@ RSpec.describe DecisionAgent::Agent do
       good_evaluator = DecisionAgent::Evaluators::StaticEvaluator.new(decision: "approve")
 
       bad_evaluator = Class.new(DecisionAgent::Evaluators::Base) do
-        def evaluate(context, feedback: {})
+        def evaluate(_context, feedback: {})
           raise StandardError, "Intentional error"
         end
       end

@@ -23,7 +23,7 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
         rules: [
           {
             id: "auto_approve",
-            if: { field: "score", op: "gte", value: 90 },  # Changed threshold
+            if: { field: "score", op: "gte", value: 90 }, # Changed threshold
             then: { decision: "approve", weight: 0.9, reason: "Very high score" }
           }
         ]
@@ -36,9 +36,9 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
 
       original_result = agent.decide(context: { score: 85 })
 
-      expect {
+      expect do
         DecisionAgent::Replay.run(original_result.audit_payload, strict: true)
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "detects differences in strict mode when rules have changed" do
@@ -52,9 +52,9 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
 
       # Replay uses the stored evaluations (not re-evaluating rules)
       # So it should succeed because replay uses static evaluators from the audit payload
-      expect {
+      expect do
         DecisionAgent::Replay.run(original_result.audit_payload, strict: true)
-      }.not_to raise_error
+      end.not_to raise_error
 
       # The replayed result should match the original
       replayed_result = DecisionAgent::Replay.run(original_result.audit_payload, strict: true)
@@ -69,9 +69,9 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
       original_result = agent.decide(context: { score: 85 })
 
       # In non-strict mode, differences are logged but don't raise errors
-      expect {
+      expect do
         DecisionAgent::Replay.run(original_result.audit_payload, strict: false)
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 
@@ -124,9 +124,9 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
       # StaticEvaluator adds type: "static" by default
       expect(original_result.evaluations.first.metadata).to eq({ type: "static" })
 
-      expect {
+      expect do
         DecisionAgent::Replay.run(original_result.audit_payload, strict: true)
-      }.not_to raise_error
+      end.not_to raise_error
 
       replayed_result = DecisionAgent::Replay.run(original_result.audit_payload, strict: true)
       expect(replayed_result.evaluations.first.metadata).to eq({ type: "static" })
@@ -140,7 +140,7 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
         evaluator_name: "CustomEvaluator",
         metadata: {
           user: { id: 123, role: "admin" },
-          tags: ["urgent", "important"],
+          tags: %w[urgent important],
           history: [
             { action: "created", timestamp: "2025-01-01" },
             { action: "updated", timestamp: "2025-01-02" }
@@ -183,21 +183,21 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
             decision: "allow",
             weight: 0.9,
             reason: "User authenticated successfully",
-            evaluator_name: "DeletedCustomAuthEvaluator",  # This evaluator no longer exists
+            evaluator_name: "DeletedCustomAuthEvaluator", # This evaluator no longer exists
             metadata: { auth_method: "oauth", provider: "google" }
           }
         ],
         decision: "allow",
-        confidence: 1.0,  # WeightedAverage normalizes single eval to 1.0
+        confidence: 1.0, # WeightedAverage normalizes single eval to 1.0
         scoring_strategy: "DecisionAgent::Scoring::WeightedAverage",
         agent_version: "0.1.0",
         deterministic_hash: "abc123"
       }
 
       # Replay should work because it uses StaticEvaluator, not the original evaluator
-      expect {
+      expect do
         DecisionAgent::Replay.run(audit_payload, strict: true)
-      }.not_to raise_error
+      end.not_to raise_error
 
       replayed_result = DecisionAgent::Replay.run(audit_payload, strict: true)
 
@@ -224,12 +224,12 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
             decision: "approve",
             weight: 0.7,
             reason: "ML model prediction",
-            evaluator_name: "NonExistentMLEvaluator",  # Missing evaluator
+            evaluator_name: "NonExistentMLEvaluator", # Missing evaluator
             metadata: { model_version: "v2.1" }
           }
         ],
         decision: "approve",
-        confidence: 1.0,  # Both agree, so 100% confidence
+        confidence: 1.0, # Both agree, so 100% confidence
         scoring_strategy: "DecisionAgent::Scoring::WeightedAverage",
         agent_version: "0.1.0",
         deterministic_hash: "def456"
@@ -260,15 +260,15 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
         ],
         decision: "approve",
         confidence: 0.9,
-        scoring_strategy: "DecisionAgent::Scoring::DeprecatedBayesianStrategy",  # Doesn't exist
+        scoring_strategy: "DecisionAgent::Scoring::DeprecatedBayesianStrategy", # Doesn't exist
         agent_version: "0.1.0",
         deterministic_hash: "ghi789"
       }
 
       # Should fall back to WeightedAverage
-      expect {
+      expect do
         DecisionAgent::Replay.run(audit_payload, strict: false)
-      }.not_to raise_error
+      end.not_to raise_error
 
       replayed_result = DecisionAgent::Replay.run(audit_payload, strict: false)
       expect(replayed_result.decision).to eq("approve")
@@ -291,9 +291,9 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
 
       # Replay uses the stored scoring strategy from the audit payload
       # So it should replay successfully
-      expect {
+      expect do
         DecisionAgent::Replay.run(original_result.audit_payload, strict: true)
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 
@@ -305,9 +305,9 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
         confidence: 0.5
       }
 
-      expect {
+      expect do
         DecisionAgent::Replay.run(incomplete_payload, strict: false)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /missing required key: context/)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /missing required key: context/)
     end
 
     it "requires evaluations field" do
@@ -317,9 +317,9 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
         confidence: 0.5
       }
 
-      expect {
+      expect do
         DecisionAgent::Replay.run(incomplete_payload, strict: false)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /missing required key: evaluations/)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /missing required key: evaluations/)
     end
 
     it "requires decision field" do
@@ -329,9 +329,9 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
         confidence: 0.5
       }
 
-      expect {
+      expect do
         DecisionAgent::Replay.run(incomplete_payload, strict: false)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /missing required key: decision/)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /missing required key: decision/)
     end
 
     it "requires confidence field" do
@@ -341,9 +341,9 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
         decision: "test"
       }
 
-      expect {
+      expect do
         DecisionAgent::Replay.run(incomplete_payload, strict: false)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /missing required key: confidence/)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /missing required key: confidence/)
     end
 
     it "accepts both symbol and string keys" do
@@ -366,9 +366,9 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
         "scoring_strategy" => "DecisionAgent::Scoring::MaxWeight"
       }
 
-      expect {
+      expect do
         DecisionAgent::Replay.run(payload_with_strings, strict: true)
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 
@@ -460,12 +460,12 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
 
       # Modify agent_version
       modified_payload = original_result.audit_payload.dup
-      modified_payload[:agent_version] = "99.0.0"  # Different version
+      modified_payload[:agent_version] = "99.0.0" # Different version
 
       # Non-strict mode should log but not raise
-      expect {
+      expect do
         DecisionAgent::Replay.run(modified_payload, strict: false)
-      }.not_to raise_error
+      end.not_to raise_error
 
       # Should successfully replay despite version difference
       replayed_result = DecisionAgent::Replay.run(modified_payload, strict: false)
@@ -489,7 +489,7 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
         decision: "approve",
         confidence: 1.0,
         scoring_strategy: "DecisionAgent::Scoring::WeightedAverage",
-        agent_version: "0.0.1",  # Old version
+        agent_version: "0.0.1", # Old version
         deterministic_hash: "old_hash"
       }
 
@@ -514,9 +514,9 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
 
       # Strict mode should still work because version is not part of deterministic comparison
       # (only decision and confidence are compared in strict mode)
-      expect {
+      expect do
         DecisionAgent::Replay.run(modified_payload, strict: true)
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 
@@ -543,9 +543,9 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
       }
 
       # Should not raise error, just creates new hash during replay
-      expect {
+      expect do
         DecisionAgent::Replay.run(audit_payload, strict: false)
-      }.not_to raise_error
+      end.not_to raise_error
 
       result = DecisionAgent::Replay.run(audit_payload, strict: false)
       expect(result.decision).to eq("approve")
@@ -582,24 +582,24 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
 
     it "validates required fields before replay" do
       # Missing context
-      expect {
+      expect do
         DecisionAgent::Replay.run({ decision: "test", confidence: 0.5, evaluations: [] }, strict: true)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /context/)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /context/)
 
       # Missing evaluations
-      expect {
+      expect do
         DecisionAgent::Replay.run({ context: {}, decision: "test", confidence: 0.5 }, strict: true)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /evaluations/)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /evaluations/)
 
       # Missing decision
-      expect {
+      expect do
         DecisionAgent::Replay.run({ context: {}, evaluations: [], confidence: 0.5 }, strict: true)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /decision/)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /decision/)
 
       # Missing confidence
-      expect {
+      expect do
         DecisionAgent::Replay.run({ context: {}, evaluations: [], decision: "test" }, strict: true)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError, /confidence/)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError, /confidence/)
     end
 
     it "handles evaluation with invalid weight" do
@@ -610,7 +610,7 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
         evaluations: [
           {
             decision: "approve",
-            weight: 2.5,  # Weight > 1.0, invalid
+            weight: 2.5, # Weight > 1.0, invalid
             reason: "Test",
             evaluator_name: "TestEvaluator",
             metadata: {}
@@ -622,21 +622,21 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
       }
 
       # Invalid weight (> 1.0) should raise error when creating Evaluation
-      expect {
+      expect do
         DecisionAgent::Replay.run(audit_payload, strict: false)
-      }.to raise_error(DecisionAgent::InvalidWeightError)
+      end.to raise_error(DecisionAgent::InvalidWeightError)
     end
 
     it "handles completely empty audit payload" do
-      expect {
+      expect do
         DecisionAgent::Replay.run({}, strict: false)
-      }.to raise_error(DecisionAgent::InvalidRuleDslError)
+      end.to raise_error(DecisionAgent::InvalidRuleDslError)
     end
 
     it "handles nil audit payload" do
-      expect {
+      expect do
         DecisionAgent::Replay.run(nil, strict: false)
-      }.to raise_error
+      end.to raise_error
     end
   end
 
@@ -657,14 +657,14 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
         ],
         decision: "approve",
         confidence: 0.9,
-        scoring_strategy: "DecisionAgent::Scoring::OldStrategyName",  # Renamed or deleted
+        scoring_strategy: "DecisionAgent::Scoring::OldStrategyName", # Renamed or deleted
         agent_version: "0.1.0"
       }
 
       # Should fall back to default strategy (WeightedAverage)
-      expect {
+      expect do
         DecisionAgent::Replay.run(audit_payload, strict: false)
-      }.not_to raise_error
+      end.not_to raise_error
 
       result = DecisionAgent::Replay.run(audit_payload, strict: false)
       expect(result.decision).to eq("approve")
@@ -686,7 +686,7 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
         ],
         decision: "approve",
         confidence: 0.85,
-        scoring_strategy: "MyCompany::CustomMLBasedScoringStrategy",  # Custom strategy
+        scoring_strategy: "MyCompany::CustomMLBasedScoringStrategy", # Custom strategy
         agent_version: "0.1.0"
       }
 

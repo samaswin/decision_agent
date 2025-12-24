@@ -106,47 +106,47 @@ RSpec.describe "DecisionAgent API Contracts" do
 
     describe "weight bounds validation" do
       it "rejects weight < 0.0" do
-        expect {
+        expect do
           DecisionAgent::Evaluation.new(
             decision: "test",
             weight: -0.1,
             reason: "test",
             evaluator_name: "Test"
           )
-        }.to raise_error(DecisionAgent::InvalidWeightError, /must be between 0.0 and 1.0/)
+        end.to raise_error(DecisionAgent::InvalidWeightError, /must be between 0.0 and 1.0/)
       end
 
       it "rejects weight > 1.0" do
-        expect {
+        expect do
           DecisionAgent::Evaluation.new(
             decision: "test",
             weight: 1.1,
             reason: "test",
             evaluator_name: "Test"
           )
-        }.to raise_error(DecisionAgent::InvalidWeightError, /must be between 0.0 and 1.0/)
+        end.to raise_error(DecisionAgent::InvalidWeightError, /must be between 0.0 and 1.0/)
       end
 
       it "accepts weight = 0.0" do
-        expect {
+        expect do
           DecisionAgent::Evaluation.new(
             decision: "test",
             weight: 0.0,
             reason: "test",
             evaluator_name: "Test"
           )
-        }.not_to raise_error
+        end.not_to raise_error
       end
 
       it "accepts weight = 1.0" do
-        expect {
+        expect do
           DecisionAgent::Evaluation.new(
             decision: "test",
             weight: 1.0,
             reason: "test",
             evaluator_name: "Test"
           )
-        }.not_to raise_error
+        end.not_to raise_error
       end
     end
 
@@ -174,13 +174,13 @@ RSpec.describe "DecisionAgent API Contracts" do
       end
 
       it "requires reason parameter to be provided" do
-        expect {
+        expect do
           DecisionAgent::Evaluation.new(
             decision: "test",
             weight: 0.5,
             evaluator_name: "Test"
           )
-        }.to raise_error(ArgumentError, /missing keyword.*reason/)
+        end.to raise_error(ArgumentError, /missing keyword.*reason/)
       end
     end
   end
@@ -324,7 +324,7 @@ RSpec.describe "DecisionAgent API Contracts" do
 
     describe "confidence bounds validation" do
       it "validates confidence is between 0.0 and 1.0" do
-        expect {
+        expect do
           DecisionAgent::Decision.new(
             decision: "test",
             confidence: -0.1,
@@ -332,9 +332,9 @@ RSpec.describe "DecisionAgent API Contracts" do
             evaluations: [],
             audit_payload: {}
           )
-        }.to raise_error(DecisionAgent::InvalidConfidenceError)
+        end.to raise_error(DecisionAgent::InvalidConfidenceError)
 
-        expect {
+        expect do
           DecisionAgent::Decision.new(
             decision: "test",
             confidence: 1.1,
@@ -342,7 +342,7 @@ RSpec.describe "DecisionAgent API Contracts" do
             evaluations: [],
             audit_payload: {}
           )
-        }.to raise_error(DecisionAgent::InvalidConfidenceError)
+        end.to raise_error(DecisionAgent::InvalidConfidenceError)
       end
     end
   end
@@ -351,7 +351,7 @@ RSpec.describe "DecisionAgent API Contracts" do
     let(:evaluator) do
       DecisionAgent::Evaluators::StaticEvaluator.new(
         decision: "approve",
-        weight: 0.5,  # Below threshold
+        weight: 0.5, # Below threshold
         reason: "Low confidence approval"
       )
     end
@@ -406,7 +406,7 @@ RSpec.describe "DecisionAgent API Contracts" do
       let(:high_confidence_evaluator) do
         DecisionAgent::Evaluators::StaticEvaluator.new(
           decision: "approve",
-          weight: 0.9,  # Above threshold
+          weight: 0.9, # Above threshold
           reason: "High confidence approval"
         )
       end

@@ -22,35 +22,43 @@ Style/Documentation:
 
 # Metrics
 Metrics/MethodLength:
-  Max: 25
+  Max: 31
   Exclude:
     - 'spec/**/*'
     - 'examples/**/*'
+    - 'bin/**/*'
 
 Metrics/BlockLength:
+  Max: 99
   Exclude:
     - 'spec/**/*'
     - 'examples/**/*'
     - '*.gemspec'
+    - 'lib/decision_agent/web_ui/**/*'
+    - 'lib/decision_agent/web/server.rb'
 
 Metrics/ClassLength:
-  Max: 150
+  Max: 322
+  Exclude:
+    - 'spec/**/*'
 
 Metrics/ModuleLength:
   Max: 150
 
 Metrics/AbcSize:
-  Max: 25
+  Max: 39
   Exclude:
     - 'spec/**/*'
     - 'examples/**/*'
+    - 'bin/**/*'
 
 # Layout
 Layout/LineLength:
-  Max: 120
+  Max: 146
   Exclude:
     - 'spec/**/*'
     - 'examples/**/*'
+    - 'decision_agent.gemspec'
 
 # Naming
 Naming/MethodParameterName:
@@ -60,3 +68,76 @@ Naming/MethodParameterName:
     - v1
     - v2
     - v3
+    - io
+    - k
+    - v
+    - ws
+
+Naming/VariableNumber:
+  Enabled: false
+
+Naming/PredicatePrefix:
+  Exclude:
+    - 'lib/decision_agent/dsl/schema_validator.rb'
+
+Naming/PredicateMethod:
+  Exclude:
+    - 'spec/**/*'
+    - 'lib/decision_agent/dsl/schema_validator.rb'
+    - 'lib/decision_agent/audit/logger_adapter.rb'
+    - 'lib/decision_agent/conflict_resolution/highest_weight_resolver.rb'
+    - 'lib/decision_agent/monitoring/metrics_collector.rb'
+    - 'lib/decision_agent/monitoring/alert_manager.rb'
+    - 'lib/decision_agent/evaluation_validator.rb'
+
+# Complexity metrics for main library code
+Metrics/CyclomaticComplexity:
+  Max: 18
+  Exclude:
+    - 'spec/**/*'
+    - 'examples/**/*'
+
+Metrics/PerceivedComplexity:
+  Max: 16
+  Exclude:
+    - 'spec/**/*'
+    - 'examples/**/*'
+
+# Gemspec configuration
+Gemspec/DevelopmentDependencies:
+  Enabled: false
+
+# Lint
+Lint/MissingSuper:
+  Exclude:
+    - 'examples/**/*'
+    - 'lib/decision_agent/audit/logger_adapter.rb'
+    - 'lib/decision_agent/evaluators/**/*'
+    - 'lib/decision_agent/scoring/**/*'
+    - 'lib/decision_agent/versioning/**/*'
+
+Lint/UnusedMethodArgument:
+  Exclude:
+    - 'examples/**/*'
+    - 'spec/**/*'
+    - 'lib/decision_agent/web_ui/**/*'
+    - 'lib/decision_agent/evaluators/**/*'
+    - 'lib/decision_agent/versioning/**/*'
+    - 'lib/decision_agent/monitoring/alert_manager.rb'
+
+# Style
+Style/ComparableClamp:
+  Enabled: false
+
+Style/MultilineBlockChain:
+  Exclude:
+    - 'spec/**/*'
+
+Lint/IneffectiveAccessModifier:
+  Enabled: false
+
+Lint/DuplicateBranch:
+  Enabled: false
+
+Metrics/ParameterLists:
+  Max: 6

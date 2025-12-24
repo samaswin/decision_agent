@@ -43,14 +43,12 @@ module DecisionAgent
             valid: true,
             message: "Rules are valid!"
           }.to_json
-
         rescue JSON::ParserError => e
           status 400
           {
             valid: false,
             errors: ["Invalid JSON: #{e.message}"]
           }.to_json
-
         rescue DecisionAgent::InvalidRuleDslError => e
           # Validation failed
           status 422
@@ -58,8 +56,7 @@ module DecisionAgent
             valid: false,
             errors: parse_validation_errors(e.message)
           }.to_json
-
-        rescue => e
+        rescue StandardError => e
           # Unexpected error
           status 500
           {
@@ -102,8 +99,7 @@ module DecisionAgent
               message: "No rules matched the given context"
             }.to_json
           end
-
-        rescue => e
+        rescue StandardError => e
           status 500
           {
             success: false,
@@ -136,7 +132,7 @@ module DecisionAgent
                 },
                 {
                   id: "high_amount_review",
-                  if: { field: "amount", op: "gte", value: 10000 },
+                  if: { field: "amount", op: "gte", value: 10_000 },
                   then: { decision: "manual_review", weight: 0.9, reason: "High amount requires review" }
                 }
               ]
@@ -247,8 +243,7 @@ module DecisionAgent
 
           status 201
           version.to_json
-
-        rescue => e
+        rescue StandardError => e
           status 500
           { error: e.message }.to_json
         end
@@ -265,8 +260,7 @@ module DecisionAgent
           versions = version_manager.get_versions(rule_id: rule_id, limit: limit)
 
           versions.to_json
-
-        rescue => e
+        rescue StandardError => e
           status 500
           { error: e.message }.to_json
         end
@@ -281,8 +275,7 @@ module DecisionAgent
           history = version_manager.get_history(rule_id: rule_id)
 
           history.to_json
-
-        rescue => e
+        rescue StandardError => e
           status 500
           { error: e.message }.to_json
         end
@@ -302,8 +295,7 @@ module DecisionAgent
             status 404
             { error: "Version not found" }.to_json
           end
-
-        rescue => e
+        rescue StandardError => e
           status 500
           { error: e.message }.to_json
         end
@@ -325,8 +317,7 @@ module DecisionAgent
           )
 
           version.to_json
-
-        rescue => e
+        rescue StandardError => e
           status 500
           { error: e.message }.to_json
         end
@@ -351,8 +342,7 @@ module DecisionAgent
             status 404
             { error: "One or both versions not found" }.to_json
           end
-
-        rescue => e
+        rescue StandardError => e
           status 500
           { error: e.message }.to_json
         end
@@ -369,16 +359,13 @@ module DecisionAgent
 
           status 200
           { success: true, message: "Version deleted successfully" }.to_json
-
         rescue DecisionAgent::NotFoundError => e
           status 404
           { error: e.message }.to_json
-
         rescue DecisionAgent::ValidationError => e
           status 422
           { error: e.message }.to_json
-
-        rescue => e
+        rescue StandardError => e
           status 500
           { error: e.message }.to_json
         end

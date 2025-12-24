@@ -9,12 +9,13 @@ module DecisionAgent
       VALID_STATUSES = %w[draft active archived].freeze
 
       def validate_status!(status)
-        unless VALID_STATUSES.include?(status)
-          raise DecisionAgent::ValidationError,
-                "Invalid status '#{status}'. Must be one of: #{VALID_STATUSES.join(', ')}"
-        end
+        return if VALID_STATUSES.include?(status)
+
+        raise DecisionAgent::ValidationError,
+              "Invalid status '#{status}'. Must be one of: #{VALID_STATUSES.join(', ')}"
       end
     end
+
     # File-based version storage adapter for non-Rails applications
     # Stores versions as JSON files in a directory structure
     class FileStorageAdapter < Adapter
@@ -28,7 +29,7 @@ module DecisionAgent
         @storage_path = storage_path
         # Per-rule mutex for better concurrency - allows different rules to be processed in parallel
         @rule_mutexes = Hash.new { |h, k| h[k] = Mutex.new }
-        @rule_mutexes_lock = Mutex.new  # Protects the hash itself
+        @rule_mutexes_lock = Mutex.new # Protects the hash itself
         # Index cache: version_id => rule_id mapping for O(1) lookups
         @version_index = {}
         @version_index_lock = Mutex.new
@@ -55,9 +56,7 @@ module DecisionAgent
 
         # Deactivate previous active versions
         versions.each do |v|
-          if v[:status] == "active"
-            update_version_status_unsafe(v[:id], "archived", rule_id)
-          end
+          update_version_status_unsafe(v[:id], "archived", rule_id) if v[:status] == "active"
         end
 
         # Create version data
@@ -128,9 +127,7 @@ module DecisionAgent
 
           # Deactivate all other versions for this rule
           versions.each do |v|
-            if v[:id] != version_id && v[:status] == "active"
-              update_version_status_unsafe(v[:id], "archived", rule_id)
-            end
+            update_version_status_unsafe(v[:id], "archived", rule_id) if v[:id] != version_id && v[:status] == "active"
           end
 
           # Activate this version
@@ -235,7 +232,7 @@ module DecisionAgent
           add_to_index(version[:id], version[:rule_id])
         ensure
           # Clean up temp file if rename failed
-          File.delete(temp_file) if File.exist?(temp_file)
+          FileUtils.rm_f(temp_file)
         end
       end
 
@@ -249,9 +246,9 @@ module DecisionAgent
 
       # Get or create a mutex for a specific rule_id
       # This allows different rules to be processed in parallel
-      def with_rule_lock(rule_id)
+      def with_rule_lock(rule_id, &block)
         mutex = @rule_mutexes_lock.synchronize { @rule_mutexes[rule_id] }
-        mutex.synchronize { yield }
+        mutex.synchronize(&block)
       end
 
       # Index management methods for O(1) version_id -> rule_id lookups

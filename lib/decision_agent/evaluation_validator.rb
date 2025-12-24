@@ -46,7 +46,7 @@ module DecisionAgent
     private_class_method def self.validate_weight!(weight)
       raise ValidationError, "Weight cannot be nil" if weight.nil?
       raise ValidationError, "Weight must be a Numeric" unless weight.is_a?(Numeric)
-      raise ValidationError, "Weight must be between 0 and 1" unless weight >= 0 && weight <= 1
+      raise ValidationError, "Weight must be between 0 and 1" unless weight.between?(0, 1)
     end
 
     private_class_method def self.validate_reason!(reason)
@@ -61,26 +61,18 @@ module DecisionAgent
     end
 
     private_class_method def self.validate_frozen!(evaluation)
-      unless evaluation.frozen?
-        raise ValidationError, "Evaluation must be frozen for thread-safety (call .freeze)"
-      end
+      raise ValidationError, "Evaluation must be frozen for thread-safety (call .freeze)" unless evaluation.frozen?
 
       # Verify nested structures are also frozen
-      unless evaluation.decision.frozen?
-        raise ValidationError, "Evaluation decision must be frozen"
-      end
+      raise ValidationError, "Evaluation decision must be frozen" unless evaluation.decision.frozen?
 
-      unless evaluation.reason.frozen?
-        raise ValidationError, "Evaluation reason must be frozen"
-      end
+      raise ValidationError, "Evaluation reason must be frozen" unless evaluation.reason.frozen?
 
-      unless evaluation.evaluator_name.frozen?
-        raise ValidationError, "Evaluation evaluator_name must be frozen"
-      end
+      raise ValidationError, "Evaluation evaluator_name must be frozen" unless evaluation.evaluator_name.frozen?
 
-      if evaluation.metadata && !evaluation.metadata.frozen?
-        raise ValidationError, "Evaluation metadata must be frozen"
-      end
+      return unless evaluation.metadata && !evaluation.metadata.frozen?
+
+      raise ValidationError, "Evaluation metadata must be frozen"
     end
   end
 end

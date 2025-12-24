@@ -41,20 +41,20 @@ module DecisionAgent
           # Register observer for real-time metric updates
           @metrics_collector.add_observer do |event_type, metric|
             broadcast_to_clients({
-              type: "metric_update",
-              event: event_type,
-              data: metric,
-              timestamp: Time.now.utc.iso8601
-            })
+                                   type: "metric_update",
+                                   event: event_type,
+                                   data: metric,
+                                   timestamp: Time.now.utc.iso8601
+                                 })
           end
 
           # Register alert handler
           @alert_manager.add_handler do |alert|
             broadcast_to_clients({
-              type: "alert",
-              data: alert,
-              timestamp: Time.now.utc.iso8601
-            })
+                                   type: "alert",
+                                   data: alert,
+                                   timestamp: Time.now.utc.iso8601
+                                 })
           end
         end
 
@@ -62,7 +62,7 @@ module DecisionAgent
           json_message = message.to_json
           @websocket_clients.each do |client|
             client.send(json_message) if client.ready_state == Faye::WebSocket::API::OPEN
-          rescue => e
+          rescue StandardError => e
             warn "WebSocket send failed: #{e.message}"
           end
         end
@@ -86,7 +86,7 @@ module DecisionAgent
         if Faye::WebSocket.websocket?(request.env)
           ws = Faye::WebSocket.new(request.env)
 
-          ws.on :open do |event|
+          ws.on :open do |_event|
             self.class.add_websocket_client(ws)
 
             # Send initial state
@@ -102,7 +102,7 @@ module DecisionAgent
             handle_websocket_message(ws, event.data)
           end
 
-          ws.on :close do |event|
+          ws.on :close do |_event|
             self.class.remove_websocket_client(ws)
           end
 
@@ -167,7 +167,7 @@ module DecisionAgent
           )
 
           { success: true, message: "KPI registered" }.to_json
-        rescue => e
+        rescue StandardError => e
           status 400
           { error: e.message }.to_json
         end
@@ -207,7 +207,7 @@ module DecisionAgent
 
           status 201
           rule.to_json
-        rescue => e
+        rescue StandardError => e
           status 400
           { error: e.message }.to_json
         end
@@ -224,7 +224,7 @@ module DecisionAgent
           self.class.alert_manager.toggle_rule(params[:rule_id], enabled)
 
           { success: true, message: "Rule #{enabled ? 'enabled' : 'disabled'}" }.to_json
-        rescue => e
+        rescue StandardError => e
           status 400
           { error: e.message }.to_json
         end
@@ -241,7 +241,7 @@ module DecisionAgent
           self.class.alert_manager.acknowledge_alert(params[:alert_id], acknowledged_by: acknowledged_by)
 
           { success: true, message: "Alert acknowledged" }.to_json
-        rescue => e
+        rescue StandardError => e
           status 400
           { error: e.message }.to_json
         end
@@ -258,7 +258,7 @@ module DecisionAgent
           self.class.alert_manager.resolve_alert(params[:alert_id], resolved_by: resolved_by)
 
           { success: true, message: "Alert resolved" }.to_json
-        rescue => e
+        rescue StandardError => e
           status 400
           { error: e.message }.to_json
         end
@@ -276,7 +276,7 @@ module DecisionAgent
       end
 
       # Class method to start the server
-      def self.start!(port: 4568, host: "0.0.0.0", metrics_collector:, prometheus_exporter:, alert_manager:)
+      def self.start!(metrics_collector:, prometheus_exporter:, alert_manager:, port: 4568, host: "0.0.0.0")
         configure_monitoring(
           metrics_collector: metrics_collector,
           prometheus_exporter: prometheus_exporter,
@@ -302,7 +302,7 @@ module DecisionAgent
           alerts = self.class.alert_manager.active_alerts
           ws.send({ type: "alerts", data: alerts }.to_json)
         end
-      rescue => e
+      rescue StandardError => e
         ws.send({ type: "error", message: e.message }.to_json)
       end
 

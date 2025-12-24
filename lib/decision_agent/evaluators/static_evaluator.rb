@@ -11,12 +11,8 @@ module DecisionAgent
         @custom_metadata = metadata
       end
 
-      def evaluate(context, feedback: {})
-        metadata = if @custom_metadata
-          @custom_metadata
-        else
-          { type: "static" }
-        end
+      def evaluate(_context, feedback: {})
+        metadata = @custom_metadata || { type: "static" }
 
         Evaluation.new(
           decision: @decision,

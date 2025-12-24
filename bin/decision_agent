@@ -30,9 +30,7 @@ end
 
 def start_web_ui(port = 4567)
   # Ruby 4.0 compatibility: Puma expects Bundler::ORIGINAL_ENV which was removed
-  if defined?(Bundler) && !Bundler.const_defined?(:ORIGINAL_ENV)
-    Bundler.const_set(:ORIGINAL_ENV, ENV.to_h.dup)
-  end
+  Bundler.const_set(:ORIGINAL_ENV, ENV.to_h.dup) if defined?(Bundler) && !Bundler.const_defined?(:ORIGINAL_ENV)
 
   puts "🎯 Starting DecisionAgent Rule Builder..."
   puts "📍 Server: http://localhost:#{port}"
@@ -60,19 +58,16 @@ def validate_file(filepath)
     puts "   Version: #{data['version'] || data[:version]}"
     puts "   Ruleset: #{data['ruleset'] || data[:ruleset]}"
     puts "   Rules: #{data['rules']&.size || 0}"
-
   rescue JSON::ParserError => e
     puts "❌ JSON Parsing Error:"
     puts "   #{e.message}"
     exit 1
-
   rescue DecisionAgent::InvalidRuleDslError => e
     puts "❌ Validation Failed:"
     puts ""
     puts e.message
     exit 1
-
-  rescue => e
+  rescue StandardError => e
     puts "❌ Unexpected Error:"
     puts "   #{e.message}"
     exit 1

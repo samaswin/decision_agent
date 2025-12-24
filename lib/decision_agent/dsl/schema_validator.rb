@@ -31,18 +31,18 @@ module DecisionAgent
       private
 
       def validate_root_structure
-        unless @data.is_a?(Hash)
-          @errors << "Root element must be a hash/object, got #{@data.class}"
-          return
-        end
+        return if @data.is_a?(Hash)
+
+        @errors << "Root element must be a hash/object, got #{@data.class}"
+        nil
       end
 
       def validate_version
         return if @errors.any? # Skip if root structure is invalid
 
-        unless @data.key?("version") || @data.key?(:version)
-          @errors << "Missing required field 'version'. Example: { \"version\": \"1.0\", ... }"
-        end
+        return if @data.key?("version") || @data.key?(:version)
+
+        @errors << "Missing required field 'version'. Example: { \"version\": \"1.0\", ... }"
       end
 
       def validate_rules_array
@@ -55,9 +55,9 @@ module DecisionAgent
           return
         end
 
-        unless rules.is_a?(Array)
-          @errors << "Field 'rules' must be an array, got #{rules.class}. Example: \"rules\": [...]"
-        end
+        return if rules.is_a?(Array)
+
+        @errors << "Field 'rules' must be an array, got #{rules.class}. Example: \"rules\": [...]"
       end
 
       def validate_each_rule
@@ -93,9 +93,9 @@ module DecisionAgent
           return
         end
 
-        unless rule_id.is_a?(String) || rule_id.is_a?(Symbol)
-          @errors << "#{rule_path}: Field 'id' must be a string, got #{rule_id.class}"
-        end
+        return if rule_id.is_a?(String) || rule_id.is_a?(Symbol)
+
+        @errors << "#{rule_path}: Field 'id' must be a string, got #{rule_id.class}"
       end
 
       def validate_if_clause(rule, rule_path)
@@ -150,9 +150,7 @@ module DecisionAgent
         value = condition["value"] || condition[:value]
 
         # Validate field
-        unless field
-          @errors << "#{path}: Field condition missing 'field' key"
-        end
+        @errors << "#{path}: Field condition missing 'field' key" unless field
 
         # Validate operator
         unless operator
@@ -174,10 +172,10 @@ module DecisionAgent
       def validate_operator(operator, path)
         operator_str = operator.to_s
 
-        unless SUPPORTED_OPERATORS.include?(operator_str)
-          @errors << "#{path}: Unsupported operator '#{operator}'. " \
-                     "Supported operators: #{SUPPORTED_OPERATORS.join(', ')}"
-        end
+        return if SUPPORTED_OPERATORS.include?(operator_str)
+
+        @errors << "#{path}: Unsupported operator '#{operator}'. " \
+                   "Supported operators: #{SUPPORTED_OPERATORS.join(', ')}"
       end
 
       def validate_field_path(field, path)
@@ -191,11 +189,11 @@ module DecisionAgent
         # Validate dot-notation
         parts = field.split(".")
 
-        if parts.any?(&:empty?)
-          @errors << "#{path}: Invalid field path '#{field}'. " \
-                     "Dot-notation paths cannot have empty segments. " \
-                     "Example: 'user.profile.role'"
-        end
+        return unless parts.any?(&:empty?)
+
+        @errors << "#{path}: Invalid field path '#{field}'. " \
+                   "Dot-notation paths cannot have empty segments. " \
+                   "Example: 'user.profile.role'"
       end
 
       def validate_all_condition(condition, path)
@@ -241,9 +239,7 @@ module DecisionAgent
         # Validate decision
         decision = then_clause["decision"] || then_clause[:decision]
 
-        unless decision
-          @errors << "#{rule_path}.then: Missing required field 'decision'"
-        end
+        @errors << "#{rule_path}.then: Missing required field 'decision'" unless decision
 
         # Validate optional weight
         weight = then_clause["weight"] || then_clause[:weight]
@@ -257,9 +253,9 @@ module DecisionAgent
         # Validate optional reason
         reason = then_clause["reason"] || then_clause[:reason]
 
-        if reason && !reason.is_a?(String)
-          @errors << "#{rule_path}.then.reason: Must be a string, got #{reason.class}"
-        end
+        return unless reason && !reason.is_a?(String)
+
+        @errors << "#{rule_path}.then.reason: Must be a string, got #{reason.class}"
       end
 
       def format_errors

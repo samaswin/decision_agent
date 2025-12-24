@@ -10,7 +10,7 @@ task test: :spec
 
 desc "Run tests with coverage"
 task :coverage do
-  ENV['COVERAGE'] = 'true'
+  ENV["COVERAGE"] = "true"
   Rake::Task[:spec].invoke
 end
 

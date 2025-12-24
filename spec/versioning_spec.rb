@@ -156,9 +156,9 @@ RSpec.describe "DecisionAgent Versioning System" do
       end
 
       it "raises error for nonexistent version" do
-        expect {
+        expect do
           adapter.activate_version(version_id: "nonexistent")
-        }.to raise_error(DecisionAgent::NotFoundError)
+        end.to raise_error(DecisionAgent::NotFoundError)
       end
     end
 
@@ -227,17 +227,17 @@ RSpec.describe "DecisionAgent Versioning System" do
       end
 
       it "validates rule content" do
-        expect {
+        expect do
           manager.save_version(rule_id: rule_id, rule_content: nil)
-        }.to raise_error(DecisionAgent::ValidationError, /cannot be nil/)
+        end.to raise_error(DecisionAgent::ValidationError, /cannot be nil/)
 
-        expect {
+        expect do
           manager.save_version(rule_id: rule_id, rule_content: "not a hash")
-        }.to raise_error(DecisionAgent::ValidationError, /must be a Hash/)
+        end.to raise_error(DecisionAgent::ValidationError, /must be a Hash/)
 
-        expect {
+        expect do
           manager.save_version(rule_id: rule_id, rule_content: {})
-        }.to raise_error(DecisionAgent::ValidationError, /cannot be empty/)
+        end.to raise_error(DecisionAgent::ValidationError, /cannot be empty/)
       end
 
       it "generates default changelog if not provided" do
@@ -276,7 +276,7 @@ RSpec.describe "DecisionAgent Versioning System" do
 
         # Should NOT create a new version - just activate the old one
         versions = manager.get_versions(rule_id: rule_id)
-        expect(versions.length).to eq(3)  # Still just v1, v2, v3
+        expect(versions.length).to eq(3) # Still just v1, v2, v3
 
         # v1 should be active, v2 and v3 should be archived
         active_version = manager.get_active_version(rule_id: rule_id)
@@ -326,9 +326,9 @@ RSpec.describe "DecisionAgent Versioning System" do
 
     describe "edge cases and error handling" do
       it "handles empty rule_id gracefully" do
-        expect {
+        expect do
           manager.save_version(rule_id: "", rule_content: rule_content)
-        }.not_to raise_error
+        end.not_to raise_error
       end
 
       it "handles special characters in rule_id" do
@@ -420,7 +420,7 @@ RSpec.describe "DecisionAgent Versioning System" do
           Thread.new do
             manager.save_version(
               rule_id: rule_id,
-              rule_content: rule_content.merge(version: "#{i}"),
+              rule_content: rule_content.merge(version: i.to_s),
               created_by: "thread_#{i}"
             )
           end
@@ -480,13 +480,13 @@ RSpec.describe "DecisionAgent Versioning System" do
         }
 
         content_v2 = {
-          version: "2.0",  # changed
+          version: "2.0", # changed
           ruleset: "test",
           rules: [
-            { id: "rule_1", if: { field: "a", op: "eq", value: 2 }, then: { decision: "reject", weight: 0.9, reason: "Updated" } },  # modified
-            { id: "rule_2", if: { field: "b", op: "gt", value: 100 }, then: { decision: "approve", weight: 0.7, reason: "New" } }  # added
+            { id: "rule_1", if: { field: "a", op: "eq", value: 2 }, then: { decision: "reject", weight: 0.9, reason: "Updated" } }, # modified
+            { id: "rule_2", if: { field: "b", op: "gt", value: 100 }, then: { decision: "approve", weight: 0.7, reason: "New" } } # added
           ],
-          new_field: "added"  # added field
+          new_field: "added" # added field
         }
 
         v1 = manager.save_version(rule_id: rule_id, rule_content: content_v1)
@@ -508,7 +508,7 @@ RSpec.describe "DecisionAgent Versioning System" do
         manager.rollback(version_id: v1[:id], performed_by: "admin")
 
         history = manager.get_history(rule_id: rule_id)
-        expect(history[:total_versions]).to eq(3)  # Still just v1, v2, v3 - no duplicate
+        expect(history[:total_versions]).to eq(3) # Still just v1, v2, v3 - no duplicate
 
         # v1 should be the active version
         expect(history[:active_version][:id]).to eq(v1[:id])
@@ -533,7 +533,7 @@ RSpec.describe "DecisionAgent Versioning System" do
         expect(result3[:id]).to eq(v3[:id])
 
         history = manager.get_history(rule_id: rule_id)
-        expect(history[:total_versions]).to eq(3)  # Still just the original 3 versions
+        expect(history[:total_versions]).to eq(3) # Still just the original 3 versions
         expect(history[:active_version][:id]).to eq(v3[:id])
       end
     end
@@ -554,13 +554,11 @@ RSpec.describe "DecisionAgent Versioning System" do
       end
 
       it "handles versions across multiple rules" do
-        rule_ids = ["rule_a", "rule_b", "rule_c"]
+        rule_ids = %w[rule_a rule_b rule_c]
 
         rule_ids.each do |rid|
           3.times { manager.save_version(rule_id: rid, rule_content: rule_content) }
-        end
 
-        rule_ids.each do |rid|
           versions = manager.get_versions(rule_id: rid)
           expect(versions.length).to eq(3)
           expect(versions.all? { |v| v[:rule_id] == rid }).to be true
@@ -574,7 +572,7 @@ RSpec.describe "DecisionAgent Versioning System" do
         manager.save_version(rule_id: rule_id, rule_content: rule_content)
 
         begin
-          manager.save_version(rule_id: rule_id, rule_content: nil)  # This should fail
+          manager.save_version(rule_id: rule_id, rule_content: nil) # This should fail
         rescue DecisionAgent::ValidationError
           # Expected error
         end
@@ -664,8 +662,8 @@ RSpec.describe "DecisionAgent Versioning System" do
 
         # 6. Verify history
         history = manager.get_history(rule_id: "approval_001")
-        expect(history[:total_versions]).to eq(3)  # v1, v2, v3 - no duplicate created
-        expect(history[:active_version][:version_number]).to eq(2)  # v2 is active
+        expect(history[:total_versions]).to eq(3) # v1, v2, v3 - no duplicate created
+        expect(history[:active_version][:version_number]).to eq(2) # v2 is active
       end
     end
 
@@ -685,7 +683,7 @@ RSpec.describe "DecisionAgent Versioning System" do
           "review" => {
             version: "1.0",
             ruleset: "review",
-            rules: [{ id: "review_1", if: { field: "amount", op: "gte", value: 10000 }, then: { decision: "manual_review", weight: 0.9, reason: "Large transaction" } }]
+            rules: [{ id: "review_1", if: { field: "amount", op: "gte", value: 10_000 }, then: { decision: "manual_review", weight: 0.9, reason: "Large transaction" } }]
           }
         }
 
@@ -700,7 +698,7 @@ RSpec.describe "DecisionAgent Versioning System" do
         end
 
         # Verify each has its own version history
-        rulesets.keys.each do |name|
+        rulesets.each_key do |name|
           history = manager.get_history(rule_id: name)
           expect(history[:total_versions]).to eq(1)
           expect(history[:active_version][:rule_id]).to eq(name)
@@ -719,29 +717,29 @@ RSpec.describe "DecisionAgent Versioning System" do
       end
 
       it "rejects invalid status values when creating versions" do
-        expect {
+        expect do
           adapter.create_version(
             rule_id: rule_id,
             content: rule_content,
             metadata: { status: "banana" }
           )
-        }.to raise_error(DecisionAgent::ValidationError, /Invalid status 'banana'/)
+        end.to raise_error(DecisionAgent::ValidationError, /Invalid status 'banana'/)
 
-        expect {
+        expect do
           adapter.create_version(
             rule_id: rule_id,
             content: rule_content,
             metadata: { status: "pending" }
           )
-        }.to raise_error(DecisionAgent::ValidationError, /Invalid status 'pending'/)
+        end.to raise_error(DecisionAgent::ValidationError, /Invalid status 'pending'/)
 
-        expect {
+        expect do
           adapter.create_version(
             rule_id: rule_id,
             content: rule_content,
             metadata: { status: "deleted" }
           )
-        }.to raise_error(DecisionAgent::ValidationError, /Invalid status 'deleted'/)
+        end.to raise_error(DecisionAgent::ValidationError, /Invalid status 'deleted'/)
       end
 
       it "accepts valid status values" do

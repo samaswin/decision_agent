@@ -1,12 +1,12 @@
-require 'rails/generators'
-require 'rails/generators/migration'
+require "rails/generators"
+require "rails/generators/migration"
 
 module DecisionAgent
   module Generators
     class InstallGenerator < Rails::Generators::Base
       include Rails::Generators::Migration
 
-      source_root File.expand_path('templates', __dir__)
+      source_root File.expand_path("templates", __dir__)
 
       desc "Installs DecisionAgent models and migrations for Rails"
 
@@ -17,8 +17,8 @@ module DecisionAgent
 
       def copy_migration
         migration_template "migration.rb",
-                          "db/migrate/create_decision_agent_tables.rb",
-                          migration_version: migration_version
+                           "db/migrate/create_decision_agent_tables.rb",
+                           migration_version: migration_version
       end
 
       def copy_models

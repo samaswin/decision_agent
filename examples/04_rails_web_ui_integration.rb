@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+
 # Example: Mounting DecisionAgent Web UI in Rails
 #
 # This example shows how to integrate the DecisionAgent Web UI
@@ -61,8 +62,8 @@
 # Example: Using DecisionAgent with Rails
 # ========================================
 
-require 'bundler/setup'
-require 'decision_agent'
+require "bundler/setup"
+require "decision_agent"
 
 # Assuming you have a Rails model like this:
 # class LoanApplication < ApplicationRecord
@@ -94,7 +95,7 @@ class LoanApprovalService
     loan_application.update!(
       status: decision.decision,
       confidence: decision.confidence,
-      decision_reason: decision.explanations.join('; ')
+      decision_reason: decision.explanations.join("; ")
     )
 
     decision
@@ -125,7 +126,7 @@ class LoanApprovalService
           id: "high_earner_approval",
           if: {
             all: [
-              { field: "income", op: "gte", value: 100000 },
+              { field: "income", op: "gte", value: 100_000 },
               { field: "credit_score", op: "gte", value: 700 }
             ]
           },
@@ -140,7 +141,7 @@ class LoanApprovalService
           if: {
             all: [
               { field: "amount", op: "gte", value: 5000 },
-              { field: "amount", op: "lt", value: 50000 },
+              { field: "amount", op: "lt", value: 50_000 },
               { field: "credit_score", op: "gte", value: 600 },
               { field: "credit_score", op: "lt", value: 700 }
             ]
@@ -158,7 +159,7 @@ class LoanApprovalService
               { field: "credit_score", op: "lt", value: 550 },
               {
                 all: [
-                  { field: "amount", op: "gte", value: 50000 },
+                  { field: "amount", op: "gte", value: 50_000 },
                   { field: "credit_score", op: "lt", value: 700 }
                 ]
               }

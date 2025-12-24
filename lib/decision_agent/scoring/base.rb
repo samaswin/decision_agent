@@ -12,7 +12,7 @@ module DecisionAgent
       end
 
       def round_confidence(value)
-        (value * 10000).round / 10000.0
+        (value * 10_000).round / 10_000.0
       end
     end
   end

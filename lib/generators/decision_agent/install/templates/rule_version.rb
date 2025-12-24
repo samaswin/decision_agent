@@ -7,7 +7,7 @@ class RuleVersion < ApplicationRecord
   validates :status, inclusion: { in: %w[draft active archived] }
   validates :created_by, presence: true
 
-  scope :active, -> { where(status: 'active') }
+  scope :active, -> { where(status: "active") }
   scope :for_rule, ->(rule_id) { where(rule_id: rule_id).order(version_number: :desc) }
   scope :latest, -> { order(version_number: :desc).limit(1) }
 
@@ -30,14 +30,14 @@ class RuleVersion < ApplicationRecord
     transaction do
       # Deactivate all other versions for this rule
       # Use update! instead of update_all to trigger validations
-      self.class.where(rule_id: rule_id, status: 'active')
-                .where.not(id: id)
-                .find_each do |v|
-        v.update!(status: 'archived')
+      self.class.where(rule_id: rule_id, status: "active")
+          .where.not(id: id)
+          .find_each do |v|
+        v.update!(status: "archived")
       end
 
       # Activate this version
-      update!(status: 'active')
+      update!(status: "active")
     end
   end
 
@@ -57,9 +57,9 @@ class RuleVersion < ApplicationRecord
     # Use pessimistic locking to prevent race conditions when calculating version numbers
     # Lock the last version record to ensure only one thread can read and increment at a time
     last_version = self.class.where(rule_id: rule_id)
-                             .order(version_number: :desc)
-                             .lock
-                             .first
+                       .order(version_number: :desc)
+                       .lock
+                       .first
 
     self.version_number = last_version ? last_version.version_number + 1 : 1
   end

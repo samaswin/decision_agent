@@ -47,9 +47,9 @@ RSpec.describe DecisionAgent::Monitoring::MetricsCollector do
     end
 
     it "increments decision count" do
-      expect {
+      expect do
         collector.record_decision(decision, context)
-      }.to change { collector.metrics_count[:decisions] }.by(1)
+      end.to change { collector.metrics_count[:decisions] }.by(1)
     end
 
     it "notifies observers" do
@@ -85,9 +85,9 @@ RSpec.describe DecisionAgent::Monitoring::MetricsCollector do
     end
 
     it "increments evaluation count" do
-      expect {
+      expect do
         collector.record_evaluation(evaluation)
-      }.to change { collector.metrics_count[:evaluations] }.by(1)
+      end.to change { collector.metrics_count[:evaluations] }.by(1)
     end
   end
 
@@ -129,9 +129,9 @@ RSpec.describe DecisionAgent::Monitoring::MetricsCollector do
     end
 
     it "increments error count" do
-      expect {
+      expect do
         collector.record_error(error)
-      }.to change { collector.metrics_count[:errors] }.by(1)
+      end.to change { collector.metrics_count[:errors] }.by(1)
     end
   end
 

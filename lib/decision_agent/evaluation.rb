@@ -37,7 +37,7 @@ module DecisionAgent
 
     def validate_weight!(weight)
       w = weight.to_f
-      raise InvalidWeightError.new(weight) unless w >= 0.0 && w <= 1.0
+      raise InvalidWeightError, weight unless w.between?(0.0, 1.0)
     end
 
     def deep_freeze(obj)

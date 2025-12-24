@@ -1,12 +1,13 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+
 # Example 1: Basic Versioning with File Storage
 #
 # This example demonstrates the core versioning features using
 # the default file storage adapter (no database required).
 
-require 'bundler/setup'
-require 'decision_agent'
+require "bundler/setup"
+require "decision_agent"
 
 puts "=" * 60
 puts "DecisionAgent - Basic Versioning Example"
@@ -37,7 +38,7 @@ approval_rule = {
     },
     {
       id: "large_loan_review",
-      if: { field: "loan_amount", op: "gte", value: 50000 },
+      if: { field: "loan_amount", op: "gte", value: 50_000 },
       then: {
         decision: "manual_review",
         weight: 0.95,
@@ -68,7 +69,7 @@ puts
 # 2. Update Rules (Change Threshold)
 # ========================================
 puts "2. Updating credit score threshold..."
-approval_rule[:rules][0][:if][:all][1][:value] = 700  # Increase to 700
+approval_rule[:rules][0][:if][:all][1][:value] = 700 # Increase to 700
 
 v2 = manager.save_version(
   rule_id: "loan_approval_001",
@@ -113,7 +114,7 @@ puts "4. Listing all versions..."
 versions = manager.get_versions(rule_id: "loan_approval_001")
 
 versions.each do |version|
-  status_emoji = version[:status] == 'active' ? '✓' : '○'
+  status_emoji = version[:status] == "active" ? "\u2713" : "\u25CB"
   puts "   #{status_emoji} v#{version[:version_number]} - #{version[:changelog]} (by #{version[:created_by]})"
 end
 puts

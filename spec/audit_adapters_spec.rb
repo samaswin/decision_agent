@@ -15,9 +15,9 @@ RSpec.describe "Audit Adapters" do
 
       context = DecisionAgent::Context.new({ user: "alice" })
 
-      expect {
+      expect do
         adapter.record(decision, context)
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 
@@ -50,7 +50,7 @@ RSpec.describe "Audit Adapters" do
     it "logs JSON format" do
       io = StringIO.new
       logger = Logger.new(io)
-      logger.formatter = proc { |severity, datetime, progname, msg| "#{msg}\n" }
+      logger.formatter = proc { |_severity, _datetime, _progname, msg| "#{msg}\n" }
 
       adapter = DecisionAgent::Audit::LoggerAdapter.new(logger: logger)
 

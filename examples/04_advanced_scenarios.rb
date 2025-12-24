@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+
 # Example 4: Advanced Versioning Scenarios
 #
 # This example demonstrates advanced use cases:
@@ -9,9 +10,9 @@
 # - Version tagging
 # - Batch operations
 
-require 'bundler/setup'
-require 'decision_agent'
-require 'json'
+require "bundler/setup"
+require "decision_agent"
+require "json"
 
 puts "=" * 70
 puts "DecisionAgent - Advanced Versioning Scenarios"
@@ -27,13 +28,13 @@ puts "-" * 70
 # Separate version managers for different environments
 dev_manager = DecisionAgent::Versioning::VersionManager.new(
   adapter: DecisionAgent::Versioning::FileStorageAdapter.new(
-    storage_path: './versions/dev'
+    storage_path: "./versions/dev"
   )
 )
 
 prod_manager = DecisionAgent::Versioning::VersionManager.new(
   adapter: DecisionAgent::Versioning::FileStorageAdapter.new(
-    storage_path: './versions/prod'
+    storage_path: "./versions/prod"
   )
 )
 
@@ -122,7 +123,7 @@ control = manager.save_version(
 
 # Variant A - more aggressive recommendations
 variant_a_rules = control_rules.dup
-variant_a_rules[:rules].first[:if][:value] = 3  # Lower threshold
+variant_a_rules[:rules].first[:if][:value] = 3 # Lower threshold
 variant_a_rules[:rules].first[:then][:weight] = 0.85
 
 variant_a = manager.save_version(
@@ -193,7 +194,7 @@ pricing_rules_v1 = {
 }
 
 # Current production version
-current = manager.save_version(
+manager.save_version(
   rule_id: "pricing_001",
   rule_content: pricing_rules_v1,
   created_by: "pricing_team",
@@ -202,7 +203,7 @@ current = manager.save_version(
 
 # New version with updated pricing
 pricing_rules_v2 = pricing_rules_v1.dup
-pricing_rules_v2[:rules].first[:then][:decision] = "price_95"  # Discount
+pricing_rules_v2[:rules].first[:then][:decision] = "price_95" # Discount
 
 canary = manager.save_version(
   rule_id: "pricing_001_canary",
@@ -240,7 +241,7 @@ compliance_rules = {
   version: "1.0",
   ruleset: "compliance",
   metadata: {
-    tags: ["production", "compliance", "reviewed"],
+    tags: %w[production compliance reviewed],
     reviewer: "compliance_officer@company.com",
     jira_ticket: "COMP-1234",
     approved_at: Time.now.utc.iso8601
@@ -254,7 +255,7 @@ compliance_rules = {
   ]
 }
 
-tagged_version = manager.save_version(
+manager.save_version(
   rule_id: "compliance_001",
   rule_content: compliance_rules,
   created_by: "compliance_team",

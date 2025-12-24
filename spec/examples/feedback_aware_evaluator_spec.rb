@@ -152,7 +152,7 @@ RSpec.describe Examples::FeedbackAwareEvaluator do
     it "clamps weight to minimum 0.0" do
       result = evaluator.evaluate(
         context,
-        feedback: { past_accuracy: -1.0 }  # Invalid, but should be handled
+        feedback: { past_accuracy: -1.0 } # Invalid, but should be handled
       )
 
       expect(result.weight).to be >= 0.0
@@ -161,7 +161,7 @@ RSpec.describe Examples::FeedbackAwareEvaluator do
     it "clamps weight to maximum 1.0" do
       result = evaluator.evaluate(
         context,
-        feedback: { past_accuracy: 2.0 }  # Would produce 1.6, should clamp to 1.0
+        feedback: { past_accuracy: 2.0 } # Would produce 1.6, should clamp to 1.0
       )
 
       expect(result.weight).to be <= 1.0
@@ -254,7 +254,7 @@ RSpec.describe Examples::FeedbackAwareEvaluator do
 
       result = high_weight_evaluator.evaluate(
         context,
-        feedback: { source: "expert_review" }  # 0.9 * 1.2 = 1.08, should clamp to 1.0
+        feedback: { source: "expert_review" } # 0.9 * 1.2 = 1.08, should clamp to 1.0
       )
 
       expect(result.weight).to eq(1.0)
@@ -330,7 +330,7 @@ RSpec.describe Examples::FeedbackAwareEvaluator do
       )
 
       expect(result.decision).to eq("approve")
-      expect(result.confidence).to eq(1.0)  # Single evaluator normalized to 1.0
+      expect(result.confidence).to eq(1.0) # Single evaluator normalized to 1.0
     end
 
     it "respects feedback in agent context" do
@@ -357,7 +357,7 @@ RSpec.describe Examples::FeedbackAwareEvaluator do
 
       result = agent.decide(
         context: {},
-        feedback: { past_accuracy: 0.5 }  # Reduces feedback_eval weight to 0.4
+        feedback: { past_accuracy: 0.5 } # Reduces feedback_eval weight to 0.4
       )
 
       expect(result.decision).to eq("approve")
@@ -385,7 +385,7 @@ RSpec.describe Examples::FeedbackAwareEvaluator do
 
       result_with_feedback = agent.decide(
         context: {},
-        feedback: { past_accuracy: 0.5 }  # Reduces feedback_eval to 0.4
+        feedback: { past_accuracy: 0.5 } # Reduces feedback_eval to 0.4
       )
       # MaxWeight still picks static_eval (0.9 > 0.4)
       expect(result_with_feedback.decision).to eq("reject")
@@ -399,7 +399,7 @@ RSpec.describe Examples::FeedbackAwareEvaluator do
     it "handles feedback with string keys" do
       result = evaluator.evaluate(
         context,
-        feedback: { "override" => "reject" }  # String key instead of symbol
+        feedback: { "override" => "reject" } # String key instead of symbol
       )
 
       # Should not match because code expects symbols

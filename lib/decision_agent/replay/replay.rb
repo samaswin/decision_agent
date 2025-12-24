@@ -42,15 +42,11 @@ module DecisionAgent
       replayed_result
     end
 
-    private
-
     def self.validate_payload!(payload)
-      required_keys = ["context", "evaluations", "decision", "confidence"]
+      required_keys = %w[context evaluations decision confidence]
 
       required_keys.each do |key|
-        unless payload.key?(key) || payload.key?(key.to_sym)
-          raise InvalidRuleDslError, "Audit payload missing required key: #{key}"
-        end
+        raise InvalidRuleDslError, "Audit payload missing required key: #{key}" unless payload.key?(key) || payload.key?(key.to_sym)
       end
     end
 
@@ -111,30 +107,24 @@ module DecisionAgent
       end
 
       conf_diff = (original_confidence.to_f - replayed_confidence.to_f).abs
-      if conf_diff > 0.0001
-        differences << "confidence mismatch (expected: #{original_confidence}, got: #{replayed_confidence})"
-      end
+      differences << "confidence mismatch (expected: #{original_confidence}, got: #{replayed_confidence})" if conf_diff > 0.0001
 
-      if differences.any?
-        raise ReplayMismatchError.new(
-          expected: { decision: original_decision, confidence: original_confidence },
-          actual: { decision: replayed_decision, confidence: replayed_confidence },
-          differences: differences
-        )
-      end
+      return unless differences.any?
+
+      raise ReplayMismatchError.new(
+        expected: { decision: original_decision, confidence: original_confidence },
+        actual: { decision: replayed_decision, confidence: replayed_confidence },
+        differences: differences
+      )
     end
 
     def self.log_differences(original_decision:, original_confidence:, replayed_decision:, replayed_confidence:)
       differences = []
 
-      if original_decision.to_s != replayed_decision.to_s
-        differences << "Decision changed: #{original_decision} -> #{replayed_decision}"
-      end
+      differences << "Decision changed: #{original_decision} -> #{replayed_decision}" if original_decision.to_s != replayed_decision.to_s
 
       conf_diff = (original_confidence.to_f - replayed_confidence.to_f).abs
-      if conf_diff > 0.0001
-        differences << "Confidence changed: #{original_confidence} -> #{replayed_confidence}"
-      end
+      differences << "Confidence changed: #{original_confidence} -> #{replayed_confidence}" if conf_diff > 0.0001
 
       if differences.any?
         warn "[DecisionAgent::Replay] Non-strict mode differences detected:"

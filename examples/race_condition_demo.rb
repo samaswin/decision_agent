@@ -34,8 +34,8 @@ ActiveRecord::Schema.define do
     t.timestamps
   end
 
-  add_index :rule_versions, [:rule_id, :version_number], unique: true
-  add_index :rule_versions, [:rule_id, :status]
+  add_index :rule_versions, %i[rule_id version_number], unique: true
+  add_index :rule_versions, %i[rule_id status]
 end
 
 # Define RuleVersion model (with the fix)
@@ -55,9 +55,9 @@ class RuleVersion < ActiveRecord::Base
 
     # ✅ WITH FIX: Pessimistic locking prevents race conditions
     last_version = self.class.where(rule_id: rule_id)
-                             .order(version_number: :desc)
-                             .lock  # This line prevents the race condition!
-                             .first
+                       .order(version_number: :desc)
+                       .lock # This line prevents the race condition!
+                       .first
 
     self.version_number = last_version ? last_version.version_number + 1 : 1
   end
@@ -80,7 +80,7 @@ puts "Setting up ActiveRecordAdapter..."
 adapter = DecisionAgent::Versioning::ActiveRecordAdapter.new
 rule_id = "concurrent_demo_rule"
 
-puts "Creating versions concurrently with #{20} threads..."
+puts "Creating versions concurrently with 20 threads..."
 puts
 
 threads = []
@@ -92,22 +92,20 @@ start_time = Time.now
 
 20.times do |i|
   threads << Thread.new do
-    begin
-      version = adapter.create_version(
-        rule_id: rule_id,
-        content: RULE_CONTENT,
-        metadata: { created_by: "thread_#{i}" }
-      )
+    version = adapter.create_version(
+      rule_id: rule_id,
+      content: RULE_CONTENT,
+      metadata: { created_by: "thread_#{i}" }
+    )
 
-      mutex.synchronize do
-        results << version
-        print "."
-      end
-    rescue => e
-      mutex.synchronize do
-        errors << { thread: i, error: e }
-        print "X"
-      end
+    mutex.synchronize do
+      results << version
+      print "."
+    end
+  rescue StandardError => e
+    mutex.synchronize do
+      errors << { thread: i, error: e }
+      print "X"
     end
   end
 end

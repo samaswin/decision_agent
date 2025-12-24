@@ -191,7 +191,7 @@ RSpec.describe DecisionAgent::Monitoring::PrometheusExporter do
           10.times do |j|
             exporter.register_kpi(
               name: "metric_#{i}_#{j}",
-              value: i * 10 + j
+              value: (i * 10) + j
             )
           end
         end

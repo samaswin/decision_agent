@@ -234,9 +234,9 @@ RSpec.describe DecisionAgent::Monitoring::AlertManager do
       manager.resolve_alert(alert[:id])
 
       # Manually set old timestamp
-      manager.alerts.first[:triggered_at] = Time.now.utc - 90000
+      manager.alerts.first[:triggered_at] = Time.now.utc - 90_000
 
-      manager.clear_old_alerts(older_than: 86400)
+      manager.clear_old_alerts(older_than: 86_400)
 
       expect(manager.all_alerts).to be_empty
     end
@@ -246,9 +246,9 @@ RSpec.describe DecisionAgent::Monitoring::AlertManager do
       manager.check_rules
 
       # Manually set old timestamp
-      manager.alerts.first[:triggered_at] = Time.now.utc - 90000
+      manager.alerts.first[:triggered_at] = Time.now.utc - 90_000
 
-      manager.clear_old_alerts(older_than: 86400)
+      manager.clear_old_alerts(older_than: 86_400)
 
       expect(manager.active_alerts.size).to eq(1)
     end

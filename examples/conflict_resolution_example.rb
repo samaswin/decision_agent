@@ -55,6 +55,6 @@ strategies.each do |name, strategy|
   end
 end
 
-puts "\n" + "=" * 60
+puts "\n#{'=' * 60}"
 puts "Conflict resolution comparison complete"
 puts "=" * 60

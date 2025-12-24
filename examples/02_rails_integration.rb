@@ -15,7 +15,7 @@
 # ========================================
 
 class RulesController < ApplicationController
-  before_action :authenticate_user!  # Your auth method
+  before_action :authenticate_user! # Your auth method
 
   # GET /rules
   def index
@@ -112,12 +112,12 @@ end
 Rails.application.routes.draw do
   resources :rules, param: :rule_id do
     member do
-      get 'versions', to: 'rules#versions'
-      post 'versions', to: 'rules#create_version'
+      get "versions", to: "rules#versions"
+      post "versions", to: "rules#create_version"
 
-      get 'versions/:version_id', to: 'rules#show_version', as: :version
-      post 'versions/:version_id/activate', to: 'rules#activate_version'
-      get 'versions/:version_id_1/compare/:version_id_2', to: 'rules#compare_versions'
+      get "versions/:version_id", to: "rules#show_version", as: :version
+      post "versions/:version_id/activate", to: "rules#activate_version"
+      get "versions/:version_id_1/compare/:version_id_2", to: "rules#compare_versions"
     end
   end
 end
@@ -128,9 +128,9 @@ end
 
 # Create a rule
 rule = Rule.create!(
-  rule_id: 'approval_rules_001',
-  ruleset: 'approval',
-  description: 'Approval decision rules'
+  rule_id: "approval_rules_001",
+  ruleset: "approval",
+  description: "Approval decision rules"
 )
 
 # Define rule content
@@ -154,7 +154,7 @@ v1 = rule.create_version(
 )
 
 # Update the rule
-content[:rules].first[:if][:value] = 5000  # Change threshold
+content[:rules].first[:if][:value] = 5000 # Change threshold
 v2 = rule.create_version(
   content: content,
   created_by: "manager@example.com",
@@ -186,7 +186,7 @@ puts "Changes: #{comparison[:differences]}"
 manager = DecisionAgent::Versioning::VersionManager.new
 
 # Save version (works with ActiveRecord backend)
-version = manager.save_version(
+manager.save_version(
   rule_id: "approval_rules_001",
   rule_content: content,
   created_by: "system",
@@ -254,7 +254,7 @@ class RuleVersionCleanupJob < ApplicationJob
 
     # Keep only the last N versions
     old_versions = rule.versions
-                       .where(status: 'archived')
+                       .where(status: "archived")
                        .order(version_number: :desc)
                        .offset(keep_last)
 

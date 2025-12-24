@@ -21,13 +21,12 @@ module DecisionAgent
         end
       end
 
-      private
-
       # Evaluates 'all' condition - returns true only if ALL sub-conditions are true
       # Empty array returns true (vacuous truth)
       def self.evaluate_all(conditions, context)
         return true if conditions.is_a?(Array) && conditions.empty?
         return false unless conditions.is_a?(Array)
+
         conditions.all? { |cond| evaluate(cond, context) }
       end
 
@@ -35,6 +34,7 @@ module DecisionAgent
       # Empty array returns false (no options to match)
       def self.evaluate_any(conditions, context)
         return false unless conditions.is_a?(Array)
+
         conditions.any? { |cond| evaluate(cond, context) }
       end
 
@@ -117,6 +117,7 @@ module DecisionAgent
         keys = key_path.to_s.split(".")
         keys.reduce(hash) do |memo, key|
           return nil unless memo.is_a?(Hash)
+
           memo[key] || memo[key.to_sym]
         end
       end
@@ -126,7 +127,7 @@ module DecisionAgent
       def self.comparable?(val1, val2)
         (val1.is_a?(Numeric) || val1.is_a?(String)) &&
           (val2.is_a?(Numeric) || val2.is_a?(String)) &&
-          val1.class == val2.class
+          val1.instance_of?(val2.class)
       end
     end
   end

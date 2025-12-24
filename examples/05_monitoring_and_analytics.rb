@@ -25,7 +25,7 @@ puts
 puts "1. Initializing monitoring components..."
 
 collector = DecisionAgent::Monitoring::MetricsCollector.new(
-  window_size: 3600  # Keep 1 hour of metrics
+  window_size: 3600 # Keep 1 hour of metrics
 )
 
 prometheus_exporter = DecisionAgent::Monitoring::PrometheusExporter.new(
@@ -134,7 +134,7 @@ contexts = [
   { amount: 1500, risk_score: 0.3 },
   { amount: 800, risk_score: 0.1 },
   { amount: 2000, risk_score: 0.5 },
-  { amount: 300, risk_score: 0.9 },  # Will be rejected (high risk)
+  { amount: 300, risk_score: 0.9 }, # Will be rejected (high risk)
   { amount: 1200, risk_score: 0.4 },
   { amount: 5000, risk_score: 0.85 }, # Will be rejected (high risk)
   { amount: 750, risk_score: 0.3 },
@@ -167,7 +167,7 @@ contexts.each do |ctx|
 
     # Small delay to simulate real traffic
     sleep 0.1
-  rescue => e
+  rescue StandardError => e
     # Record error
     collector.record_error(e, context: ctx)
 
@@ -207,15 +207,13 @@ puts "   - Total Decisions: #{stats[:summary][:total_decisions]}"
 puts "   - Total Errors: #{stats[:summary][:total_errors]}"
 puts
 
-if stats[:decisions] && stats[:decisions][:total] > 0
+if stats[:decisions] && stats[:decisions][:total].positive?
   puts "   Decision Metrics:"
   puts "   - Average Confidence: #{stats[:decisions][:avg_confidence].round(3)}"
   puts "   - Min Confidence: #{stats[:decisions][:min_confidence].round(3)}"
   puts "   - Max Confidence: #{stats[:decisions][:max_confidence].round(3)}"
 
-  if stats[:decisions][:avg_duration_ms]
-    puts "   - Average Duration: #{stats[:decisions][:avg_duration_ms].round(2)}ms"
-  end
+  puts "   - Average Duration: #{stats[:decisions][:avg_duration_ms].round(2)}ms" if stats[:decisions][:avg_duration_ms]
 
   if stats[:decisions][:decision_distribution]
     puts "   - Decision Distribution:"
@@ -227,7 +225,7 @@ if stats[:decisions] && stats[:decisions][:total] > 0
   puts
 end
 
-if stats[:performance] && stats[:performance][:total_operations] > 0
+if stats[:performance] && stats[:performance][:total_operations].positive?
   puts "   Performance Metrics:"
   puts "   - Total Operations: #{stats[:performance][:total_operations]}"
   puts "   - Success Rate: #{(stats[:performance][:success_rate] * 100).round(1)}%"
@@ -244,7 +242,7 @@ puts "8. Registering custom KPIs..."
 
 prometheus_exporter.register_kpi(
   name: "business_revenue",
-  value: 125000.50,
+  value: 125_000.50,
   labels: { currency: "USD", region: "US" },
   help: "Total business revenue from decisions"
 )

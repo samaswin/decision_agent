@@ -20,9 +20,9 @@ RSpec.describe "Comprehensive Edge Cases" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /Unsupported operator 'unknown_op'/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /Unsupported operator 'unknown_op'/)
       end
 
       it "raises error when operator is misspelled" do
@@ -38,9 +38,9 @@ RSpec.describe "Comprehensive Edge Cases" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /Unsupported operator 'greather_than'/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /Unsupported operator 'greather_than'/)
       end
 
       it "raises error when operator is nil" do
@@ -56,9 +56,9 @@ RSpec.describe "Comprehensive Edge Cases" do
           ]
         }
 
-        expect {
+        expect do
           DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /missing 'op'/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /missing 'op'/)
       end
     end
 
@@ -534,12 +534,12 @@ RSpec.describe "Comprehensive Edge Cases" do
         evaluator = DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
 
         context = DecisionAgent::Context.new({
-          "用户": {
-            "配置": {
-              "语言": "中文"
-            }
-          }
-        })
+                                               "用户": {
+                                                 "配置": {
+                                                   "语言": "中文"
+                                                 }
+                                               }
+                                             })
         result = evaluator.evaluate(context)
         expect(result).not_to be_nil
         expect(result.decision).to eq("chinese_locale")
@@ -561,9 +561,9 @@ RSpec.describe "Comprehensive Edge Cases" do
         }
 
         # Validator catches empty segments and raises error
-        expect {
+        expect do
           DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /empty segments/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /empty segments/)
       end
 
       it "handles trailing dots in field paths" do
@@ -605,9 +605,9 @@ RSpec.describe "Comprehensive Edge Cases" do
         }
 
         # Validator catches empty segments and raises error
-        expect {
+        expect do
           DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /empty segments/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /empty segments/)
       end
 
       it "rejects multiple consecutive dots in field paths" do
@@ -624,9 +624,9 @@ RSpec.describe "Comprehensive Edge Cases" do
         }
 
         # Validator catches empty segments and raises error
-        expect {
+        expect do
           DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /empty segments/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /empty segments/)
       end
     end
   end
@@ -639,21 +639,21 @@ RSpec.describe "Comprehensive Edge Cases" do
     describe "nil returns and empty evaluations" do
       it "handles all evaluators returning nil" do
         nil_evaluator = Class.new(DecisionAgent::Evaluators::Base) do
-          def evaluate(context, feedback: {})
+          def evaluate(_context, feedback: {})
             nil
           end
         end
 
         agent = DecisionAgent::Agent.new(evaluators: [nil_evaluator.new])
 
-        expect {
+        expect do
           agent.decide(context: {})
-        }.to raise_error(DecisionAgent::NoEvaluationsError)
+        end.to raise_error(DecisionAgent::NoEvaluationsError)
       end
 
       it "handles mix of nil and valid evaluations" do
         nil_evaluator = Class.new(DecisionAgent::Evaluators::Base) do
-          def evaluate(context, feedback: {})
+          def evaluate(_context, feedback: {})
             nil
           end
         end
@@ -761,7 +761,7 @@ RSpec.describe "Comprehensive Edge Cases" do
         result = agent.decide(context: {})
 
         # Should choose one decision
-        expect(["approve", "reject"]).to include(result.decision)
+        expect(%w[approve reject]).to include(result.decision)
         # Confidence should reflect the tie
         expect(result.confidence).to eq(0.5)
       end
@@ -793,7 +793,7 @@ RSpec.describe "Comprehensive Edge Cases" do
         result = agent.decide(context: {})
 
         # Should choose one of the options
-        expect(["option_a", "option_b", "option_c"]).to include(result.decision)
+        expect(%w[option_a option_b option_c]).to include(result.decision)
         expect(result.confidence).to eq(0.7)
       end
 
@@ -818,7 +818,7 @@ RSpec.describe "Comprehensive Edge Cases" do
         result = agent.decide(context: {})
 
         # Should choose one decision, likely with reduced confidence
-        expect(["approve", "reject"]).to include(result.decision)
+        expect(%w[approve reject]).to include(result.decision)
       end
     end
 
@@ -849,7 +849,7 @@ RSpec.describe "Comprehensive Edge Cases" do
 
         result = agent.decide(context: {})
 
-        expect(["approve", "reject", "manual_review"]).to include(result.decision)
+        expect(%w[approve reject manual_review]).to include(result.decision)
       end
 
       it "handles many evaluators with diverse decisions" do
@@ -899,7 +899,7 @@ RSpec.describe "Comprehensive Edge Cases" do
         evaluators = 20.times.map do |i|
           DecisionAgent::Evaluators::StaticEvaluator.new(
             decision: "unanimous",
-            weight: 0.05 * (i + 1),  # Weights from 0.05 to 1.0
+            weight: 0.05 * (i + 1), # Weights from 0.05 to 1.0
             name: "Eval#{i}"
           )
         end
@@ -1158,7 +1158,7 @@ RSpec.describe "Comprehensive Edge Cases" do
         evaluators = 100.times.map do |i|
           DecisionAgent::Evaluators::StaticEvaluator.new(
             decision: "decision_#{i % 10}",
-            weight: (i + 1) / 200.0,  # Weights from 0.005 to 0.505
+            weight: (i + 1) / 200.0, # Weights from 0.005 to 0.505
             name: "Eval#{i}"
           )
         end
@@ -1179,7 +1179,7 @@ RSpec.describe "Comprehensive Edge Cases" do
         evaluators = 100.times.map do |i|
           DecisionAgent::Evaluators::StaticEvaluator.new(
             decision: "consensus",
-            weight: 0.5 + (i / 200.0),  # Weights from 0.5 to 0.995
+            weight: 0.5 + (i / 200.0), # Weights from 0.5 to 0.995
             name: "Eval#{i}"
           )
         end
@@ -1199,7 +1199,7 @@ RSpec.describe "Comprehensive Edge Cases" do
         evaluators = 100.times.map do |i|
           DecisionAgent::Evaluators::StaticEvaluator.new(
             decision: "decision_#{i}",
-            weight: i / 100.0,  # Weights from 0.0 to 0.99
+            weight: i / 100.0, # Weights from 0.0 to 0.99
             name: "Eval#{i}"
           )
         end
@@ -1251,7 +1251,7 @@ RSpec.describe "Comprehensive Edge Cases" do
       it "handles repeating decimals (0.333333...)" do
         eval1 = DecisionAgent::Evaluators::StaticEvaluator.new(
           decision: "approve",
-          weight: 1.0 / 3.0,  # 0.333333...
+          weight: 1.0 / 3.0, # 0.333333...
           name: "Eval1"
         )
 
@@ -1282,7 +1282,7 @@ RSpec.describe "Comprehensive Edge Cases" do
       it "normalizes confidence to 4 decimal places" do
         eval1 = DecisionAgent::Evaluators::StaticEvaluator.new(
           decision: "approve",
-          weight: 0.123456789,  # Many decimal places
+          weight: 0.123456789, # Many decimal places
           name: "Eval1"
         )
 
@@ -1294,7 +1294,7 @@ RSpec.describe "Comprehensive Edge Cases" do
         result = agent.decide(context: {})
 
         # Confidence should be rounded to 4 decimal places
-        expect(result.confidence.to_s.split('.').last.length).to be <= 4
+        expect(result.confidence.to_s.split(".").last.length).to be <= 4
       end
 
       it "handles very small weights (0.0001)" do
@@ -1331,7 +1331,7 @@ RSpec.describe "Comprehensive Edge Cases" do
 
         eval2 = DecisionAgent::Evaluators::StaticEvaluator.new(
           decision: "approve",
-          weight: 0.3 + 0.0000001,  # Slightly above to create >1.0 sum
+          weight: 0.3 + 0.0000001, # Slightly above to create >1.0 sum
           name: "Eval2"
         )
 
@@ -1350,7 +1350,7 @@ RSpec.describe "Comprehensive Edge Cases" do
         # Create evaluators where agreement is not a clean fraction
         evaluators = 7.times.map do |i|
           DecisionAgent::Evaluators::StaticEvaluator.new(
-            decision: i < 4 ? "approve" : "reject",  # 4/7 = 0.571428...
+            decision: i < 4 ? "approve" : "reject", # 4/7 = 0.571428...
             weight: 0.6,
             name: "Eval#{i}"
           )
@@ -1391,9 +1391,9 @@ RSpec.describe "Comprehensive Edge Cases" do
         # Tolerance is 0.0001, so this should trigger an error
         modified_payload[:confidence] = original_result.confidence + 0.001
 
-        expect {
+        expect do
           DecisionAgent::Replay.run(modified_payload, strict: true)
-        }.to raise_error(DecisionAgent::ReplayMismatchError)
+        end.to raise_error(DecisionAgent::ReplayMismatchError)
       end
 
       it "passes when confidence is identical in strict mode" do
@@ -1407,9 +1407,9 @@ RSpec.describe "Comprehensive Edge Cases" do
         context = { user: "alice" }
         original_result = agent.decide(context: context)
 
-        expect {
+        expect do
           DecisionAgent::Replay.run(original_result.audit_payload, strict: true)
-        }.not_to raise_error
+        end.not_to raise_error
       end
 
       it "allows confidence within tolerance in strict mode" do
@@ -1427,9 +1427,9 @@ RSpec.describe "Comprehensive Edge Cases" do
         # Tolerance is 0.0001, so this should NOT trigger an error
         modified_payload[:confidence] = original_result.confidence + 0.00005
 
-        expect {
+        expect do
           DecisionAgent::Replay.run(modified_payload, strict: true)
-        }.not_to raise_error
+        end.not_to raise_error
       end
     end
 
@@ -1449,9 +1449,9 @@ RSpec.describe "Comprehensive Edge Cases" do
         modified_payload[:decision] = "reject"
 
         result = nil
-        expect {
+        expect do
           result = DecisionAgent::Replay.run(modified_payload, strict: false)
-        }.to output(/Decision changed/).to_stderr
+        end.to output(/Decision changed/).to_stderr
 
         expect(result).not_to be_nil
       end
@@ -1471,9 +1471,9 @@ RSpec.describe "Comprehensive Edge Cases" do
         modified_payload[:confidence] = 0.5
 
         result = nil
-        expect {
+        expect do
           result = DecisionAgent::Replay.run(modified_payload, strict: false)
-        }.to output(/Confidence changed/).to_stderr
+        end.to output(/Confidence changed/).to_stderr
 
         expect(result).not_to be_nil
       end
@@ -1494,11 +1494,11 @@ RSpec.describe "Comprehensive Edge Cases" do
         modified_payload[:confidence] = 0.3
 
         result = nil
-        expect {
+        expect do
           result = DecisionAgent::Replay.run(modified_payload, strict: false)
-        }.to output(/Decision changed.*Confidence changed/m).to_stderr
+        end.to output(/Decision changed.*Confidence changed/m).to_stderr
 
-        expect(result.decision).to eq("approve")  # Should use replayed value
+        expect(result.decision).to eq("approve") # Should use replayed value
       end
     end
 
@@ -1510,9 +1510,9 @@ RSpec.describe "Comprehensive Edge Cases" do
           evaluations: []
         }
 
-        expect {
+        expect do
           DecisionAgent::Replay.run(invalid_payload, strict: true)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /context/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /context/)
       end
 
       it "raises error when decision is missing" do
@@ -1522,9 +1522,9 @@ RSpec.describe "Comprehensive Edge Cases" do
           evaluations: []
         }
 
-        expect {
+        expect do
           DecisionAgent::Replay.run(invalid_payload, strict: true)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /decision/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /decision/)
       end
 
       it "raises error when confidence is missing" do
@@ -1534,9 +1534,9 @@ RSpec.describe "Comprehensive Edge Cases" do
           evaluations: []
         }
 
-        expect {
+        expect do
           DecisionAgent::Replay.run(invalid_payload, strict: true)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /confidence/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /confidence/)
       end
 
       it "raises error when evaluations is missing" do
@@ -1546,15 +1546,15 @@ RSpec.describe "Comprehensive Edge Cases" do
           confidence: 0.8
         }
 
-        expect {
+        expect do
           DecisionAgent::Replay.run(invalid_payload, strict: true)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError, /evaluations/)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError, /evaluations/)
       end
 
       it "handles empty audit payload" do
-        expect {
+        expect do
           DecisionAgent::Replay.run({}, strict: true)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError)
       end
     end
 
@@ -1615,15 +1615,15 @@ RSpec.describe "Comprehensive Edge Cases" do
   describe "error handling edge cases" do
     describe "invalid JSON rule formats" do
       it "raises error for non-hash JSON" do
-        expect {
+        expect do
           DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: [1, 2, 3])
-        }.to raise_error(DecisionAgent::InvalidRuleDslError)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError)
       end
 
       it "raises error for string input instead of hash" do
-        expect {
+        expect do
           DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: "not a hash")
-        }.to raise_error(DecisionAgent::InvalidRuleDslError)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError)
       end
 
       it "raises error when rules is not an array" do
@@ -1632,9 +1632,9 @@ RSpec.describe "Comprehensive Edge Cases" do
           rules: "not an array"
         }
 
-        expect {
+        expect do
           DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError)
       end
 
       it "raises error when rule is not a hash" do
@@ -1643,72 +1643,72 @@ RSpec.describe "Comprehensive Edge Cases" do
           rules: ["not a hash", "also not a hash"]
         }
 
-        expect {
+        expect do
           DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
-        }.to raise_error(DecisionAgent::InvalidRuleDslError)
+        end.to raise_error(DecisionAgent::InvalidRuleDslError)
       end
     end
 
     describe "no evaluations scenarios" do
       it "raises NoEvaluationsError when single evaluator returns nil" do
         nil_evaluator = Class.new(DecisionAgent::Evaluators::Base) do
-          def evaluate(context, feedback: {})
+          def evaluate(_context, feedback: {})
             nil
           end
         end
 
         agent = DecisionAgent::Agent.new(evaluators: [nil_evaluator.new])
 
-        expect {
+        expect do
           agent.decide(context: {})
-        }.to raise_error(DecisionAgent::NoEvaluationsError)
+        end.to raise_error(DecisionAgent::NoEvaluationsError)
       end
 
       it "raises NoEvaluationsError when all evaluators return nil" do
         nil_evaluator1 = Class.new(DecisionAgent::Evaluators::Base) do
-          def evaluate(context, feedback: {})
+          def evaluate(_context, feedback: {})
             nil
           end
         end
 
         nil_evaluator2 = Class.new(DecisionAgent::Evaluators::Base) do
-          def evaluate(context, feedback: {})
+          def evaluate(_context, feedback: {})
             nil
           end
         end
 
         agent = DecisionAgent::Agent.new(evaluators: [nil_evaluator1.new, nil_evaluator2.new])
 
-        expect {
+        expect do
           agent.decide(context: {})
-        }.to raise_error(DecisionAgent::NoEvaluationsError) do |error|
+        end.to raise_error(DecisionAgent::NoEvaluationsError) do |error|
           expect(error.message).to include("No evaluators returned a decision")
         end
       end
 
       it "raises NoEvaluationsError when all evaluators raise exceptions" do
         failing_evaluator1 = Class.new(DecisionAgent::Evaluators::Base) do
-          def evaluate(context, feedback: {})
+          def evaluate(_context, feedback: {})
             raise StandardError, "Error 1"
           end
         end
 
         failing_evaluator2 = Class.new(DecisionAgent::Evaluators::Base) do
-          def evaluate(context, feedback: {})
+          def evaluate(_context, feedback: {})
             raise StandardError, "Error 2"
           end
         end
 
         agent = DecisionAgent::Agent.new(evaluators: [failing_evaluator1.new, failing_evaluator2.new])
 
-        expect {
+        expect do
           agent.decide(context: {})
-        }.to raise_error(DecisionAgent::NoEvaluationsError)
+        end.to raise_error(DecisionAgent::NoEvaluationsError)
       end
 
       it "succeeds when at least one evaluator succeeds despite others failing" do
         failing_evaluator = Class.new(DecisionAgent::Evaluators::Base) do
-          def evaluate(context, feedback: {})
+          def evaluate(_context, feedback: {})
             raise StandardError, "Intentional failure"
           end
         end
@@ -1728,29 +1728,29 @@ RSpec.describe "Comprehensive Edge Cases" do
 
     describe "boundary condition validation" do
       it "validates weight is not above 1.0" do
-        expect {
+        expect do
           DecisionAgent::Evaluation.new(
             decision: "test",
             weight: 1.1,
             reason: "test",
             evaluator_name: "test"
           )
-        }.to raise_error(DecisionAgent::InvalidWeightError)
+        end.to raise_error(DecisionAgent::InvalidWeightError)
       end
 
       it "validates weight is not negative" do
-        expect {
+        expect do
           DecisionAgent::Evaluation.new(
             decision: "test",
             weight: -0.5,
             reason: "test",
             evaluator_name: "test"
           )
-        }.to raise_error(DecisionAgent::InvalidWeightError)
+        end.to raise_error(DecisionAgent::InvalidWeightError)
       end
 
       it "validates confidence is not above 1.0" do
-        expect {
+        expect do
           DecisionAgent::Decision.new(
             decision: "test",
             confidence: 1.001,
@@ -1758,11 +1758,11 @@ RSpec.describe "Comprehensive Edge Cases" do
             evaluations: [],
             audit_payload: {}
           )
-        }.to raise_error(DecisionAgent::InvalidConfidenceError)
+        end.to raise_error(DecisionAgent::InvalidConfidenceError)
       end
 
       it "validates confidence is not negative" do
-        expect {
+        expect do
           DecisionAgent::Decision.new(
             decision: "test",
             confidence: -0.001,
@@ -1770,7 +1770,7 @@ RSpec.describe "Comprehensive Edge Cases" do
             evaluations: [],
             audit_payload: {}
           )
-        }.to raise_error(DecisionAgent::InvalidConfidenceError)
+        end.to raise_error(DecisionAgent::InvalidConfidenceError)
       end
     end
   end

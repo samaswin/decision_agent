@@ -40,18 +40,18 @@ module DecisionAgent
           )
 
           result
-        rescue => error
+        rescue StandardError => e
           duration_ms = (Time.now - start_time) * 1000
 
           # Record error
-          @metrics_collector.record_error(error, context: ctx.to_h)
+          @metrics_collector.record_error(e, context: ctx.to_h)
 
           # Record failed performance
           @metrics_collector.record_performance(
             operation: "decide",
             duration_ms: duration_ms,
             success: false,
-            metadata: { error_class: error.class.name }
+            metadata: { error_class: e.class.name }
           )
 
           raise
@@ -59,8 +59,8 @@ module DecisionAgent
       end
 
       # Delegate other methods to the wrapped agent
-      def method_missing(method, *args, **kwargs, &block)
-        @agent.send(method, *args, **kwargs, &block)
+      def method_missing(method, ...)
+        @agent.send(method, ...)
       end
 
       def respond_to_missing?(method, include_private = false)

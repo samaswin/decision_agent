@@ -7,11 +7,12 @@ module DecisionAgent
     # Requires ActiveRecord models to be set up in the Rails app
     class ActiveRecordAdapter < Adapter
       include StatusValidator
+
       def initialize
-        unless defined?(ActiveRecord)
-          raise DecisionAgent::ConfigurationError,
-                "ActiveRecord is not available. Please ensure Rails/ActiveRecord is loaded."
-        end
+        return if defined?(ActiveRecord)
+
+        raise DecisionAgent::ConfigurationError,
+              "ActiveRecord is not available. Please ensure Rails/ActiveRecord is loaded."
       end
 
       def create_version(rule_id:, content:, metadata: {})
@@ -26,9 +27,9 @@ module DecisionAgent
           # Lock the last version for this rule to prevent concurrent reads
           # This ensures only one thread can calculate the next version number at a time
           last_version = rule_version_class.where(rule_id: rule_id)
-                                          .order(version_number: :desc)
-                                          .lock
-                                          .first
+                                           .order(version_number: :desc)
+                                           .lock
+                                           .first
           next_version_number = last_version ? last_version.version_number + 1 : 1
 
           # Deactivate previous active versions
@@ -88,8 +89,8 @@ module DecisionAgent
           # The lock ensures only one thread can perform this operation at a time
           # Use update! instead of update_all to trigger validations
           rule_version_class.where(rule_id: version.rule_id, status: "active")
-                           .where.not(id: version_id)
-                           .find_each do |v|
+                            .where.not(id: version_id)
+                            .find_each do |v|
             v.update!(status: "archived")
           end
 
@@ -119,7 +120,7 @@ module DecisionAgent
         rescue JSON::ParserError => e
           raise DecisionAgent::ValidationError,
                 "Invalid JSON in version #{version.id} for rule #{version.rule_id}: #{e.message}"
-        rescue TypeError, NoMethodError => e
+        rescue TypeError, NoMethodError
           raise DecisionAgent::ValidationError,
                 "Invalid content in version #{version.id} for rule #{version.rule_id}: content is nil or not a string"
         end
