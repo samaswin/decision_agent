@@ -1,5 +1,12 @@
 require "monitor"
 require "time"
+require_relative "storage/memory_adapter"
+
+begin
+  require_relative "storage/activerecord_adapter"
+rescue LoadError, NameError
+  # ActiveRecord adapter not available
+end
 
 module DecisionAgent
   module Monitoring
@@ -7,11 +14,14 @@ module DecisionAgent
     class MetricsCollector
       include MonitorMixin
 
-      attr_reader :metrics, :window_size
+      attr_reader :metrics, :window_size, :storage_adapter
 
-      def initialize(window_size: 3600)
+      def initialize(window_size: 3600, storage: :auto)
         super()
         @window_size = window_size # Default: 1 hour window
+        @storage_adapter = initialize_storage_adapter(storage, window_size)
+
+        # Legacy in-memory metrics for backward compatibility with observers
         @metrics = {
           decisions: [],
           evaluations: [],
@@ -35,8 +45,20 @@ module DecisionAgent
             evaluator_names: decision.evaluations.map(&:evaluator_name).uniq
           }
 
+          # Store in-memory for observers (backward compatibility)
           @metrics[:decisions] << metric
           cleanup_old_metrics!
+
+          # Persist to storage adapter
+          @storage_adapter.record_decision(
+            decision.decision,
+            context.to_h,
+            confidence: decision.confidence,
+            evaluations_count: decision.evaluations.size,
+            duration_ms: duration_ms,
+            status: determine_decision_status(decision)
+          )
+
           notify_observers(:decision, metric)
           metric
         end
@@ -52,8 +74,18 @@ module DecisionAgent
             evaluator_name: evaluation.evaluator_name
           }
 
+          # Store in-memory for observers (backward compatibility)
           @metrics[:evaluations] << metric
           cleanup_old_metrics!
+
+          # Persist to storage adapter
+          @storage_adapter.record_evaluation(
+            evaluation.evaluator_name,
+            score: evaluation.weight,
+            success: evaluation.weight.positive?,
+            details: { decision: evaluation.decision }
+          )
+
           notify_observers(:evaluation, metric)
           metric
         end
@@ -70,8 +102,18 @@ module DecisionAgent
             metadata: metadata
           }
 
+          # Store in-memory for observers (backward compatibility)
           @metrics[:performance] << metric
           cleanup_old_metrics!
+
+          # Persist to storage adapter
+          @storage_adapter.record_performance(
+            operation,
+            duration_ms: duration_ms,
+            status: success ? "success" : "failure",
+            metadata: metadata
+          )
+
           notify_observers(:performance, metric)
           metric
         end
@@ -87,8 +129,19 @@ module DecisionAgent
             context: context
           }
 
+          # Store in-memory for observers (backward compatibility)
           @metrics[:errors] << metric
           cleanup_old_metrics!
+
+          # Persist to storage adapter
+          @storage_adapter.record_error(
+            error.class.name,
+            message: error.message,
+            stack_trace: error.backtrace,
+            severity: determine_error_severity(error),
+            context: context
+          )
+
           notify_observers(:error, metric)
           metric
         end
@@ -97,6 +150,18 @@ module DecisionAgent
       # Get aggregated statistics
       def statistics(time_range: nil)
         synchronize do
+          # Use in-memory metrics for MemoryAdapter (to maintain backward compatibility)
+          # Only delegate to ActiveRecordAdapter for persistent storage
+          use_storage = time_range &&
+                        @storage_adapter.respond_to?(:statistics) &&
+                        !@storage_adapter.is_a?(Storage::MemoryAdapter)
+
+          if use_storage
+            stats = @storage_adapter.statistics(time_range: time_range)
+            return stats.merge(timestamp: Time.now.utc, storage: @storage_adapter.class.name) if stats
+          end
+
+          # Use in-memory metrics
           range_start = time_range ? Time.now.utc - time_range : nil
 
           decisions = filter_by_time(@metrics[:decisions], range_start)
@@ -115,7 +180,8 @@ module DecisionAgent
             evaluations: compute_evaluation_stats(evaluations),
             performance: compute_performance_stats(performance),
             errors: compute_error_stats(errors),
-            timestamp: Time.now.utc
+            timestamp: Time.now.utc,
+            storage: "memory (fallback)"
           }
         end
       end
@@ -123,6 +189,17 @@ module DecisionAgent
       # Get time-series data for graphing
       def time_series(metric_type:, bucket_size: 60, time_range: 3600)
         synchronize do
+          # Use in-memory metrics for MemoryAdapter (to maintain backward compatibility)
+          # Only delegate to ActiveRecordAdapter for persistent storage
+          use_storage = @storage_adapter.respond_to?(:time_series) &&
+                        !@storage_adapter.is_a?(Storage::MemoryAdapter)
+
+          if use_storage
+            series = @storage_adapter.time_series(metric_type, bucket_size: bucket_size, time_range: time_range)
+            return series if series && series[:timestamps]
+          end
+
+          # Use in-memory metrics
           data = @metrics[metric_type] || []
           range_start = Time.now.utc - time_range
 
@@ -156,13 +233,35 @@ module DecisionAgent
       def clear!
         synchronize do
           @metrics.each_value(&:clear)
+          # Also clear storage adapter if using MemoryAdapter
+          if @storage_adapter.is_a?(Storage::MemoryAdapter)
+            # Clear all by using a very large time period (100 years in seconds)
+            @storage_adapter.cleanup(older_than: 100 * 365 * 24 * 60 * 60)
+          end
         end
       end
 
       # Get current metrics count
       def metrics_count
         synchronize do
+          # Use in-memory metrics for MemoryAdapter (to maintain backward compatibility)
+          # Only delegate to ActiveRecordAdapter for persistent storage
+          use_storage = @storage_adapter.respond_to?(:metrics_count) &&
+                        !@storage_adapter.is_a?(Storage::MemoryAdapter)
+
+          return @storage_adapter.metrics_count if use_storage
+
+          # Use in-memory
           @metrics.transform_values(&:size)
+        end
+      end
+
+      # Cleanup old metrics from persistent storage
+      def cleanup_old_metrics_from_storage(older_than:)
+        synchronize do
+          return 0 unless @storage_adapter.respond_to?(:cleanup)
+
+          @storage_adapter.cleanup(older_than: older_than)
         end
       end
 
@@ -170,6 +269,52 @@ module DecisionAgent
 
       def freeze_config
         @window_size.freeze
+      end
+
+      def initialize_storage_adapter(storage_option, window_size)
+        case storage_option
+        when :auto
+          # Auto-detect: prefer ActiveRecord if available
+          if defined?(DecisionAgent::Monitoring::Storage::ActiveRecordAdapter) &&
+             DecisionAgent::Monitoring::Storage::ActiveRecordAdapter.available?
+            DecisionAgent::Monitoring::Storage::ActiveRecordAdapter.new
+          else
+            DecisionAgent::Monitoring::Storage::MemoryAdapter.new(window_size: window_size)
+          end
+        when :activerecord, :database
+          unless defined?(DecisionAgent::Monitoring::Storage::ActiveRecordAdapter)
+            raise "ActiveRecord adapter not available. Install models or use :memory storage."
+          end
+
+          DecisionAgent::Monitoring::Storage::ActiveRecordAdapter.new
+        when :memory
+          DecisionAgent::Monitoring::Storage::MemoryAdapter.new(window_size: window_size)
+        when Symbol
+          raise ArgumentError, "Unknown storage option: #{storage_option}. Use :auto, :activerecord, or :memory"
+        else
+          # Custom adapter instance provided
+          storage_option
+        end
+      end
+
+      def determine_decision_status(decision)
+        return "success" if decision.confidence >= 0.7
+        return "failure" if decision.confidence < 0.3
+
+        "success" # Default for medium confidence
+      end
+
+      def determine_error_severity(error)
+        case error
+        when ArgumentError, TypeError
+          "medium"
+        when StandardError
+          "low"
+        when Exception
+          "critical"
+        else
+          "low"
+        end
       end
 
       def cleanup_old_metrics!

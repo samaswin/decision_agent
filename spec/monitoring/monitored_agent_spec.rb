@@ -3,7 +3,7 @@ require "decision_agent/monitoring/metrics_collector"
 require "decision_agent/monitoring/monitored_agent"
 
 RSpec.describe DecisionAgent::Monitoring::MonitoredAgent do
-  let(:collector) { DecisionAgent::Monitoring::MetricsCollector.new }
+  let(:collector) { DecisionAgent::Monitoring::MetricsCollector.new(storage: :memory) }
   let(:evaluator) do
     double(
       "Evaluator",

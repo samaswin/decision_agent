@@ -2,7 +2,7 @@ require "spec_helper"
 require "decision_agent/monitoring/metrics_collector"
 
 RSpec.describe DecisionAgent::Monitoring::MetricsCollector do
-  let(:collector) { described_class.new(window_size: 60) }
+  let(:collector) { described_class.new(window_size: 60, storage: :memory) }
   let(:decision) do
     double(
       "Decision",
@@ -266,7 +266,7 @@ RSpec.describe DecisionAgent::Monitoring::MetricsCollector do
 
   describe "metric cleanup" do
     it "removes old metrics outside window" do
-      collector = described_class.new(window_size: 1)
+      collector = described_class.new(window_size: 1, storage: :memory)
 
       collector.record_decision(decision, context)
       expect(collector.metrics_count[:decisions]).to eq(1)
