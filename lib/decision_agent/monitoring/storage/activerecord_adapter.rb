@@ -67,32 +67,10 @@ module DecisionAgent
           errors = ::ErrorMetric.recent(time_range)
 
           {
-            decisions: {
-              total: decisions.count,
-              by_decision: decisions.group(:decision).count,
-              average_confidence: decisions.where.not(confidence: nil).average(:confidence).to_f,
-              success_rate: ::DecisionLog.success_rate(time_range: time_range)
-            },
-            evaluations: {
-              total: evaluations.count,
-              by_evaluator: evaluations.group(:evaluator_name).count,
-              average_score: evaluations.where.not(score: nil).average(:score).to_f,
-              success_rate_by_evaluator: evaluations.successful.group(:evaluator_name).count
-            },
-            performance: {
-              total: performance.count,
-              average_duration_ms: performance.average_duration(time_range: time_range),
-              p50: performance.p50(time_range: time_range),
-              p95: performance.p95(time_range: time_range),
-              p99: performance.p99(time_range: time_range),
-              success_rate: performance.success_rate(time_range: time_range)
-            },
-            errors: {
-              total: errors.count,
-              by_type: errors.group(:error_type).count,
-              by_severity: errors.group(:severity).count,
-              critical_count: errors.critical.count
-            }
+            decisions: decision_statistics(decisions, time_range),
+            evaluations: evaluation_statistics(evaluations),
+            performance: performance_statistics(performance, time_range),
+            errors: error_statistics(errors)
           }
         rescue StandardError => e
           warn "Failed to retrieve statistics from database: #{e.message}"
@@ -153,6 +131,44 @@ module DecisionAgent
         end
 
         private
+
+        def decision_statistics(decisions, time_range)
+          {
+            total: decisions.count,
+            by_decision: decisions.group(:decision).count,
+            average_confidence: decisions.where.not(confidence: nil).average(:confidence).to_f,
+            success_rate: ::DecisionLog.success_rate(time_range: time_range)
+          }
+        end
+
+        def evaluation_statistics(evaluations)
+          {
+            total: evaluations.count,
+            by_evaluator: evaluations.group(:evaluator_name).count,
+            average_score: evaluations.where.not(score: nil).average(:score).to_f,
+            success_rate_by_evaluator: evaluations.successful.group(:evaluator_name).count
+          }
+        end
+
+        def performance_statistics(performance, time_range)
+          {
+            total: performance.count,
+            average_duration_ms: performance.average_duration(time_range: time_range),
+            p50: performance.p50(time_range: time_range),
+            p95: performance.p95(time_range: time_range),
+            p99: performance.p99(time_range: time_range),
+            success_rate: performance.success_rate(time_range: time_range)
+          }
+        end
+
+        def error_statistics(errors)
+          {
+            total: errors.count,
+            by_type: errors.group(:error_type).count,
+            by_severity: errors.group(:severity).count,
+            critical_count: errors.critical.count
+          }
+        end
 
         def validate_models!
           required_models = %w[DecisionLog EvaluationMetric PerformanceMetric ErrorMetric]

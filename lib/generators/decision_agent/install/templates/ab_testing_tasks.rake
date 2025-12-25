@@ -1,3 +1,4 @@
+# rubocop:disable Metrics/BlockLength
 namespace :decision_agent do
   namespace :ab_testing do
     desc "List all A/B tests"
@@ -185,3 +186,4 @@ namespace :decision_agent do
     end
   end
 end
+# rubocop:enable Metrics/BlockLength

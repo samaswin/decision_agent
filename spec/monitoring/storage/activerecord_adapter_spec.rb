@@ -54,6 +54,7 @@ RSpec.describe DecisionAgent::Monitoring::Storage::ActiveRecordAdapter do
     end
 
     # Define models
+    # rubocop:disable Lint/ConstantDefinitionInBlock
     class DecisionLog < ActiveRecord::Base
       has_many :evaluation_metrics, dependent: :destroy
 
@@ -130,6 +131,7 @@ RSpec.describe DecisionAgent::Monitoring::Storage::ActiveRecordAdapter do
         {}
       end
     end
+    # rubocop:enable Lint/ConstantDefinitionInBlock
   end
 
   before do
