@@ -36,5 +36,12 @@ require_relative "decision_agent/monitoring/alert_manager"
 require_relative "decision_agent/monitoring/monitored_agent"
 # dashboard_server has additional dependencies (faye/websocket) - require it explicitly when needed
 
+require_relative "decision_agent/ab_testing/ab_test"
+require_relative "decision_agent/ab_testing/ab_test_assignment"
+require_relative "decision_agent/ab_testing/ab_test_manager"
+require_relative "decision_agent/ab_testing/ab_testing_agent"
+require_relative "decision_agent/ab_testing/storage/adapter"
+require_relative "decision_agent/ab_testing/storage/memory_adapter"
+
 module DecisionAgent
 end

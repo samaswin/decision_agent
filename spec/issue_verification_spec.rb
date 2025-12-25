@@ -254,6 +254,54 @@ RSpec.describe "Issue Verification Tests" do
             )
           end.to raise_error(ActiveRecord::RecordNotUnique)
         end
+
+        it "verifies application-level constraint for single active version (all databases)" do
+          # For databases that don't support partial unique indexes (like SQLite),
+          # the application should enforce only one active version per rule
+
+          ActiveRecord::Schema.define do
+            create_table :rule_versions, force: true do |t|
+              t.string :rule_id, null: false
+              t.integer :version_number, null: false
+              t.text :content, null: false
+              t.string :status, default: "active", null: false
+              t.timestamps
+            end
+            add_index :rule_versions, %i[rule_id version_number], unique: true
+          end
+
+          class TestRuleVersion6 < ActiveRecord::Base
+            self.table_name = "rule_versions"
+
+            # Application-level validation (works on all databases)
+            validate :only_one_active_per_rule, if: -> { status == "active" }
+
+            def only_one_active_per_rule
+              existing = self.class.where(rule_id: rule_id, status: "active")
+              existing = existing.where.not(id: id) if persisted?
+              return unless existing.exists?
+
+              errors.add(:base, "Only one active version allowed per rule")
+            end
+          end
+
+          TestRuleVersion6.create!(
+            rule_id: "test_rule",
+            version_number: 1,
+            content: { test: "v1" }.to_json,
+            status: "active"
+          )
+
+          # Try to create second active version - should fail with validation error
+          expect do
+            TestRuleVersion6.create!(
+              rule_id: "test_rule",
+              version_number: 2,
+              content: { test: "v2" }.to_json,
+              status: "active"
+            )
+          end.to raise_error(ActiveRecord::RecordInvalid, /Only one active version allowed/)
+        end
       end
     end
   end
@@ -495,33 +543,55 @@ RSpec.describe "Issue Verification Tests" do
           end.to raise_error(DecisionAgent::ValidationError, /Invalid JSON/)
         end
 
-        it "raises ValidationError when content is empty string" do
-          # ActiveRecord validation prevents empty string content
-          skip "ActiveRecord validation prevents empty string content"
+        it "handles empty string content in JSON parsing" do
+          # Even if the database allows empty strings (no NOT NULL + no validation),
+          # the adapter should handle it gracefully when parsing JSON
+          version = RuleVersion.create!(
+            rule_id: "test_rule",
+            version_number: 1,
+            content: "", # EMPTY STRING!
+            created_by: "test",
+            status: "active"
+          )
 
-          # This test would only be relevant if the model allowed empty strings
-          # The RuleVersion model has `validates :content, presence: true`
-          # which rejects empty strings before record creation
+          # serialize_version should catch JSON parsing errors
+          expect do
+            adapter.send(:serialize_version, version)
+          end.to raise_error(DecisionAgent::ValidationError, /Invalid JSON/)
         end
 
-        it "raises ValidationError when content is nil (if allowed by DB)" do
-          # Skip this test because the schema has NOT NULL constraint on content
-          # The database won't allow nil content to be saved in the first place
-          skip "Schema has NOT NULL constraint on content column"
+        it "enforces NOT NULL constraint on content column" do
+          # The schema has NOT NULL constraint on content column
+          # The database should raise an error when trying to create with nil content
 
-          # This test would only be relevant if the schema allowed NULL content
-          # In that case, the serialize_version method already handles it with:
-          # rescue TypeError, NoMethodError
-          #   raise DecisionAgent::ValidationError, "content is nil or not a string"
+          expect do
+            RuleVersion.create!(
+              rule_id: "test_rule",
+              version_number: 1,
+              content: nil, # NIL!
+              created_by: "test",
+              status: "active"
+            )
+          end.to raise_error(ActiveRecord::NotNullViolation)
         end
 
-        it "raises ValidationError when content contains malformed UTF-8" do
-          # ActiveRecord validation rejects malformed UTF-8 before record creation
-          skip "ActiveRecord validation rejects malformed UTF-8 strings"
+        it "handles content with special UTF-8 characters correctly" do
+          # Instead of testing malformed UTF-8 (which ActiveRecord rejects),
+          # test that valid UTF-8 special characters are handled correctly
+          special_content = {
+            "unicode" => "Hello \u4E16\u754C",
+            "emoji" => "\u{1F44D}",
+            "special" => "\n\t\r"
+          }
 
-          # This test would only be relevant if ActiveRecord allowed malformed UTF-8
-          # In practice, ActiveRecord's blank? check fails on invalid UTF-8
-          # which prevents the record from being created in the first place
+          version = adapter.create_version(
+            rule_id: "test_rule",
+            content: special_content,
+            metadata: { created_by: "test" }
+          )
+
+          loaded = adapter.get_version(version_id: version[:id])
+          expect(loaded[:content]).to eq(special_content)
         end
 
         it "raises ValidationError when content is truncated JSON" do

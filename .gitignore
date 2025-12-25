@@ -35,3 +35,6 @@
 
 # RSpec
 /spec/examples.txt
+file::memory:?cache=shared
+file::memory:?cache=shared-shm
+file::memory:?cache=shared-wal
