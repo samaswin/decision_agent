@@ -514,7 +514,11 @@ RSpec.describe "Issue Verification Tests" do
           add_index :rule_versions, %i[rule_id version_number], unique: true
         end
 
-        unless defined?(RuleVersion)
+        if defined?(RuleVersion)
+          # Clear existing validations if RuleVersion was defined by another spec
+          RuleVersion.clear_validators!
+          RuleVersion.reset_callbacks(:validate)
+        else
           class ::RuleVersion < ActiveRecord::Base
           end
         end

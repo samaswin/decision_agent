@@ -150,13 +150,18 @@ module DecisionAgent
       # Get aggregated statistics
       def statistics(time_range: nil)
         synchronize do
-          # Try to use storage adapter first (persistent data)
-          if time_range && @storage_adapter.respond_to?(:statistics)
+          # Use in-memory metrics for MemoryAdapter (to maintain backward compatibility)
+          # Only delegate to ActiveRecordAdapter for persistent storage
+          use_storage = time_range &&
+                       @storage_adapter.respond_to?(:statistics) &&
+                       !@storage_adapter.is_a?(Storage::MemoryAdapter)
+
+          if use_storage
             stats = @storage_adapter.statistics(time_range: time_range)
             return stats.merge(timestamp: Time.now.utc, storage: @storage_adapter.class.name) if stats
           end
 
-          # Fallback to in-memory metrics
+          # Use in-memory metrics
           range_start = time_range ? Time.now.utc - time_range : nil
 
           decisions = filter_by_time(@metrics[:decisions], range_start)
@@ -184,13 +189,17 @@ module DecisionAgent
       # Get time-series data for graphing
       def time_series(metric_type:, bucket_size: 60, time_range: 3600)
         synchronize do
-          # Try to use storage adapter first (persistent data)
-          if @storage_adapter.respond_to?(:time_series)
+          # Use in-memory metrics for MemoryAdapter (to maintain backward compatibility)
+          # Only delegate to ActiveRecordAdapter for persistent storage
+          use_storage = @storage_adapter.respond_to?(:time_series) &&
+                        !@storage_adapter.is_a?(Storage::MemoryAdapter)
+
+          if use_storage
             series = @storage_adapter.time_series(metric_type, bucket_size: bucket_size, time_range: time_range)
             return series if series && series[:timestamps]
           end
 
-          # Fallback to in-memory metrics
+          # Use in-memory metrics
           data = @metrics[metric_type] || []
           range_start = Time.now.utc - time_range
 
@@ -224,16 +233,25 @@ module DecisionAgent
       def clear!
         synchronize do
           @metrics.each_value(&:clear)
+          # Also clear storage adapter if using MemoryAdapter
+          if @storage_adapter.is_a?(Storage::MemoryAdapter)
+            # Clear all by using a very large time period (100 years in seconds)
+            @storage_adapter.cleanup(older_than: 100 * 365 * 24 * 60 * 60)
+          end
         end
       end
 
       # Get current metrics count
       def metrics_count
         synchronize do
-          # Try storage adapter first
-          return @storage_adapter.metrics_count if @storage_adapter.respond_to?(:metrics_count)
+          # Use in-memory metrics for MemoryAdapter (to maintain backward compatibility)
+          # Only delegate to ActiveRecordAdapter for persistent storage
+          use_storage = @storage_adapter.respond_to?(:metrics_count) &&
+                        !@storage_adapter.is_a?(Storage::MemoryAdapter)
 
-          # Fallback to in-memory
+          return @storage_adapter.metrics_count if use_storage
+
+          # Use in-memory
           @metrics.transform_values(&:size)
         end
       end

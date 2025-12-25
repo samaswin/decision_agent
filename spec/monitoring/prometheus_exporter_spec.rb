@@ -3,7 +3,7 @@ require "decision_agent/monitoring/metrics_collector"
 require "decision_agent/monitoring/prometheus_exporter"
 
 RSpec.describe DecisionAgent::Monitoring::PrometheusExporter do
-  let(:collector) { DecisionAgent::Monitoring::MetricsCollector.new }
+  let(:collector) { DecisionAgent::Monitoring::MetricsCollector.new(storage: :memory) }
   let(:exporter) { described_class.new(metrics_collector: collector, namespace: "test") }
 
   let(:decision) do
