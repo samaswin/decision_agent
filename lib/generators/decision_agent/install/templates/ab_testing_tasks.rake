@@ -67,7 +67,9 @@ namespace :decision_agent do
       end
       puts ""
 
-      if results[:comparison][:statistical_significance] != "insufficient_data"
+      if results[:comparison][:statistical_significance] == "insufficient_data"
+        puts "⚠️  Insufficient data for statistical comparison"
+      else
         puts "📈 Statistical Comparison"
         puts "  Improvement: #{results[:comparison][:improvement_percentage]}%"
         puts "  Winner: #{results[:comparison][:winner]}"
@@ -75,8 +77,6 @@ namespace :decision_agent do
         puts "  Confidence Level: #{(results[:comparison][:confidence_level] * 100).round(0)}%"
         puts ""
         puts "💡 Recommendation: #{results[:comparison][:recommendation]}"
-      else
-        puts "⚠️  Insufficient data for statistical comparison"
       end
 
       puts "=" * 80
@@ -128,7 +128,7 @@ namespace :decision_agent do
     end
 
     desc "Create a new A/B test - Usage: rake decision_agent:ab_testing:create[name,champion_id,challenger_id,split]"
-    task :create, [:name, :champion_id, :challenger_id, :split] => :environment do |_t, args|
+    task :create, %i[name champion_id challenger_id split] => :environment do |_t, args|
       require "decision_agent/ab_testing/ab_test_manager"
 
       name = args[:name]
@@ -136,7 +136,9 @@ namespace :decision_agent do
       challenger_id = args[:challenger_id]
       split = args[:split] || "90,10"
 
-      raise "Missing arguments. Usage: rake decision_agent:ab_testing:create[name,champion_id,challenger_id,split]" unless name && champion_id && challenger_id
+      unless name && champion_id && challenger_id
+        raise "Missing arguments. Usage: rake decision_agent:ab_testing:create[name,champion_id,challenger_id,split]"
+      end
 
       champion_pct, challenger_pct = split.split(",").map(&:to_i)
 

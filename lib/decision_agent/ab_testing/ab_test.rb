@@ -8,29 +8,26 @@ module DecisionAgent
       # @param name [String] Name of the A/B test
       # @param champion_version_id [String, Integer] ID of the current/champion version
       # @param challenger_version_id [String, Integer] ID of the new/challenger version
-      # @param traffic_split [Hash] Traffic distribution (e.g., { champion: 90, challenger: 10 })
-      # @param start_date [Time, nil] When the test starts (defaults to now)
-      # @param end_date [Time, nil] When the test ends (optional)
-      # @param status [String] Test status: running, completed, cancelled, scheduled
-      # @param id [String, Integer, nil] Optional ID (for persistence)
+      # @param options [Hash] Optional configuration
+      # @option options [Hash] :traffic_split Traffic distribution (default: { champion: 90, challenger: 10 })
+      # @option options [Time] :start_date When the test starts (defaults to now)
+      # @option options [Time] :end_date When the test ends (optional)
+      # @option options [String] :status Test status: running, completed, cancelled, scheduled
+      # @option options [String, Integer] :id Optional ID (for persistence)
       def initialize(
         name:,
         champion_version_id:,
         challenger_version_id:,
-        traffic_split: { champion: 90, challenger: 10 },
-        start_date: Time.now.utc,
-        end_date: nil,
-        status: "scheduled",
-        id: nil
+        **options
       )
-        @id = id
+        @id = options[:id]
         @name = name
         @champion_version_id = champion_version_id
         @challenger_version_id = challenger_version_id
-        @traffic_split = normalize_traffic_split(traffic_split)
-        @start_date = start_date
-        @end_date = end_date
-        @status = status
+        @traffic_split = normalize_traffic_split(options[:traffic_split] || { champion: 90, challenger: 10 })
+        @start_date = options[:start_date] || Time.now.utc
+        @end_date = options[:end_date]
+        @status = options[:status] || "scheduled"
 
         validate!
       end
@@ -143,7 +140,11 @@ module DecisionAgent
 
       def validate_traffic_split!
         raise ValidationError, "Traffic split must be a Hash" unless @traffic_split.is_a?(Hash)
-        raise ValidationError, "Traffic split must have :champion and :challenger keys" unless @traffic_split.key?(:champion) && @traffic_split.key?(:challenger)
+
+        unless @traffic_split.key?(:champion) && @traffic_split.key?(:challenger)
+          raise ValidationError,
+                "Traffic split must have :champion and :challenger keys"
+        end
 
         total = @traffic_split[:champion] + @traffic_split[:challenger]
         raise ValidationError, "Traffic split must sum to 100, got #{total}" unless total == 100

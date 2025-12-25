@@ -17,7 +17,7 @@ RSpec.describe DecisionAgent::Monitoring::Storage::MemoryAdapter do
       expect do
         adapter.record_decision(
           "approve_loan",
-          { user_id: 123, amount: 10000 },
+          { user_id: 123, amount: 10_000 },
           confidence: 0.85,
           evaluations_count: 3,
           duration_ms: 45.5,

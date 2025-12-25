@@ -79,11 +79,14 @@ class DecisionLog < ActiveRecord::Base
   def self.success_rate(time_range: 3600)
     total = recent(time_range).where.not(status: nil).count
     return 0.0 if total.zero?
+
     successful.recent(time_range).count.to_f / total
   end
 
   def parsed_context
-    JSON.parse(context, symbolize_names: true) rescue {}
+    JSON.parse(context, symbolize_names: true)
+  rescue StandardError
+    {}
   end
 end
 
@@ -96,18 +99,20 @@ class PerformanceMetric < ActiveRecord::Base
   scope :recent, ->(time_range) { where("created_at >= ?", Time.now - time_range) }
 
   def self.average_duration(time_range: 3600)
-    recent(time_range).average(:duration_ms)&.to_f || 0.0
+    recent(time_range).average(:duration_ms).to_f
   end
 
   def self.p95(time_range: 3600)
     durations = recent(time_range).where.not(duration_ms: nil).order(:duration_ms).pluck(:duration_ms)
     return 0.0 if durations.empty?
+
     durations[(durations.length * 0.95).ceil - 1].to_f
   end
 
   def self.success_rate(time_range: 3600)
     total = recent(time_range).where.not(status: nil).count
     return 0.0 if total.zero?
+
     recent(time_range).where(status: "success").count.to_f / total
   end
 end
@@ -149,7 +154,7 @@ puts "-" * 80
 # Create a simple evaluator
 fraud_evaluator = DecisionAgent::Evaluator.new(
   "FraudDetection",
-  ->(context) { context[:amount] > 10000 ? 0.3 : 0.9 }
+  ->(context) { context[:amount] > 10_000 ? 0.3 : 0.9 }
 )
 
 credit_evaluator = DecisionAgent::Evaluator.new(
@@ -168,10 +173,10 @@ monitored_engine = DecisionAgent::Monitoring::MonitoredAgent.new(
 # Simulate some transactions
 transactions = [
   { user_id: 1, amount: 5000, credit_score: 750 },
-  { user_id: 2, amount: 15000, credit_score: 720 },
+  { user_id: 2, amount: 15_000, credit_score: 720 },
   { user_id: 3, amount: 3000, credit_score: 650 },
   { user_id: 4, amount: 8000, credit_score: 800 },
-  { user_id: 5, amount: 20000, credit_score: 680 }
+  { user_id: 5, amount: 20_000, credit_score: 680 }
 ]
 
 puts "Processing #{transactions.size} transactions..."
@@ -247,7 +252,7 @@ DecisionLog.create!(
 )
 
 puts "Records from last hour: #{DecisionLog.recent(3600).count}"
-puts "Records from last 24 hours: #{DecisionLog.recent(86400).count}"
+puts "Records from last 24 hours: #{DecisionLog.recent(86_400).count}"
 puts "All records: #{DecisionLog.count}"
 puts
 
@@ -327,7 +332,7 @@ puts "-" * 80
 
 # Record same data to memory storage
 transactions.each do |transaction|
-  result = engine.evaluate(transaction)
+  engine.evaluate(transaction)
   memory_collector.record_performance(
     operation: "process_transaction",
     duration_ms: rand(50..200),

@@ -35,6 +35,7 @@ class EvaluationMetric < ApplicationRecord
   # Parse JSON details field
   def parsed_details
     return {} if details.nil?
+
     JSON.parse(details, symbolize_names: true)
   rescue JSON::ParserError
     {}

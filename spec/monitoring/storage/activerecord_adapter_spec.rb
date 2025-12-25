@@ -62,11 +62,14 @@ RSpec.describe DecisionAgent::Monitoring::Storage::ActiveRecordAdapter do
       def self.success_rate(time_range: 3600)
         total = recent(time_range).where.not(status: nil).count
         return 0.0 if total.zero?
+
         recent(time_range).where(status: "success").count.to_f / total
       end
 
       def parsed_context
-        JSON.parse(context, symbolize_names: true) rescue {}
+        JSON.parse(context, symbolize_names: true)
+      rescue StandardError
+        {}
       end
     end
 
@@ -77,7 +80,9 @@ RSpec.describe DecisionAgent::Monitoring::Storage::ActiveRecordAdapter do
       scope :successful, -> { where(success: true) }
 
       def parsed_details
-        JSON.parse(details, symbolize_names: true) rescue {}
+        JSON.parse(details, symbolize_names: true)
+      rescue StandardError
+        {}
       end
     end
 
@@ -85,7 +90,7 @@ RSpec.describe DecisionAgent::Monitoring::Storage::ActiveRecordAdapter do
       scope :recent, ->(time_range) { where("created_at >= ?", Time.now - time_range) }
 
       def self.average_duration(time_range: 3600)
-        recent(time_range).average(:duration_ms)&.to_f || 0.0
+        recent(time_range).average(:duration_ms).to_f
       end
 
       def self.p50(time_range: 3600)
@@ -100,11 +105,11 @@ RSpec.describe DecisionAgent::Monitoring::Storage::ActiveRecordAdapter do
         percentile(0.99, time_range: time_range)
       end
 
-      def self.percentile(p, time_range: 3600)
+      def self.percentile(pct, time_range: 3600)
         durations = recent(time_range).where.not(duration_ms: nil).order(:duration_ms).pluck(:duration_ms)
         return 0.0 if durations.empty?
 
-        durations[(durations.length * p).ceil - 1].to_f
+        durations[(durations.length * pct).ceil - 1].to_f
       end
 
       def self.success_rate(time_range: 3600)
@@ -120,7 +125,9 @@ RSpec.describe DecisionAgent::Monitoring::Storage::ActiveRecordAdapter do
       scope :critical, -> { where(severity: "critical") }
 
       def parsed_context
-        JSON.parse(context, symbolize_names: true) rescue {}
+        JSON.parse(context, symbolize_names: true)
+      rescue StandardError
+        {}
       end
     end
   end

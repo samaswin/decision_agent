@@ -153,8 +153,8 @@ module DecisionAgent
           # Use in-memory metrics for MemoryAdapter (to maintain backward compatibility)
           # Only delegate to ActiveRecordAdapter for persistent storage
           use_storage = time_range &&
-                       @storage_adapter.respond_to?(:statistics) &&
-                       !@storage_adapter.is_a?(Storage::MemoryAdapter)
+                        @storage_adapter.respond_to?(:statistics) &&
+                        !@storage_adapter.is_a?(Storage::MemoryAdapter)
 
           if use_storage
             stats = @storage_adapter.statistics(time_range: time_range)

@@ -93,7 +93,7 @@ RSpec.describe DecisionAgent::ABTesting::ABTestManager do
     end
 
     it "returns nil for nonexistent test" do
-      test = manager.get_test(99999)
+      test = manager.get_test(99_999)
       expect(test).to be_nil
     end
   end
@@ -116,7 +116,7 @@ RSpec.describe DecisionAgent::ABTesting::ABTestManager do
       assignment = manager.assign_variant(test_id: test.id, user_id: "user_123")
 
       expect(assignment[:test_id]).to eq(test.id)
-      expect([:champion, :challenger]).to include(assignment[:variant])
+      expect(%i[champion challenger]).to include(assignment[:variant])
       expect([@champion[:id], @challenger[:id]]).to include(assignment[:version_id])
       expect(assignment[:assignment_id]).not_to be_nil
     end
@@ -131,7 +131,7 @@ RSpec.describe DecisionAgent::ABTesting::ABTestManager do
 
     it "raises error for nonexistent test" do
       expect do
-        manager.assign_variant(test_id: 99999)
+        manager.assign_variant(test_id: 99_999)
       end.to raise_error(DecisionAgent::ABTesting::TestNotFoundError)
     end
   end
@@ -212,7 +212,7 @@ RSpec.describe DecisionAgent::ABTesting::ABTestManager do
       )
       manager.start_test(test1.id)
 
-      test2 = manager.create_test(
+      manager.create_test(
         name: "Scheduled Test",
         champion_version_id: @champion[:id],
         challenger_version_id: @challenger[:id],

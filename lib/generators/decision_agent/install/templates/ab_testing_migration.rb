@@ -14,7 +14,7 @@ class CreateDecisionAgentABTestingTables < ActiveRecord::Migration[7.0]
 
     add_index :ab_test_models, :status
     add_index :ab_test_models, :start_date
-    add_index :ab_test_models, [:status, :start_date], name: "index_ab_tests_on_status_and_start_date"
+    add_index :ab_test_models, %i[status start_date], name: "index_ab_tests_on_status_and_start_date"
 
     # A/B Test Assignments table
     create_table :ab_test_assignment_models do |t|
@@ -35,7 +35,7 @@ class CreateDecisionAgentABTestingTables < ActiveRecord::Migration[7.0]
     add_index :ab_test_assignment_models, :user_id
     add_index :ab_test_assignment_models, :variant
     add_index :ab_test_assignment_models, :timestamp
-    add_index :ab_test_assignment_models, [:ab_test_model_id, :variant], name: "index_assignments_on_test_and_variant"
+    add_index :ab_test_assignment_models, %i[ab_test_model_id variant], name: "index_assignments_on_test_and_variant"
 
     # Optional: Index for querying assignments with decisions
     add_index :ab_test_assignment_models, :decision_result, where: "decision_result IS NOT NULL", name: "index_assignments_with_decisions"

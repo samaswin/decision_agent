@@ -6,34 +6,30 @@ module DecisionAgent
                   :timestamp, :decision_result, :confidence, :context
 
       # @param ab_test_id [String, Integer] The A/B test ID
-      # @param user_id [String, nil] User identifier (optional)
       # @param variant [Symbol] :champion or :challenger
       # @param version_id [String, Integer] The rule version ID that was used
-      # @param timestamp [Time] When the assignment occurred
-      # @param decision_result [String, nil] The decision outcome
-      # @param confidence [Float, nil] Confidence score of the decision
-      # @param context [Hash] Additional context for the decision
-      # @param id [String, Integer, nil] Optional ID (for persistence)
+      # @param options [Hash] Optional configuration
+      # @option options [String] :user_id User identifier (optional)
+      # @option options [Time] :timestamp When the assignment occurred
+      # @option options [String] :decision_result The decision outcome
+      # @option options [Float] :confidence Confidence score of the decision
+      # @option options [Hash] :context Additional context for the decision
+      # @option options [String, Integer] :id Optional ID (for persistence)
       def initialize(
         ab_test_id:,
         variant:,
         version_id:,
-        user_id: nil,
-        timestamp: Time.now.utc,
-        decision_result: nil,
-        confidence: nil,
-        context: {},
-        id: nil
+        **options
       )
-        @id = id
+        @id = options[:id]
         @ab_test_id = ab_test_id
-        @user_id = user_id
+        @user_id = options[:user_id]
         @variant = variant
         @version_id = version_id
-        @timestamp = timestamp
-        @decision_result = decision_result
-        @confidence = confidence
-        @context = context
+        @timestamp = options[:timestamp] || Time.now.utc
+        @decision_result = options[:decision_result]
+        @confidence = options[:confidence]
+        @context = options[:context] || {}
 
         validate!
       end
@@ -69,13 +65,11 @@ module DecisionAgent
         raise ValidationError, "Variant is required" if @variant.nil?
         raise ValidationError, "Version ID is required" if @version_id.nil?
 
-        unless %i[champion challenger].include?(@variant)
-          raise ValidationError, "Variant must be :champion or :challenger, got: #{@variant}"
-        end
+        raise ValidationError, "Variant must be :champion or :challenger, got: #{@variant}" unless %i[champion challenger].include?(@variant)
 
-        if @confidence && (@confidence < 0 || @confidence > 1)
-          raise ValidationError, "Confidence must be between 0 and 1, got: #{@confidence}"
-        end
+        return unless @confidence && (@confidence.negative? || @confidence > 1)
+
+        raise ValidationError, "Confidence must be between 0 and 1, got: #{@confidence}"
       end
     end
   end

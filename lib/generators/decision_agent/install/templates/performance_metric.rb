@@ -14,14 +14,14 @@ class PerformanceMetric < ApplicationRecord
 
   # Performance statistics
   def self.average_duration(time_range: 3600)
-    recent(time_range).where.not(duration_ms: nil).average(:duration_ms)&.to_f || 0.0
+    recent(time_range).where.not(duration_ms: nil).average(:duration_ms).to_f
   end
 
-  def self.percentile(p, time_range: 3600)
+  def self.percentile(pct, time_range: 3600)
     durations = recent(time_range).where.not(duration_ms: nil).order(:duration_ms).pluck(:duration_ms)
     return 0.0 if durations.empty?
 
-    index = ((durations.length - 1) * p).ceil
+    index = ((durations.length - 1) * pct).ceil
     durations[index].to_f
   end
 
@@ -38,11 +38,11 @@ class PerformanceMetric < ApplicationRecord
   end
 
   def self.max_duration(time_range: 3600)
-    recent(time_range).maximum(:duration_ms)&.to_f || 0.0
+    recent(time_range).maximum(:duration_ms).to_f
   end
 
   def self.min_duration(time_range: 3600)
-    recent(time_range).minimum(:duration_ms)&.to_f || 0.0
+    recent(time_range).minimum(:duration_ms).to_f
   end
 
   def self.success_rate(time_range: 3600)
@@ -68,6 +68,7 @@ class PerformanceMetric < ApplicationRecord
   # Parse JSON metadata field
   def parsed_metadata
     return {} if metadata.nil?
+
     JSON.parse(metadata, symbolize_names: true)
   rescue JSON::ParserError
     {}

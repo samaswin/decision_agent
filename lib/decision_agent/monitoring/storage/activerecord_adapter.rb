@@ -8,6 +8,7 @@ module DecisionAgent
       # ActiveRecord adapter for persistent database storage
       class ActiveRecordAdapter < BaseAdapter
         def initialize
+          super
           validate_models!
         end
 
@@ -69,13 +70,13 @@ module DecisionAgent
             decisions: {
               total: decisions.count,
               by_decision: decisions.group(:decision).count,
-              average_confidence: decisions.where.not(confidence: nil).average(:confidence)&.to_f || 0.0,
+              average_confidence: decisions.where.not(confidence: nil).average(:confidence).to_f,
               success_rate: ::DecisionLog.success_rate(time_range: time_range)
             },
             evaluations: {
               total: evaluations.count,
               by_evaluator: evaluations.group(:evaluator_name).count,
-              average_score: evaluations.where.not(score: nil).average(:score)&.to_f || 0.0,
+              average_score: evaluations.where.not(score: nil).average(:score).to_f,
               success_rate_by_evaluator: evaluations.successful.group(:evaluator_name).count
             },
             performance: {
@@ -208,7 +209,7 @@ module DecisionAgent
             "(CAST(strftime('%s', #{column}) AS INTEGER) / #{bucket_size}) * #{bucket_size}"
           else
             # Fallback: use group by timestamp truncated to bucket
-            "#{column}"
+            column.to_s
           end
         end
 

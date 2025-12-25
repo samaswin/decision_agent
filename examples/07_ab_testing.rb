@@ -144,13 +144,13 @@ test_scenarios = [
   # Simulate some variation in confidence
   # In a real scenario, this would come from actual decision confidence
 
-  if i < 5
-    puts "User #{user_id}: amount=#{scenario[:amount]}"
-    puts "  → Variant: #{result[:ab_test][:variant]}"
-    puts "  → Decision: #{result[:decision]}"
-    puts "  → Confidence: #{result[:confidence].round(2)}"
-    puts "  → Version: #{result[:ab_test][:version_id]}"
-  end
+  next unless i < 5
+
+  puts "User #{user_id}: amount=#{scenario[:amount]}"
+  puts "  → Variant: #{result[:ab_test][:variant]}"
+  puts "  → Decision: #{result[:decision]}"
+  puts "  → Confidence: #{result[:confidence].round(2)}"
+  puts "  → Version: #{result[:ab_test][:version_id]}"
 end
 
 puts "..."
@@ -194,7 +194,10 @@ if results[:challenger][:avg_confidence]
 end
 puts ""
 
-if results[:comparison][:statistical_significance] != "insufficient_data"
+if results[:comparison][:statistical_significance] == "insufficient_data"
+  puts "⚠️  Insufficient data for statistical comparison"
+  puts "   Run more tests to gather statistical significance"
+else
   puts "📈 STATISTICAL COMPARISON"
   puts "   Improvement: #{results[:comparison][:improvement_percentage]}%"
   puts "   Winner: #{results[:comparison][:winner]}"
@@ -203,9 +206,6 @@ if results[:comparison][:statistical_significance] != "insufficient_data"
   puts ""
   puts "💡 RECOMMENDATION:"
   puts "   #{results[:comparison][:recommendation]}"
-else
-  puts "⚠️  Insufficient data for statistical comparison"
-  puts "   Run more tests to gather statistical significance"
 end
 
 puts ""

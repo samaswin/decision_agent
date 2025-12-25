@@ -6,7 +6,7 @@ namespace :decision_agent do
     task cleanup: :environment do
       older_than = ENV.fetch("OLDER_THAN", 30 * 24 * 3600).to_i # Default: 30 days
 
-      puts "Cleaning up metrics older than #{older_than / 86400} days..."
+      puts "Cleaning up metrics older than #{older_than / 86_400} days..."
 
       count = 0
       count += DecisionLog.where("created_at < ?", Time.now - older_than).delete_all
@@ -61,7 +61,7 @@ namespace :decision_agent do
       older_than = ENV.fetch("OLDER_THAN", 30 * 24 * 3600).to_i
       cutoff_time = Time.now - older_than
 
-      puts "Archiving metrics older than #{older_than / 86400} days to #{output_file}..."
+      puts "Archiving metrics older than #{older_than / 86_400} days to #{output_file}..."
 
       archive_data = {
         archived_at: Time.now.iso8601,

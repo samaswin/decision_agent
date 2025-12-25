@@ -36,6 +36,7 @@ class ErrorMetric < ApplicationRecord
   # Parse JSON context field
   def parsed_context
     return {} if context.nil?
+
     JSON.parse(context, symbolize_names: true)
   rescue JSON::ParserError
     {}
@@ -44,6 +45,7 @@ class ErrorMetric < ApplicationRecord
   # Parse JSON stack_trace field
   def parsed_stack_trace
     return [] if stack_trace.nil?
+
     JSON.parse(stack_trace)
   rescue JSON::ParserError
     []

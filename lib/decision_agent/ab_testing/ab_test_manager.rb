@@ -25,7 +25,8 @@ module DecisionAgent
       # @param start_date [Time, nil] When to start the test
       # @param end_date [Time, nil] When to end the test
       # @return [ABTest] The created test
-      def create_test(name:, champion_version_id:, challenger_version_id:, traffic_split: { champion: 90, challenger: 10 }, start_date: nil, end_date: nil)
+      def create_test(name:, champion_version_id:, challenger_version_id:, traffic_split: { champion: 90, challenger: 10 }, start_date: nil,
+                      end_date: nil)
         synchronize do
           # Validate that both versions exist
           validate_version_exists!(champion_version_id, "champion")
@@ -198,15 +199,17 @@ module DecisionAgent
       end
 
       def calculate_variant_stats(assignments, label)
-        with_decisions = assignments.select { |a| a.decision_result }
+        with_decisions = assignments.select(&:decision_result)
 
-        return {
-          label: label,
-          total_assignments: assignments.size,
-          decisions_recorded: 0,
-          avg_confidence: nil,
-          decision_distribution: {}
-        } if with_decisions.empty?
+        if with_decisions.empty?
+          return {
+            label: label,
+            total_assignments: assignments.size,
+            decisions_recorded: 0,
+            avg_confidence: nil,
+            decision_distribution: {}
+          }
+        end
 
         confidences = with_decisions.map(&:confidence)
         decision_counts = with_decisions.group_by(&:decision_result).transform_values(&:size)
@@ -223,8 +226,8 @@ module DecisionAgent
       end
 
       def compare_variants(champion_assignments, challenger_assignments)
-        champion_with_decisions = champion_assignments.select { |a| a.decision_result }
-        challenger_with_decisions = challenger_assignments.select { |a| a.decision_result }
+        champion_with_decisions = champion_assignments.select(&:decision_result)
+        challenger_with_decisions = challenger_assignments.select(&:decision_result)
 
         return { statistical_significance: "insufficient_data" } if champion_with_decisions.empty? || challenger_with_decisions.empty?
 
@@ -297,7 +300,7 @@ module DecisionAgent
           "Continue testing - not enough data for statistical significance"
         elsif improvement > 5
           "Strong evidence to promote challenger"
-        elsif improvement > 0
+        elsif improvement.positive?
           "Moderate evidence to promote challenger"
         elsif improvement > -5
           "Results are similar - consider other factors"

@@ -203,10 +203,10 @@ module DecisionAgent
           }
         end
 
-        def percentile(sorted_array, p)
+        def percentile(sorted_array, pct)
           return 0.0 if sorted_array.empty?
 
-          index = ((sorted_array.length - 1) * p).ceil
+          index = ((sorted_array.length - 1) * pct).ceil
           sorted_array[index].to_f
         end
 

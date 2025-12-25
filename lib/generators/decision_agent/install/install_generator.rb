@@ -34,11 +34,11 @@ module DecisionAgent
                              migration_version: migration_version
         end
 
-        if options[:ab_testing]
-          migration_template "ab_testing_migration.rb",
-                             "db/migrate/create_decision_agent_ab_testing_tables.rb",
-                             migration_version: migration_version
-        end
+        return unless options[:ab_testing]
+
+        migration_template "ab_testing_migration.rb",
+                           "db/migrate/create_decision_agent_ab_testing_tables.rb",
+                           migration_version: migration_version
       end
 
       def copy_models
@@ -52,10 +52,10 @@ module DecisionAgent
           copy_file "error_metric.rb", "app/models/error_metric.rb"
         end
 
-        if options[:ab_testing]
-          copy_file "ab_test_model.rb", "app/models/ab_test_model.rb"
-          copy_file "ab_test_assignment_model.rb", "app/models/ab_test_assignment_model.rb"
-        end
+        return unless options[:ab_testing]
+
+        copy_file "ab_test_model.rb", "app/models/ab_test_model.rb"
+        copy_file "ab_test_assignment_model.rb", "app/models/ab_test_assignment_model.rb"
       end
 
       def copy_rake_tasks

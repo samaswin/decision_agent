@@ -40,6 +40,7 @@ class DecisionLog < ApplicationRecord
   # Parse JSON context field
   def parsed_context
     return {} if context.nil?
+
     JSON.parse(context, symbolize_names: true)
   rescue JSON::ParserError
     {}
@@ -48,6 +49,7 @@ class DecisionLog < ApplicationRecord
   # Parse JSON metadata field
   def parsed_metadata
     return {} if metadata.nil?
+
     JSON.parse(metadata, symbolize_names: true)
   rescue JSON::ParserError
     {}

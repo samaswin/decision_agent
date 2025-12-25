@@ -9,7 +9,7 @@ module DecisionAgent
         include MonitorMixin
 
         def initialize
-          super()
+          super
           @tests = {}
           @assignments = {}
           @test_id_counter = 0
