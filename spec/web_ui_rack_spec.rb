@@ -112,6 +112,117 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
     end
   end
 
+  describe "Password reset API" do
+    before do
+      # Create a test user
+      authenticator = DecisionAgent::Web::Server.authenticator
+      authenticator.create_user(
+        email: "test@example.com",
+        password: "oldpassword123"
+      )
+    end
+
+    describe "POST /api/auth/password/reset-request" do
+      it "returns success for valid email" do
+        post "/api/auth/password/reset-request",
+             { email: "test@example.com" }.to_json,
+             { "CONTENT_TYPE" => "application/json" }
+
+        expect(last_response).to be_ok
+        json = JSON.parse(last_response.body)
+        expect(json["success"]).to be true
+        expect(json["token"]).to be_a(String)
+        expect(json["expires_at"]).to be_a(String)
+      end
+
+      it "returns success even for non-existent email (security)" do
+        post "/api/auth/password/reset-request",
+             { email: "nonexistent@example.com" }.to_json,
+             { "CONTENT_TYPE" => "application/json" }
+
+        expect(last_response).to be_ok
+        json = JSON.parse(last_response.body)
+        expect(json["success"]).to be true
+        expect(json["token"]).to be_nil
+      end
+
+      it "returns error when email is missing" do
+        post "/api/auth/password/reset-request",
+             {}.to_json,
+             { "CONTENT_TYPE" => "application/json" }
+
+        expect(last_response.status).to eq(400)
+        json = JSON.parse(last_response.body)
+        expect(json["error"]).to include("Email is required")
+      end
+    end
+
+    describe "POST /api/auth/password/reset" do
+      let(:reset_token) do
+        authenticator = DecisionAgent::Web::Server.authenticator
+        token = authenticator.request_password_reset("test@example.com")
+        token.token
+      end
+
+      it "resets password with valid token" do
+        post "/api/auth/password/reset",
+             { token: reset_token, password: "newpassword123" }.to_json,
+             { "CONTENT_TYPE" => "application/json" }
+
+        expect(last_response).to be_ok
+        json = JSON.parse(last_response.body)
+        expect(json["success"]).to be true
+        expect(json["message"]).to include("reset successfully")
+
+        # Verify password was actually changed
+        authenticator = DecisionAgent::Web::Server.authenticator
+        user = authenticator.find_user_by_email("test@example.com")
+        expect(user.authenticate("newpassword123")).to be true
+        expect(user.authenticate("oldpassword123")).to be false
+      end
+
+      it "returns error for invalid token" do
+        post "/api/auth/password/reset",
+             { token: "invalid_token", password: "newpassword123" }.to_json,
+             { "CONTENT_TYPE" => "application/json" }
+
+        expect(last_response.status).to eq(400)
+        json = JSON.parse(last_response.body)
+        expect(json["error"]).to include("Invalid or expired")
+      end
+
+      it "returns error when password is too short" do
+        post "/api/auth/password/reset",
+             { token: reset_token, password: "short" }.to_json,
+             { "CONTENT_TYPE" => "application/json" }
+
+        expect(last_response.status).to eq(400)
+        json = JSON.parse(last_response.body)
+        expect(json["error"]).to include("at least 8 characters")
+      end
+
+      it "returns error when token is missing" do
+        post "/api/auth/password/reset",
+             { password: "newpassword123" }.to_json,
+             { "CONTENT_TYPE" => "application/json" }
+
+        expect(last_response.status).to eq(400)
+        json = JSON.parse(last_response.body)
+        expect(json["error"]).to include("Token and password are required")
+      end
+
+      it "returns error when password is missing" do
+        post "/api/auth/password/reset",
+             { token: reset_token }.to_json,
+             { "CONTENT_TYPE" => "application/json" }
+
+        expect(last_response.status).to eq(400)
+        json = JSON.parse(last_response.body)
+        expect(json["error"]).to include("Token and password are required")
+      end
+    end
+  end
+
   describe "Rails mounting compatibility" do
     it "can be mounted in a Rack app" do
       # Simulate a Rails-style mount

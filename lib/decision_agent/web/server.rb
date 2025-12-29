@@ -12,6 +12,18 @@ require_relative "../testing/test_coverage_analyzer"
 require_relative "../evaluators/json_rule_evaluator"
 require_relative "../agent"
 
+# Auth components
+require_relative "../auth/user"
+require_relative "../auth/role"
+require_relative "../auth/permission"
+require_relative "../auth/session"
+require_relative "../auth/session_manager"
+require_relative "../auth/authenticator"
+require_relative "../auth/permission_checker"
+require_relative "../auth/access_audit_logger"
+require_relative "middleware/auth_middleware"
+require_relative "middleware/permission_middleware"
+
 module DecisionAgent
   module Web
     # rubocop:disable Metrics/ClassLength
@@ -25,6 +37,11 @@ module DecisionAgent
       @batch_test_storage = {}
       @batch_test_storage_mutex = Mutex.new
 
+      # Auth components
+      @authenticator = nil
+      @permission_checker = nil
+      @access_audit_logger = nil
+
       def self.batch_test_storage
         @batch_test_storage ||= {}
       end
@@ -33,11 +50,47 @@ module DecisionAgent
         @batch_test_storage_mutex ||= Mutex.new
       end
 
+      def self.authenticator=(auth)
+        @authenticator = auth
+      end
+
+      def self.authenticator
+        @authenticator ||= Auth::Authenticator.new
+      end
+
+      def self.permission_checker=(checker)
+        @permission_checker = checker
+      end
+
+      def self.permission_checker
+        @permission_checker ||= Auth::PermissionChecker.new(adapter: DecisionAgent.rbac_config.adapter)
+      end
+
+      def self.access_audit_logger=(logger)
+        @access_audit_logger = logger
+      end
+
+      def self.access_audit_logger
+        @access_audit_logger ||= Auth::AccessAuditLogger.new
+      end
+
       # Enable CORS for API calls
       before do
         headers["Access-Control-Allow-Origin"] = "*"
         headers["Access-Control-Allow-Methods"] = "GET, POST, DELETE, OPTIONS"
-        headers["Access-Control-Allow-Headers"] = "Content-Type"
+        headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+      end
+
+      # Auth middleware - extract user from token
+      before do
+        token = extract_token
+        if token
+          auth_result = self.class.authenticator.authenticate(token)
+          if auth_result
+            @current_user = auth_result[:user]
+            @current_session = auth_result[:session]
+          end
+        end
       end
 
       # OPTIONS handler for CORS preflight
@@ -243,11 +296,392 @@ module DecisionAgent
         { status: "ok", version: DecisionAgent::VERSION }.to_json
       end
 
+      # Authentication API endpoints
+
+      # POST /api/auth/login - User login
+      post "/api/auth/login" do
+        content_type :json
+
+        begin
+          request_body = request.body.read
+          data = JSON.parse(request_body)
+
+          email = data["email"]
+          password = data["password"]
+
+          unless email && password
+            status 400
+            return { error: "Email and password are required" }.to_json
+          end
+
+          session = self.class.authenticator.login(email, password)
+
+          unless session
+            self.class.access_audit_logger.log_authentication(
+              "login",
+              user_id: nil,
+              email: email,
+              success: false,
+              reason: "Invalid credentials"
+            )
+            status 401
+            return { error: "Invalid email or password" }.to_json
+          end
+
+          user = self.class.authenticator.find_user(session.user_id)
+
+          self.class.access_audit_logger.log_authentication(
+            "login",
+            user_id: user.id,
+            email: user.email,
+            success: true
+          )
+
+          {
+            token: session.token,
+            user: user.to_h,
+            expires_at: session.expires_at.iso8601
+          }.to_json
+        rescue JSON::ParserError
+          status 400
+          { error: "Invalid JSON" }.to_json
+        rescue StandardError => e
+          status 500
+          { error: e.message }.to_json
+        end
+      end
+
+      # POST /api/auth/logout - User logout
+      post "/api/auth/logout" do
+        content_type :json
+
+        begin
+          token = extract_token
+          if token
+            self.class.authenticator.logout(token)
+            if @current_user
+              checker = self.class.permission_checker
+              self.class.access_audit_logger.log_authentication(
+                "logout",
+                user_id: checker.user_id(@current_user),
+                email: checker.user_email(@current_user),
+                success: true
+              )
+            end
+          end
+
+          { success: true, message: "Logged out successfully" }.to_json
+        rescue StandardError => e
+          status 500
+          { error: e.message }.to_json
+        end
+      end
+
+      # GET /api/auth/me - Current user info
+      get "/api/auth/me" do
+        content_type :json
+
+        if @current_user
+          @current_user.to_h.to_json
+        else
+          status 401
+          { error: "Not authenticated" }.to_json
+        end
+      end
+
+      # GET /api/auth/roles - List all roles
+      get "/api/auth/roles" do
+        content_type :json
+        require_permission!(:read)
+
+        roles = Auth::Role.all.map do |role|
+          {
+            id: role.to_s,
+            name: Auth::Role.name_for(role),
+            permissions: Auth::Role.permissions_for(role).map(&:to_s)
+          }
+        end
+
+        roles.to_json
+      end
+
+      # POST /api/auth/users - Create user (admin only)
+      post "/api/auth/users" do
+        content_type :json
+        require_permission!(:manage_users)
+
+        begin
+          request_body = request.body.read
+          data = JSON.parse(request_body)
+
+          email = data["email"]
+          password = data["password"]
+          roles = data["roles"] || []
+
+          unless email && password
+            status 400
+            return { error: "Email and password are required" }.to_json
+          end
+
+          # Validate roles
+          roles.each do |role|
+            unless Auth::Role.exists?(role)
+              status 400
+              return { error: "Invalid role: #{role}" }.to_json
+            end
+          end
+
+          user = self.class.authenticator.create_user(
+            email: email,
+            password: password,
+            roles: roles
+          )
+
+          checker = self.class.permission_checker
+          self.class.access_audit_logger.log_access(
+            user_id: checker.user_id(@current_user),
+            action: "create_user",
+            resource_type: "user",
+            resource_id: user.id,
+            success: true
+          )
+
+          status 201
+          user.to_h.to_json
+        rescue JSON::ParserError
+          status 400
+          { error: "Invalid JSON" }.to_json
+        rescue StandardError => e
+          status 500
+          { error: e.message }.to_json
+        end
+      end
+
+      # GET /api/auth/users - List users (admin only)
+      get "/api/auth/users" do
+        content_type :json
+        require_permission!(:manage_users)
+
+        users = self.class.authenticator.user_store.all.map(&:to_h)
+        users.to_json
+      end
+
+      # POST /api/auth/users/:id/roles - Assign role to user (admin only)
+      post "/api/auth/users/:id/roles" do
+        content_type :json
+        require_permission!(:manage_users)
+
+        begin
+          user_id = params[:id]
+          request_body = request.body.read
+          data = JSON.parse(request_body)
+
+          role = data["role"]
+
+          unless role
+            status 400
+            return { error: "Role is required" }.to_json
+          end
+
+          unless Auth::Role.exists?(role)
+            status 400
+            return { error: "Invalid role: #{role}" }.to_json
+          end
+
+          user = self.class.authenticator.find_user(user_id)
+          unless user
+            status 404
+            return { error: "User not found" }.to_json
+          end
+
+          user.assign_role(role)
+
+          checker = self.class.permission_checker
+          self.class.access_audit_logger.log_access(
+            user_id: checker.user_id(@current_user),
+            action: "assign_role",
+            resource_type: "user",
+            resource_id: user.id,
+            success: true
+          )
+
+          user.to_h.to_json
+        rescue JSON::ParserError
+          status 400
+          { error: "Invalid JSON" }.to_json
+        rescue StandardError => e
+          status 500
+          { error: e.message }.to_json
+        end
+      end
+
+      # DELETE /api/auth/users/:id/roles/:role - Remove role from user (admin only)
+      delete "/api/auth/users/:id/roles/:role" do
+        content_type :json
+        require_permission!(:manage_users)
+
+        begin
+          user_id = params[:id]
+          role = params[:role]
+
+          user = self.class.authenticator.find_user(user_id)
+          unless user
+            status 404
+            return { error: "User not found" }.to_json
+          end
+
+          user.remove_role(role)
+
+          checker = self.class.permission_checker
+          self.class.access_audit_logger.log_access(
+            user_id: checker.user_id(@current_user),
+            action: "remove_role",
+            resource_type: "user",
+            resource_id: user.id,
+            success: true
+          )
+
+          user.to_h.to_json
+        rescue StandardError => e
+          status 500
+          { error: e.message }.to_json
+        end
+      end
+
+      # GET /api/auth/audit - Query access audit logs
+      get "/api/auth/audit" do
+        content_type :json
+        require_permission!(:audit)
+
+        begin
+          filters = {}
+
+          filters[:user_id] = params[:user_id] if params[:user_id]
+          filters[:event_type] = params[:event_type] if params[:event_type]
+          filters[:start_time] = params[:start_time] if params[:start_time]
+          filters[:end_time] = params[:end_time] if params[:end_time]
+          filters[:limit] = params[:limit]&.to_i if params[:limit]
+
+          logs = self.class.access_audit_logger.query(filters)
+          logs.to_json
+        rescue StandardError => e
+          status 500
+          { error: e.message }.to_json
+        end
+      end
+
+      # POST /api/auth/password/reset-request - Request password reset
+      post "/api/auth/password/reset-request" do
+        content_type :json
+
+        begin
+          request_body = request.body.read
+          data = JSON.parse(request_body)
+
+          email = data["email"]
+
+          unless email
+            status 400
+            return { error: "Email is required" }.to_json
+          end
+
+          token = self.class.authenticator.request_password_reset(email)
+
+          # For security, we always return success even if user doesn't exist
+          # In production, you would send the token via email
+          if token
+            self.class.access_audit_logger.log_authentication(
+              "password_reset_request",
+              user_id: token.user_id,
+              email: email,
+              success: true
+            )
+
+            {
+              success: true,
+              message: "If the email exists, a password reset token has been generated",
+              # In production, remove this token from response and send via email
+              token: token.token,
+              expires_at: token.expires_at.iso8601
+            }.to_json
+          else
+            # Log failed attempt (but don't reveal if user exists)
+            self.class.access_audit_logger.log_authentication(
+              "password_reset_request",
+              user_id: nil,
+              email: email,
+              success: false,
+              reason: "User not found or inactive"
+            )
+
+            {
+              success: true,
+              message: "If the email exists, a password reset token has been generated"
+            }.to_json
+          end
+        rescue JSON::ParserError
+          status 400
+          { error: "Invalid JSON" }.to_json
+        rescue StandardError => e
+          status 500
+          { error: e.message }.to_json
+        end
+      end
+
+      # POST /api/auth/password/reset - Reset password with token
+      post "/api/auth/password/reset" do
+        content_type :json
+
+        begin
+          request_body = request.body.read
+          data = JSON.parse(request_body)
+
+          token = data["token"]
+          new_password = data["password"]
+
+          unless token && new_password
+            status 400
+            return { error: "Token and password are required" }.to_json
+          end
+
+          unless new_password.length >= 8
+            status 400
+            return { error: "Password must be at least 8 characters long" }.to_json
+          end
+
+          user = self.class.authenticator.reset_password(token, new_password)
+
+          unless user
+            status 400
+            return { error: "Invalid or expired reset token" }.to_json
+          end
+
+          self.class.access_audit_logger.log_authentication(
+            "password_reset",
+            user_id: user.id,
+            email: user.email,
+            success: true
+          )
+
+          {
+            success: true,
+            message: "Password has been reset successfully"
+          }.to_json
+        rescue JSON::ParserError
+          status 400
+          { error: "Invalid JSON" }.to_json
+        rescue StandardError => e
+          status 500
+          { error: e.message }.to_json
+        end
+      end
+
       # Versioning API endpoints
 
       # Create a new version
       post "/api/versions" do
         content_type :json
+        require_permission!(:write)
 
         begin
           request_body = request.body.read
@@ -255,7 +689,7 @@ module DecisionAgent
 
           rule_id = data["rule_id"]
           rule_content = data["content"]
-          created_by = data["created_by"] || "system"
+          created_by = data["created_by"] || (@current_user&.email || "system")
           changelog = data["changelog"]
 
           version = version_manager.save_version(
@@ -276,6 +710,7 @@ module DecisionAgent
       # List all versions for a rule
       get "/api/rules/:rule_id/versions" do
         content_type :json
+        require_permission!(:read)
 
         begin
           rule_id = params[:rule_id]
@@ -293,6 +728,7 @@ module DecisionAgent
       # Get version history with metadata
       get "/api/rules/:rule_id/history" do
         content_type :json
+        require_permission!(:read)
 
         begin
           rule_id = params[:rule_id]
@@ -308,6 +744,7 @@ module DecisionAgent
       # Get a specific version
       get "/api/versions/:version_id" do
         content_type :json
+        require_permission!(:read)
 
         begin
           version_id = params[:version_id]
@@ -328,12 +765,13 @@ module DecisionAgent
       # Activate a version (rollback)
       post "/api/versions/:version_id/activate" do
         content_type :json
+        require_permission!(:deploy)
 
         begin
           version_id = params[:version_id]
           request_body = request.body.read
           data = request_body.empty? ? {} : JSON.parse(request_body)
-          performed_by = data["performed_by"] || "system"
+          performed_by = data["performed_by"] || (@current_user&.email || "system")
 
           version = version_manager.rollback(
             version_id: version_id,
@@ -350,6 +788,7 @@ module DecisionAgent
       # Compare two versions
       get "/api/versions/:version_id_1/compare/:version_id_2" do
         content_type :json
+        require_permission!(:read)
 
         begin
           version_id_1 = params[:version_id_1]
@@ -375,6 +814,7 @@ module DecisionAgent
       # Delete a version
       delete "/api/versions/:version_id" do
         content_type :json
+        require_permission!(:delete)
 
         begin
           version_id = params[:version_id]
@@ -630,10 +1070,75 @@ module DecisionAgent
         "Batch testing page not found"
       end
 
+      # GET /auth/login - Login page
+      get "/auth/login" do
+        send_file File.join(settings.public_folder, "login.html")
+      rescue StandardError
+        status 404
+        "Login page not found"
+      end
+
+      # GET /auth/users - User management page
+      get "/auth/users" do
+        send_file File.join(settings.public_folder, "users.html")
+      rescue StandardError
+        status 404
+        "User management page not found"
+      end
+
       private
 
       def version_manager
         @version_manager ||= DecisionAgent::Versioning::VersionManager.new
+      end
+
+      def extract_token
+        # Check Authorization header: Bearer <token>
+        auth_header = request.env["HTTP_AUTHORIZATION"]
+        if auth_header && auth_header.start_with?("Bearer ")
+          return auth_header[7..-1]
+        end
+
+        # Check session cookie
+        request.cookies["decision_agent_session"]
+
+        # Check query parameter
+        params["token"]
+      end
+
+      def current_user
+        @current_user
+      end
+
+      def require_authentication!
+        unless @current_user
+          status 401
+          return { error: "Authentication required" }.to_json
+        end
+      end
+
+      def require_permission!(permission, resource = nil)
+        require_authentication!
+        checker = self.class.permission_checker
+        unless checker.can?(@current_user, permission, resource)
+          self.class.access_audit_logger.log_permission_check(
+            user_id: checker.user_id(@current_user),
+            permission: permission,
+            resource_type: resource&.class&.name,
+            resource_id: resource&.id,
+            granted: false
+          )
+          status 403
+          return { error: "Permission denied: #{permission}" }.to_json
+        end
+
+        self.class.access_audit_logger.log_permission_check(
+          user_id: checker.user_id(@current_user),
+          permission: permission,
+          resource_type: resource&.class&.name,
+          resource_id: resource&.id,
+          granted: true
+        )
       end
 
       def parse_validation_errors(error_message)

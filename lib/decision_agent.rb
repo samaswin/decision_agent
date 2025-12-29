@@ -49,5 +49,53 @@ require_relative "decision_agent/testing/batch_test_runner"
 require_relative "decision_agent/testing/test_result_comparator"
 require_relative "decision_agent/testing/test_coverage_analyzer"
 
+require_relative "decision_agent/auth/user"
+require_relative "decision_agent/auth/role"
+require_relative "decision_agent/auth/permission"
+require_relative "decision_agent/auth/session"
+require_relative "decision_agent/auth/session_manager"
+require_relative "decision_agent/auth/password_reset_token"
+require_relative "decision_agent/auth/password_reset_manager"
+require_relative "decision_agent/auth/authenticator"
+require_relative "decision_agent/auth/rbac_adapter"
+require_relative "decision_agent/auth/rbac_config"
+require_relative "decision_agent/auth/permission_checker"
+require_relative "decision_agent/auth/access_audit_logger"
+
 module DecisionAgent
+  # Global RBAC configuration
+  @rbac_config = Auth::RbacConfig.new
+
+  class << self
+    attr_reader :rbac_config
+
+    # Configure RBAC adapter
+    # @param adapter_type [Symbol] :default, :devise_cancan, :pundit, or :custom
+    # @param options [Hash] Options for the adapter
+    # @yield [RbacConfig] Configuration block
+    # @example
+    #   DecisionAgent.configure_rbac(:devise_cancan, ability_class: Ability)
+    # @example
+    #   DecisionAgent.configure_rbac(:custom) do |config|
+    #     config.adapter = MyCustomAdapter.new
+    #   end
+    def configure_rbac(adapter_type = nil, **options, &block)
+      if block_given?
+        yield @rbac_config
+      elsif adapter_type
+        @rbac_config.use(adapter_type, **options)
+      end
+      @rbac_config
+    end
+
+    # Get the configured permission checker
+    def permission_checker
+      @permission_checker ||= Auth::PermissionChecker.new(adapter: @rbac_config.adapter)
+    end
+
+    # Set a custom permission checker
+    def permission_checker=(checker)
+      @permission_checker = checker
+    end
+  end
 end

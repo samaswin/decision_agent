@@ -24,6 +24,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Runtime dependencies
+  spec.add_dependency "bcrypt", "~> 3.1"
   spec.add_dependency "json-canonicalization", "~> 1.0"
   spec.add_dependency "roo", "~> 2.10"
   spec.add_dependency "rubyzip", "< 3.0.0" # Restrict to 2.x to avoid RubyZip 3.0 API changes

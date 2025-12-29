@@ -6,7 +6,8 @@ Welcome to the DecisionAgent documentation.
 
 ### Getting Started
 - [Main README](../README.md) - Installation, quick start, and overview
-- [Examples](../examples/README.md) - Code examples and tutorials
+- [Code Examples](CODE_EXAMPLES.md) - Comprehensive code snippets and usage patterns
+- [Examples](../examples/README.md) - Working examples with explanations
 
 ### Core Features
 - [**Versioning System**](VERSIONING.md) - Rule version control, rollback, and history
@@ -34,6 +35,7 @@ docs/
 ├── README.md (this file) - Documentation index and navigation
 │
 ├── Getting Started
+│   ├── CODE_EXAMPLES.md          - Code snippets and usage patterns
 │   └── See ../README.md and ../examples/README.md
 │
 ├── Core Features
