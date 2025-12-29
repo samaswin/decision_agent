@@ -21,10 +21,8 @@ jobs:
       uses: ruby/setup-ruby@v1
       with:
         ruby-version: ${{ matrix.ruby-version }}
+        bundler-version: '4.0.3'
         bundler-cache: true
-
-    - name: Install required bundler version
-      run: gem install bundler:4.0.3
 
     - name: Install dependencies
       run: bundle install
@@ -51,10 +49,8 @@ jobs:
       uses: ruby/setup-ruby@v1
       with:
         ruby-version: '3.3'
+        bundler-version: '4.0.3'
         bundler-cache: true
-
-    - name: Install required bundler version
-      run: gem install bundler:4.0.3
 
     - name: Install dependencies
       run: bundle install
@@ -102,10 +98,8 @@ jobs:
       uses: ruby/setup-ruby@v1
       with:
         ruby-version: '3.3'
+        bundler-version: '4.0.3'
         bundler-cache: true
-
-    - name: Install required bundler version
-      run: gem install bundler:4.0.3
 
     - name: Install dependencies
       run: bundle install
