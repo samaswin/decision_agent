@@ -14,6 +14,7 @@ require_relative "../agent"
 
 module DecisionAgent
   module Web
+    # rubocop:disable Metrics/ClassLength
     class Server < Sinatra::Base
       set :public_folder, File.expand_path("public", __dir__)
       set :views, File.expand_path("views", __dir__)
@@ -21,8 +22,16 @@ module DecisionAgent
       set :port, 4567
 
       # In-memory storage for batch test runs
-      @@batch_test_storage = {}
-      @@batch_test_storage_mutex = Mutex.new
+      @batch_test_storage = {}
+      @batch_test_storage_mutex = Mutex.new
+
+      def self.batch_test_storage
+        @batch_test_storage ||= {}
+      end
+
+      def self.batch_test_storage_mutex
+        @batch_test_storage_mutex ||= Mutex.new
+      end
 
       # Enable CORS for API calls
       before do
@@ -412,18 +421,18 @@ module DecisionAgent
           importer = DecisionAgent::Testing::BatchTestImporter.new
 
           scenarios = if [".xlsx", ".xls"].include?(file_extension)
-            importer.import_excel(temp_file.path)
-          else
-            importer.import_csv(temp_file.path)
-          end
+                        importer.import_excel(temp_file.path)
+                      else
+                        importer.import_csv(temp_file.path)
+                      end
 
           temp_file.close
           temp_file.unlink
 
           # Store scenarios with a unique ID
           test_id = SecureRandom.uuid
-          @@batch_test_storage_mutex.synchronize do
-            @@batch_test_storage[test_id] = {
+          self.class.batch_test_storage_mutex.synchronize do
+            self.class.batch_test_storage[test_id] = {
               id: test_id,
               scenarios: scenarios,
               status: "imported",
@@ -473,8 +482,8 @@ module DecisionAgent
 
           # Get stored scenarios
           test_data = nil
-          @@batch_test_storage_mutex.synchronize do
-            test_data = @@batch_test_storage[test_id]
+          self.class.batch_test_storage_mutex.synchronize do
+            test_data = self.class.batch_test_storage[test_id]
           end
 
           unless test_data
@@ -487,9 +496,9 @@ module DecisionAgent
           agent = DecisionAgent::Agent.new(evaluators: [evaluator])
 
           # Update status
-          @@batch_test_storage_mutex.synchronize do
-            @@batch_test_storage[test_id][:status] = "running"
-            @@batch_test_storage[test_id][:started_at] = Time.now.utc.iso8601
+          self.class.batch_test_storage_mutex.synchronize do
+            self.class.batch_test_storage[test_id][:status] = "running"
+            self.class.batch_test_storage[test_id][:started_at] = Time.now.utc.iso8601
           end
 
           # Run batch test
@@ -503,7 +512,7 @@ module DecisionAgent
 
           # Calculate comparison if expected results exist
           comparison = nil
-          if test_data[:scenarios].any?(&:has_expected_result?)
+          if test_data[:scenarios].any?(&:expected_result?)
             comparator = DecisionAgent::Testing::TestResultComparator.new
             comparison = comparator.compare(results, test_data[:scenarios])
           end
@@ -513,13 +522,13 @@ module DecisionAgent
           coverage = coverage_analyzer.analyze(results, agent)
 
           # Store results
-          @@batch_test_storage_mutex.synchronize do
-            @@batch_test_storage[test_id][:status] = "completed"
-            @@batch_test_storage[test_id][:results] = results.map(&:to_h)
-            @@batch_test_storage[test_id][:comparison] = comparison
-            @@batch_test_storage[test_id][:coverage] = coverage.to_h
-            @@batch_test_storage[test_id][:statistics] = runner.statistics
-            @@batch_test_storage[test_id][:completed_at] = Time.now.utc.iso8601
+          self.class.batch_test_storage_mutex.synchronize do
+            self.class.batch_test_storage[test_id][:status] = "completed"
+            self.class.batch_test_storage[test_id][:results] = results.map(&:to_h)
+            self.class.batch_test_storage[test_id][:comparison] = comparison
+            self.class.batch_test_storage[test_id][:coverage] = coverage.to_h
+            self.class.batch_test_storage[test_id][:statistics] = runner.statistics
+            self.class.batch_test_storage[test_id][:completed_at] = Time.now.utc.iso8601
           end
 
           {
@@ -533,10 +542,10 @@ module DecisionAgent
         rescue StandardError => e
           # Update status to failed
           if test_id
-            @@batch_test_storage_mutex.synchronize do
-              if @@batch_test_storage[test_id]
-                @@batch_test_storage[test_id][:status] = "failed"
-                @@batch_test_storage[test_id][:error] = e.message
+            self.class.batch_test_storage_mutex.synchronize do
+              if self.class.batch_test_storage[test_id]
+                self.class.batch_test_storage[test_id][:status] = "failed"
+                self.class.batch_test_storage[test_id][:error] = e.message
               end
             end
           end
@@ -554,8 +563,8 @@ module DecisionAgent
           test_id = params[:id]
 
           test_data = nil
-          @@batch_test_storage_mutex.synchronize do
-            test_data = @@batch_test_storage[test_id]
+          self.class.batch_test_storage_mutex.synchronize do
+            test_data = self.class.batch_test_storage[test_id]
           end
 
           unless test_data
@@ -589,8 +598,8 @@ module DecisionAgent
           test_id = params[:id]
 
           test_data = nil
-          @@batch_test_storage_mutex.synchronize do
-            test_data = @@batch_test_storage[test_id]
+          self.class.batch_test_storage_mutex.synchronize do
+            test_data = self.class.batch_test_storage[test_id]
           end
 
           unless test_data
@@ -661,5 +670,6 @@ module DecisionAgent
         new.call(env)
       end
     end
+    # rubocop:enable Metrics/ClassLength
   end
 end

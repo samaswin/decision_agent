@@ -22,6 +22,7 @@ module DecisionAgent
       #   - :skip_header [Boolean] Skip first row (default: true)
       #   - :progress_callback [Proc] Callback for progress updates (called with { processed: N, total: M, percentage: X })
       # @return [Array<TestScenario>] Array of test scenarios
+      # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
       def import_csv(file_path, options = {})
         @errors = []
         @warnings = []
@@ -40,9 +41,7 @@ module DecisionAgent
 
         # Count total rows for progress tracking (if callback provided)
         total_rows = nil
-        if options[:progress_callback]
-          total_rows = count_csv_rows(file_path, options[:skip_header])
-        end
+        total_rows = count_csv_rows(file_path, options[:skip_header]) if options[:progress_callback]
 
         if options[:skip_header]
           CSV.foreach(file_path, headers: true) do |row|
@@ -92,6 +91,7 @@ module DecisionAgent
 
         scenarios
       end
+      # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
       # Import test scenarios from an Excel file (.xlsx, .xls)
       # @param file_path [String] Path to Excel file
@@ -99,6 +99,7 @@ module DecisionAgent
       #   - :sheet [String|Integer] Sheet name or index (default: first sheet)
       #   - :progress_callback [Proc] Callback for progress updates
       # @return [Array<TestScenario>] Array of test scenarios
+      # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
       def import_excel(file_path, options = {})
         @errors = []
         @warnings = []
@@ -115,22 +116,22 @@ module DecisionAgent
 
         begin
           spreadsheet = Roo::Spreadsheet.open(file_path)
-          
+
           # Select sheet by name or index
-          if options[:sheet].is_a?(Integer)
-            spreadsheet.default_sheet = spreadsheet.sheets[options[:sheet]] || spreadsheet.sheets.first
-          elsif options[:sheet].is_a?(String)
-            spreadsheet.default_sheet = options[:sheet]
-          else
-            spreadsheet.default_sheet = spreadsheet.sheets.first
-          end
+          spreadsheet.default_sheet = if options[:sheet].is_a?(Integer)
+                                        spreadsheet.sheets[options[:sheet]] || spreadsheet.sheets.first
+                                      elsif options[:sheet].is_a?(String)
+                                        options[:sheet]
+                                      else
+                                        spreadsheet.sheets.first
+                                      end
 
           scenarios = []
           row_number = 0
 
           # Get total rows for progress tracking
           total_rows = spreadsheet.last_row || 0
-          total_rows -= 1 if options[:skip_header] && total_rows > 0
+          total_rows -= 1 if options[:skip_header] && total_rows.positive?
 
           # Read header row if skip_header is true
           header_row = nil
@@ -148,11 +149,11 @@ module DecisionAgent
             begin
               # Convert row data to hash using headers
               row_hash = if header_row
-                header_row.each_with_index.to_h { |header, idx| [header.to_s, row_data[idx]] }
-              else
-                # Use numeric indices if no headers
-                row_data.each_with_index.to_h { |val, idx| [idx.to_s, val] }
-              end
+                           header_row.each_with_index.to_h { |header, idx| [header.to_s, row_data[idx]] }
+                         else
+                           # Use numeric indices if no headers
+                           row_data.each_with_index.to_h { |val, idx| [idx.to_s, val] }
+                         end
 
               scenario = parse_hash_row(row_hash, row_number, options)
               scenarios << scenario if scenario
@@ -161,14 +162,14 @@ module DecisionAgent
             end
 
             # Call progress callback if provided
-            if options[:progress_callback] && total_rows > 0
-              processed = row_number - (options[:skip_header] ? 1 : 0)
-              options[:progress_callback].call(
-                processed: processed,
-                total: total_rows,
-                percentage: (processed.to_f / total_rows * 100).round(2)
-              )
-            end
+            next unless options[:progress_callback] && total_rows.positive?
+
+            processed = row_number - (options[:skip_header] ? 1 : 0)
+            options[:progress_callback].call(
+              processed: processed,
+              total: total_rows,
+              percentage: (processed.to_f / total_rows * 100).round(2)
+            )
           end
 
           raise ImportError, "Failed to import: #{@errors.join('; ')}" if @errors.any? && scenarios.empty?
@@ -180,6 +181,7 @@ module DecisionAgent
           raise ImportError, "Failed to read Excel file: #{e.message}"
         end
       end
+      # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
       # Import test scenarios from an array of hashes (for programmatic use)
       # @param data [Array<Hash>] Array of hashes with test data
@@ -245,13 +247,12 @@ module DecisionAgent
         context = {}
         context_columns.each do |col|
           next if col.nil?
+
           context[col.to_sym] = row_hash[col] if row_hash.key?(col)
         end
 
         # Validate context is not empty
-        if context.empty?
-          raise InvalidTestDataError.new("Context is empty", row_number: row_number)
-        end
+        raise InvalidTestDataError.new("Context is empty", row_number: row_number) if context.empty?
 
         # Parse expected_confidence as float if present
         expected_confidence = expected_confidence.to_f if expected_confidence && !expected_confidence.to_s.strip.empty?
@@ -288,9 +289,7 @@ module DecisionAgent
         end
 
         # Validate context is not empty
-        if context.empty?
-          raise InvalidTestDataError.new("Context is empty", row_number: row_number)
-        end
+        raise InvalidTestDataError.new("Context is empty", row_number: row_number) if context.empty?
 
         # Parse expected_confidence as float if present
         expected_confidence = expected_confidence.to_f if expected_confidence && !expected_confidence.to_s.strip.empty?
@@ -333,4 +332,3 @@ module DecisionAgent
     end
   end
 end
-

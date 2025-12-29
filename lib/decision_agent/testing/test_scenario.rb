@@ -24,7 +24,7 @@ module DecisionAgent
         }
       end
 
-      def has_expected_result?
+      def expected_result?
         !@expected_decision.nil?
       end
 
@@ -40,4 +40,3 @@ module DecisionAgent
     end
   end
 end
-

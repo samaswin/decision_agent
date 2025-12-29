@@ -40,12 +40,12 @@ RSpec.describe DecisionAgent::Testing::BatchTestImporter do
         file.write(csv_content)
         file.close
 
-        scenarios = importer.import_csv(file.path, 
-          expected_decision_column: "nonexistent_column",
-          expected_confidence_column: "nonexistent_column")
+        scenarios = importer.import_csv(file.path,
+                                        expected_decision_column: "nonexistent_column",
+                                        expected_confidence_column: "nonexistent_column")
 
         expect(scenarios.size).to eq(2)
-        expect(scenarios[0].has_expected_result?).to be false
+        expect(scenarios[0].expected_result?).to be false
 
         file.unlink
       end
@@ -61,9 +61,9 @@ RSpec.describe DecisionAgent::Testing::BatchTestImporter do
         file.close
 
         scenarios = importer.import_csv(file.path,
-          id_column: "test_id",
-          expected_decision_column: "expected_outcome",
-          expected_confidence_column: "expected_score")
+                                        id_column: "test_id",
+                                        expected_decision_column: "expected_outcome",
+                                        expected_confidence_column: "expected_score")
 
         expect(scenarios.size).to eq(1)
         expect(scenarios[0].id).to eq("test_1")
@@ -179,4 +179,3 @@ RSpec.describe DecisionAgent::Testing::BatchTestImporter do
     end
   end
 end
-

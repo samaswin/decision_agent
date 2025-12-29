@@ -36,7 +36,7 @@ RSpec.describe DecisionAgent::Testing::TestScenario do
     end
   end
 
-  describe "#has_expected_result?" do
+  describe "#expected_result?" do
     it "returns true when expected_decision is set" do
       scenario = DecisionAgent::Testing::TestScenario.new(
         id: "test_1",
@@ -44,7 +44,7 @@ RSpec.describe DecisionAgent::Testing::TestScenario do
         expected_decision: "approve"
       )
 
-      expect(scenario.has_expected_result?).to be true
+      expect(scenario.expected_result?).to be true
     end
 
     it "returns false when expected_decision is nil" do
@@ -53,7 +53,7 @@ RSpec.describe DecisionAgent::Testing::TestScenario do
         context: { key: "value" }
       )
 
-      expect(scenario.has_expected_result?).to be false
+      expect(scenario.expected_result?).to be false
     end
   end
 
@@ -70,12 +70,12 @@ RSpec.describe DecisionAgent::Testing::TestScenario do
       hash = scenario.to_h
 
       expect(hash).to eq({
-        id: "test_1",
-        context: { user_id: 123 },
-        expected_decision: "approve",
-        expected_confidence: 0.9,
-        metadata: { source: "csv" }
-      })
+                           id: "test_1",
+                           context: { user_id: 123 },
+                           expected_decision: "approve",
+                           expected_confidence: 0.9,
+                           metadata: { source: "csv" }
+                         })
     end
   end
 
@@ -111,4 +111,3 @@ RSpec.describe DecisionAgent::Testing::TestScenario do
     end
   end
 end
-

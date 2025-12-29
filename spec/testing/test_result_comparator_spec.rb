@@ -112,7 +112,7 @@ RSpec.describe DecisionAgent::Testing::TestResultComparator do
       ]
 
       # Only compare scenarios that have expected results
-      scenarios_with_expected = scenarios.select(&:has_expected_result?)
+      scenarios_with_expected = scenarios.select(&:expected_result?)
       summary = comparator.compare(failed_results, scenarios_with_expected)
 
       expect(summary[:mismatches]).to eq(1)
@@ -196,4 +196,3 @@ RSpec.describe DecisionAgent::Testing::TestResultComparator do
     end
   end
 end
-

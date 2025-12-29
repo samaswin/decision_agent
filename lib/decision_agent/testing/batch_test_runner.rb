@@ -1,4 +1,3 @@
-require "thread"
 require "json"
 
 module DecisionAgent
@@ -54,6 +53,7 @@ module DecisionAgent
       #   - :feedback [Hash] Optional feedback to pass to agent
       #   - :checkpoint_file [String] Path to checkpoint file for resume capability (optional)
       # @return [Array<TestResult>] Array of test results
+      # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
       def run(scenarios, options = {})
         @results = []
         @checkpoint_file = options[:checkpoint_file]
@@ -73,11 +73,11 @@ module DecisionAgent
         completed_scenario_ids = load_checkpoint if @checkpoint_file && File.exist?(@checkpoint_file)
 
         # Filter out already completed scenarios
-        remaining_scenarios = if completed_scenario_ids && completed_scenario_ids.any?
-          scenarios.reject { |s| completed_scenario_ids.include?(s.id) }
-        else
-          scenarios
-        end
+        remaining_scenarios = if completed_scenario_ids&.any?
+                                scenarios.reject { |s| completed_scenario_ids.include?(s.id) }
+                              else
+                                scenarios
+                              end
 
         if options[:parallel] && remaining_scenarios.size > 1
           run_parallel(remaining_scenarios, options, mutex) do |result|
@@ -139,6 +139,7 @@ module DecisionAgent
           total_execution_time_ms: execution_times.sum
         }
       end
+      # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
       private
 
@@ -150,7 +151,11 @@ module DecisionAgent
         threads = Array.new(thread_count) do
           Thread.new do
             loop do
-              scenario = queue.pop(true) rescue nil
+              scenario = begin
+                queue.pop(true)
+              rescue StandardError
+                nil
+              end
               break unless scenario
 
               result = execute_scenario(scenario, options[:feedback])
@@ -221,7 +226,9 @@ module DecisionAgent
         data = JSON.parse(content, symbolize_names: true)
         data[:completed_scenario_ids] ||= []
         data
-      rescue JSON::ParserError, StandardError
+      rescue JSON::ParserError
+        { completed_scenario_ids: [], last_updated: nil }
+      rescue StandardError
         { completed_scenario_ids: [], last_updated: nil }
       end
 
@@ -235,4 +242,3 @@ module DecisionAgent
     end
   end
 end
-

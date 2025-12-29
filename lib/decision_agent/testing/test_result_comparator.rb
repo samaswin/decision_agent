@@ -4,6 +4,7 @@ module DecisionAgent
     class ComparisonResult
       attr_reader :scenario_id, :match, :decision_match, :confidence_match, :differences, :actual, :expected
 
+      # rubocop:disable Metrics/ParameterLists
       def initialize(scenario_id:, match:, decision_match:, confidence_match:, differences:, actual:, expected:)
         @scenario_id = scenario_id.to_s.freeze
         @match = match
@@ -15,6 +16,7 @@ module DecisionAgent
 
         freeze
       end
+      # rubocop:enable Metrics/ParameterLists
 
       def to_h
         {
@@ -55,7 +57,7 @@ module DecisionAgent
         @comparison_results = []
 
         # Create a map of scenario_id -> scenario for quick lookup
-        scenario_map = scenarios.each_with_object({}) do |scenario, map|
+        scenarios.each_with_object({}) do |scenario, map|
           map[scenario.id] = scenario
         end
 
@@ -66,7 +68,7 @@ module DecisionAgent
 
         # Compare each scenario with its result
         scenarios.each do |scenario|
-          next unless scenario.has_expected_result?
+          next unless scenario.expected_result?
 
           result = result_map[scenario.id]
           # Only compare if we have a result (skip if result is missing)
@@ -105,7 +107,8 @@ module DecisionAgent
         require "csv"
 
         CSV.open(file_path, "w") do |csv|
-          csv << ["scenario_id", "match", "decision_match", "confidence_match", "expected_decision", "actual_decision", "expected_confidence", "actual_confidence", "differences"]
+          csv << %w[scenario_id match decision_match confidence_match expected_decision actual_decision expected_confidence
+                    actual_confidence differences]
           @comparison_results.each do |result|
             csv << [
               result.scenario_id,
@@ -128,16 +131,16 @@ module DecisionAgent
         require "json"
 
         File.write(file_path, JSON.pretty_generate({
-          summary: generate_summary,
-          results: @comparison_results.map(&:to_h)
-        }))
+                                                     summary: generate_summary,
+                                                     results: @comparison_results.map(&:to_h)
+                                                   }))
       end
 
       private
 
+      # rubocop:disable Metrics/MethodLength, Metrics/PerceivedComplexity
       def compare_single(scenario, result)
         differences = []
-        decision_match = false
         confidence_match = false
 
         if result.nil? || !result.success?
@@ -160,17 +163,15 @@ module DecisionAgent
         expected_decision = scenario.expected_decision&.to_s
         actual_decision = result.decision&.to_s
 
-        if expected_decision.nil?
-          decision_match = true # No expectation, so it matches
-        elsif @options[:fuzzy_match]
-          decision_match = fuzzy_decision_match?(expected_decision, actual_decision)
-        else
-          decision_match = expected_decision == actual_decision
-        end
+        decision_match = if expected_decision.nil?
+                           true # No expectation, so it matches
+                         elsif @options[:fuzzy_match]
+                           fuzzy_decision_match?(expected_decision, actual_decision)
+                         else
+                           expected_decision == actual_decision
+                         end
 
-        unless decision_match
-          differences << "Decision mismatch: expected '#{expected_decision}', got '#{actual_decision}'"
-        end
+        differences << "Decision mismatch: expected '#{expected_decision}', got '#{actual_decision}'" unless decision_match
 
         # Compare confidence
         expected_confidence = scenario.expected_confidence
@@ -185,7 +186,8 @@ module DecisionAgent
           tolerance = @options[:confidence_tolerance]
           confidence_match = (expected_confidence - actual_confidence).abs <= tolerance
           unless confidence_match
-            differences << "Confidence mismatch: expected #{expected_confidence}, got #{actual_confidence} (diff: #{(expected_confidence - actual_confidence).abs.round(4)})"
+            diff = (expected_confidence - actual_confidence).abs.round(4)
+            differences << "Confidence mismatch: expected #{expected_confidence}, got #{actual_confidence} (diff: #{diff})"
           end
         end
 
@@ -207,6 +209,7 @@ module DecisionAgent
           }
         )
       end
+      # rubocop:enable Metrics/MethodLength, Metrics/PerceivedComplexity
 
       def fuzzy_decision_match?(expected, actual)
         return true if expected == actual
@@ -230,4 +233,3 @@ module DecisionAgent
     end
   end
 end
-

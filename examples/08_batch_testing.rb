@@ -56,7 +56,7 @@ test_data = [
   {
     id: "test_3",
     user_id: 789,
-    amount: 10000,
+    amount: 10_000,
     expected_decision: "approve"
   }
 ]
@@ -71,12 +71,12 @@ runner = DecisionAgent::Testing::BatchTestRunner.new(agent)
 
 progress_updates = []
 results = runner.run(scenarios,
-  parallel: true,
-  thread_count: 2,
-  progress_callback: ->(progress) {
-    progress_updates << progress
-    print "\r  Progress: #{progress[:completed]}/#{progress[:total]} (#{progress[:percentage]}%)"
-  })
+                     parallel: true,
+                     thread_count: 2,
+                     progress_callback: lambda { |progress|
+                       progress_updates << progress
+                       print "\r  Progress: #{progress[:completed]}/#{progress[:total]} (#{progress[:percentage]}%)"
+                     })
 
 puts
 puts "  ✓ Completed #{results.size} test executions"
@@ -105,7 +105,7 @@ puts "  Decision Accuracy: #{(comparison[:decision_accuracy] * 100).round(2)}%"
 puts "  Confidence Accuracy: #{(comparison[:confidence_accuracy] * 100).round(2)}%"
 puts
 
-if comparison[:mismatches] > 0
+if comparison[:mismatches].positive?
   puts "  Mismatches:"
   comparison[:mismatches_detail].each do |mismatch|
     puts "    - Scenario #{mismatch[:scenario_id]}: #{mismatch[:differences].join(', ')}"
@@ -176,4 +176,3 @@ puts "=" * 80
 temp_csv.unlink
 temp_json.unlink
 csv_file.unlink
-

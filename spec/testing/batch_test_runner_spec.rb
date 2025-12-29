@@ -45,7 +45,7 @@ RSpec.describe DecisionAgent::Testing::BatchTestRunner do
     it "calls progress callback during execution" do
       progress_updates = []
 
-      runner.run(scenarios, progress_callback: ->(progress) {
+      runner.run(scenarios, progress_callback: lambda { |progress|
         progress_updates << progress
       })
 
@@ -155,4 +155,3 @@ RSpec.describe DecisionAgent::Testing::BatchTestRunner do
     end
   end
 end
-

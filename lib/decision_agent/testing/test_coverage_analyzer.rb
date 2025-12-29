@@ -91,10 +91,10 @@ module DecisionAgent
           @rule_evaluation_count[rule_id] = (@rule_evaluation_count[rule_id] || 0) + 1
         end
 
-        if condition_id
-          @executed_conditions << condition_id
-          @condition_evaluation_count[condition_id] = (@condition_evaluation_count[condition_id] || 0) + 1
-        end
+        return unless condition_id
+
+        @executed_conditions << condition_id
+        @condition_evaluation_count[condition_id] = (@condition_evaluation_count[condition_id] || 0) + 1
       end
 
       def extract_rule_id(evaluation)
@@ -154,10 +154,10 @@ module DecisionAgent
 
         # Cap coverage at 1.0 (100%)
         coverage_percentage = if total_rules.positive?
-          [(covered_rules.to_f / total_rules), 1.0].min
-        else
-          0.0
-        end
+                                [(covered_rules.to_f / total_rules), 1.0].min
+                              else
+                                0.0
+                              end
 
         # Build rule coverage details
         rule_coverage = all_rules.map do |rule|
@@ -189,4 +189,3 @@ module DecisionAgent
     end
   end
 end
-

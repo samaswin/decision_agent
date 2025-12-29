@@ -143,7 +143,7 @@ RSpec.describe DecisionAgent::Testing::TestCoverageAnalyzer do
       DecisionAgent::Testing::CoverageReport.new(
         total_rules: 10,
         covered_rules: 7,
-        untested_rules: ["rule_8", "rule_9", "rule_10"],
+        untested_rules: %w[rule_8 rule_9 rule_10],
         coverage_percentage: 0.7,
         rule_coverage: [
           { rule_id: "rule_1", covered: true, execution_count: 5 }
@@ -157,7 +157,7 @@ RSpec.describe DecisionAgent::Testing::TestCoverageAnalyzer do
     it "creates a coverage report" do
       expect(report.total_rules).to eq(10)
       expect(report.covered_rules).to eq(7)
-      expect(report.untested_rules).to eq(["rule_8", "rule_9", "rule_10"])
+      expect(report.untested_rules).to eq(%w[rule_8 rule_9 rule_10])
       expect(report.coverage_percentage).to eq(0.7)
     end
 
@@ -176,4 +176,3 @@ RSpec.describe DecisionAgent::Testing::TestCoverageAnalyzer do
     end
   end
 end
-
