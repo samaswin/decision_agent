@@ -359,8 +359,8 @@ RSpec.describe DecisionAgent::Auth::RbacAdapter do
 
       it "infers policy class from resource class name" do
         policy = double("Policy", show: true)
-        policy_class = Class.new
-        allow(policy_class).to receive(:new).and_return(policy)
+        policy_class = double("PolicyClass")
+        allow(policy_class).to receive(:new).with(anything, anything).and_return(policy)
         allow(Object).to receive(:const_defined?).with("TestResourcePolicy").and_return(true)
         allow(Object).to receive(:const_get).with("TestResourcePolicy").and_return(policy_class)
 

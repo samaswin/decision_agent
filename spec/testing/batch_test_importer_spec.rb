@@ -423,19 +423,8 @@ RSpec.describe DecisionAgent::Testing::BatchTestImporter do
       file.write(csv_content)
       file.close
 
-      # Stub CSV.foreach to raise an error only in count_csv_rows
-      # We need to stub it so it raises on first call (for count) but works on second call (for import)
-      call_count = 0
-      allow(CSV).to receive(:foreach).and_wrap_original do |method, *args|
-        call_count += 1
-        if call_count == 1
-          # First call is for count_csv_rows, raise error
-          raise StandardError.new("File error")
-        else
-          # Subsequent calls should work
-          method.call(*args)
-        end
-      end
+      # Stub count_csv_rows to raise an error, but allow import_csv to work normally
+      allow(importer).to receive(:count_csv_rows).and_raise(StandardError.new("File error"))
 
       # Should still work but without progress tracking (total_rows will be nil)
       scenarios = importer.import_csv(file.path, progress_callback: ->(_) {})

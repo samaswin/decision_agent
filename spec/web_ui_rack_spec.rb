@@ -303,7 +303,7 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
         password: "password123"
       )
       # Give user read permission for roles endpoint
-      user.assign_role(:reader)
+      user.assign_role(:viewer)
     end
 
     describe "POST /api/auth/login" do
@@ -941,14 +941,23 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
   end
 
   describe "Token extraction" do
+    let(:authenticator) { DecisionAgent::Web::Server.authenticator }
+
+    before do
+      # Create user for token extraction tests
+      authenticator.create_user(email: "auth@example.com", password: "password123")
+    end
+
     it "extracts token from Authorization header" do
-      session = DecisionAgent::Web::Server.authenticator.login("auth@example.com", "password123")
+      session = authenticator.login("auth@example.com", "password123")
+      expect(session).not_to be_nil
       get "/api/auth/me", {}, { "HTTP_AUTHORIZATION" => "Bearer #{session.token}" }
       expect(last_response).to be_ok
     end
 
     it "extracts token from query parameter" do
-      session = DecisionAgent::Web::Server.authenticator.login("auth@example.com", "password123")
+      session = authenticator.login("auth@example.com", "password123")
+      expect(session).not_to be_nil
       get "/api/auth/me?token=#{session.token}"
       expect(last_response).to be_ok
     end

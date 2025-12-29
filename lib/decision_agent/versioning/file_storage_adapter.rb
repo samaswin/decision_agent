@@ -148,7 +148,30 @@ module DecisionAgent
           # Read only this rule's versions
           versions = list_versions_unsafe(rule_id: rule_id)
           version = versions.find { |v| v[:id] == version_id }
-          raise DecisionAgent::NotFoundError, "Version not found: #{version_id}" unless version
+          
+          # If version not in list, check if file exists - might have been manually deleted
+          unless version
+            rule_dir = File.join(@storage_path, sanitize_filename(rule_id))
+            # Try to find the file by checking all version files
+            file_found = false
+            Dir.glob(File.join(rule_dir, "*.json")).each do |filepath|
+              begin
+                file_data = JSON.parse(File.read(filepath))
+                if file_data["id"] == version_id || file_data[:id] == version_id
+                  # File exists but not in versions list - remove from index and return false
+                  file_found = true
+                  remove_from_index(version_id)
+                  return false
+                end
+              rescue Errno::ENOENT, JSON::ParserError
+                # File was deleted or corrupted, continue searching
+                next
+              end
+            end
+            # Version not found in list and file doesn't exist - clean up index and return false
+            remove_from_index(version_id)
+            return false
+          end
 
           # Prevent deletion of active versions
           if version[:status] == "active"
@@ -166,6 +189,8 @@ module DecisionAgent
             remove_from_index(version_id)
             true
           else
+            # File already deleted - clean up index and return false
+            remove_from_index(version_id)
             false
           end
         end

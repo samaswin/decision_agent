@@ -181,9 +181,13 @@ RSpec.describe DecisionAgent::Web::Middleware::PermissionMiddleware do
 
         middleware.call(env)
 
-        expect(access_audit_logger).to have_received(:log_permission_check) do |args|
-          expect(args[:resource_type]).to eq("rule")
-        end
+        expect(access_audit_logger).to have_received(:log_permission_check).with(
+          user_id: "user1",
+          permission: :read,
+          resource_type: "rule",
+          resource_id: "123",
+          granted: true
+        )
       end
     end
 

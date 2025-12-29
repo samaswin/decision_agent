@@ -5,7 +5,7 @@ RSpec.describe DecisionAgent::Auth::RbacConfig do
 
   describe "#initialize" do
     it "initializes with nil adapter, authenticator, and user_store" do
-      expect(config.adapter).to be_nil
+      expect(config.instance_variable_get(:@adapter)).to be_nil
       expect(config.authenticator).to be_nil
       expect(config.user_store).to be_nil
     end

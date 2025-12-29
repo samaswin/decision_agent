@@ -55,16 +55,28 @@ module DecisionAgent
           request = Rack::Request.new(env)
           # Try to extract from path, e.g., /api/rules/:id -> "rule"
           path = request.path
-          if path.match?(%r{/api/(\w+)})
+          if match = path.match(%r{/api/(\w+)})
             # Simple singularize: remove trailing 's'
-            word = $1
+            word = match[1]
             word&.end_with?("s") ? word[0..-2] : word
           end
         end
 
         def extract_resource_id(env)
           request = Rack::Request.new(env)
-          request.params["id"] || request.params["rule_id"] || request.params["version_id"]
+          # Try params first (for query parameters and Sinatra path params)
+          resource_id = request.params["id"] || request.params["rule_id"] || request.params["version_id"]
+          
+          # If not in params, try to extract from path (e.g., /api/rules/123 -> 123)
+          unless resource_id
+            path = request.path
+            # Match patterns like /api/rules/123 or /api/versions/v1
+            if match = path.match(%r{/api/(?:rules|versions)/([^/]+)})
+              resource_id = match[1]
+            end
+          end
+          
+          resource_id
         end
 
         def unauthorized_response(message)

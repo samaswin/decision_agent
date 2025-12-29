@@ -198,8 +198,11 @@ RSpec.describe DecisionAgent::Testing::BatchTestRunner do
         runner.run(scenarios, checkpoint_file: checkpoint_file.path)
       end.not_to raise_error
 
-      File.chmod(0o644, checkpoint_file.path)
-      checkpoint_file.unlink
+      # Clean up - file might have been deleted, so check first
+      if File.exist?(checkpoint_file.path)
+        File.chmod(0o644, checkpoint_file.path)
+        checkpoint_file.unlink
+      end
     end
 
     it "loads checkpoint data correctly" do

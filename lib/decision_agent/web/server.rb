@@ -869,6 +869,25 @@ module DecisionAgent
           temp_file.close
           temp_file.unlink
 
+          # Check for import errors - return error status if there are errors and no scenarios
+          if importer.errors.any? && scenarios.empty?
+            status 422
+            return { error: "Import failed: #{importer.errors.join('; ')}" }.to_json
+          end
+
+          # If there are errors but some scenarios were created, still return error status
+          # to indicate partial failure
+          if importer.errors.any?
+            status 422
+            return {
+              error: "Import completed with errors: #{importer.errors.join('; ')}",
+              test_id: nil,
+              scenarios_count: scenarios.size,
+              errors: importer.errors,
+              warnings: importer.warnings
+            }.to_json
+          end
+
           # Store scenarios with a unique ID
           test_id = SecureRandom.uuid
           self.class.batch_test_storage_mutex.synchronize do
@@ -1100,7 +1119,8 @@ module DecisionAgent
         end
 
         # Check session cookie
-        request.cookies["decision_agent_session"]
+        cookie_token = request.cookies["decision_agent_session"]
+        return cookie_token if cookie_token
 
         # Check query parameter
         params["token"]
@@ -1112,6 +1132,7 @@ module DecisionAgent
 
       def require_authentication!
         unless @current_user
+          content_type :json
           halt 401, { error: "Authentication required" }.to_json
         end
       end
@@ -1127,8 +1148,8 @@ module DecisionAgent
             resource_id: resource&.id,
             granted: false
           )
-          status 403
-          return { error: "Permission denied: #{permission}" }.to_json
+          content_type :json
+          halt 403, { error: "Permission denied: #{permission}" }.to_json
         end
 
         self.class.access_audit_logger.log_permission_check(
