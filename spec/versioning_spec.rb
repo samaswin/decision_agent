@@ -228,6 +228,89 @@ RSpec.describe "DecisionAgent Versioning System" do
         result = adapter.delete_version(version_id: v1[:id])
         expect(result).to be false
       end
+
+      it "converts index lookup errors to NotFoundError" do
+        # Simulate an error during index lookup
+        allow(adapter).to receive(:get_rule_id_from_index).and_raise(StandardError.new("Index error"))
+
+        expect do
+          adapter.delete_version(version_id: "test_version")
+        end.to raise_error(DecisionAgent::NotFoundError, /Version not found: test_version/)
+      end
+
+      it "handles missing directory when searching for version files" do
+        # Create a version
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content, metadata: { status: "draft" })
+        v2 = adapter.create_version(rule_id: rule_id, content: rule_content)
+        version_id = v1[:id]
+
+        # Manually remove the rule directory to simulate missing directory
+        rule_dir = File.join(adapter.storage_path, rule_id)
+        FileUtils.rm_rf(rule_dir) if Dir.exist?(rule_dir)
+
+        # The version should still be in the index, but directory is gone
+        # This simulates a stale index entry
+        # When delete_version is called, it will find the rule_id from index,
+        # but the directory won't exist when searching for files
+        result = adapter.delete_version(version_id: version_id)
+        expect(result).to be false
+      end
+
+      it "handles version ID type mismatches with string conversion" do
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content, metadata: { status: "draft" })
+        v2 = adapter.create_version(rule_id: rule_id, content: rule_content)
+
+        # Version IDs are stored as strings, but test that .to_s comparison works
+        # This ensures the code handles cases where version_id might be passed as different types
+        version_id = v1[:id]
+        expect(version_id).to be_a(String)
+
+        # Should work with string version_id
+        result = adapter.delete_version(version_id: version_id)
+        expect(result).to be true
+
+        # Verify it's actually deleted
+        expect(adapter.get_version(version_id: version_id)).to be_nil
+      end
+
+      it "handles file read errors gracefully when searching for version" do
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content, metadata: { status: "draft" })
+        v2 = adapter.create_version(rule_id: rule_id, content: rule_content)
+
+        # Delete the actual version file but keep it in the index
+        # This simulates a scenario where the file was manually deleted
+        rule_dir = File.join(adapter.storage_path, rule_id)
+        filename = "#{v1[:version_number]}.json"
+        filepath = File.join(rule_dir, filename)
+        File.delete(filepath) if File.exist?(filepath)
+
+        # The version should still be in the index, but the file is gone
+        # When delete_version is called, it will:
+        # 1. Find rule_id from index
+        # 2. List versions - v1 won't be found (file deleted), but v2 will be
+        # 3. Since v1 not in list, search through files
+        # 4. Should handle missing files gracefully and return false
+        result = adapter.delete_version(version_id: v1[:id])
+        expect(result).to be false
+      end
+
+      it "handles case where version is in index but not in versions list and directory missing" do
+        # Create a version
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content, metadata: { status: "draft" })
+        version_id = v1[:id]
+
+        # Remove the directory but keep the index entry
+        rule_dir = File.join(adapter.storage_path, rule_id)
+        FileUtils.rm_rf(rule_dir) if Dir.exist?(rule_dir)
+
+        # This tests the path where:
+        # 1. get_rule_id_from_index returns a rule_id (version is in index)
+        # 2. list_versions_unsafe returns empty (directory doesn't exist)
+        # 3. Dir.glob fails with Errno::ENOENT (directory missing)
+        # 4. Should return false gracefully
+        result = adapter.delete_version(version_id: version_id)
+        expect(result).to be false
+      end
     end
 
     describe "index management" do

@@ -140,33 +140,44 @@ module DecisionAgent
 
       def delete_version(version_id:)
         # Use index to find rule_id quickly - O(1) instead of O(n)
-        rule_id = get_rule_id_from_index(version_id)
+        begin
+          rule_id = get_rule_id_from_index(version_id)
+        rescue StandardError
+          # If index lookup fails, version doesn't exist
+          raise DecisionAgent::NotFoundError, "Version not found: #{version_id}"
+        end
+        
         raise DecisionAgent::NotFoundError, "Version not found: #{version_id}" unless rule_id
 
         # Now lock on the specific rule
         with_rule_lock(rule_id) do
           # Read only this rule's versions
           versions = list_versions_unsafe(rule_id: rule_id)
-          version = versions.find { |v| v[:id] == version_id }
+          version = versions.find { |v| v[:id] == version_id || v[:id].to_s == version_id.to_s }
           
           # If version not in list, check if file exists - might have been manually deleted
           unless version
             rule_dir = File.join(@storage_path, sanitize_filename(rule_id))
             # Try to find the file by checking all version files
             file_found = false
-            Dir.glob(File.join(rule_dir, "*.json")).each do |filepath|
-              begin
-                file_data = JSON.parse(File.read(filepath))
-                if file_data["id"] == version_id || file_data[:id] == version_id
-                  # File exists but not in versions list - remove from index and return false
-                  file_found = true
-                  remove_from_index(version_id)
-                  return false
+            begin
+              Dir.glob(File.join(rule_dir, "*.json")).each do |filepath|
+                begin
+                  file_data = JSON.parse(File.read(filepath))
+                  if file_data["id"] == version_id || file_data[:id] == version_id || 
+                     file_data["id"].to_s == version_id.to_s || file_data[:id].to_s == version_id.to_s
+                    # File exists but not in versions list - remove from index and return false
+                    file_found = true
+                    remove_from_index(version_id)
+                    return false
+                  end
+                rescue Errno::ENOENT, JSON::ParserError
+                  # File was deleted or corrupted, continue searching
+                  next
                 end
-              rescue Errno::ENOENT, JSON::ParserError
-                # File was deleted or corrupted, continue searching
-                next
               end
+            rescue Errno::ENOENT
+              # Directory doesn't exist, version not found
             end
             # Version not found in list and file doesn't exist - clean up index and return false
             remove_from_index(version_id)
