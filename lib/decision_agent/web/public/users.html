@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - DecisionAgent</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .users-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: var(--panel-bg);
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            color: var(--primary-color);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 10px 15px;
+            background: var(--hover-bg);
+            border-radius: 6px;
+        }
+
+        .user-info span {
+            color: var(--text-secondary);
+        }
+
+        .users-panel {
+            background: var(--panel-bg);
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 20px;
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--hover-bg);
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .users-table th,
+        .users-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .users-table th {
+            background: var(--hover-bg);
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .users-table tr:hover {
+            background: var(--hover-bg);
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin: 2px;
+        }
+
+        .role-admin { background: #fee2e2; color: #991b1b; }
+        .role-editor { background: #dbeafe; color: #1e40af; }
+        .role-viewer { background: #e0e7ff; color: #3730a3; }
+        .role-auditor { background: #fef3c7; color: #92400e; }
+        .role-approver { background: #d1fae5; color: #065f46; }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .status-active { background: #d1fae5; color: #065f46; }
+        .status-inactive { background: #fee2e2; color: #991b1b; }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .btn-icon:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-edit {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .btn-delete {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--panel-bg);
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            font-size: 1.5rem;
+            color: var(--text-color);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-color);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: auto;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="users-container">
+        <div class="page-header">
+            <h1>👥 User Management</h1>
+            <div class="header-actions">
+                <div class="user-info" id="currentUserInfo">
+                    <span>Loading...</span>
+                </div>
+                <button class="btn btn-primary" id="addUserBtn">+ Add User</button>
+                <button class="btn btn-secondary" onclick="window.location.href='/'">← Home</button>
+            </div>
+        </div>
+
+        <div class="users-panel">
+            <div class="panel-header">
+                <h2>Users</h2>
+                <button class="btn btn-secondary" id="refreshBtn">🔄 Refresh</button>
+            </div>
+
+            <div id="alertContainer"></div>
+
+            <div style="overflow-x: auto;">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Roles</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr>
+                            <td colspan="5" class="empty-state">Loading users...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit User Modal -->
+    <div class="modal" id="userModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add User</h2>
+                <button class="close-btn" id="closeModalBtn">&times;</button>
+            </div>
+            <form id="userForm">
+                <input type="hidden" id="userId" name="userId">
+                <div class="form-group">
+                    <label for="userEmail">Email *</label>
+                    <input type="email" id="userEmail" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="userPassword">Password *</label>
+                    <input type="password" id="userPassword" name="password" required>
+                    <small style="color: var(--text-secondary);">Minimum 8 characters</small>
+                </div>
+                <div class="form-group">
+                    <label>Roles</label>
+                    <div class="checkbox-group" id="rolesCheckboxGroup">
+                        <!-- Roles will be populated dynamically -->
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveBtn">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let allRoles = [];
+        let users = [];
+
+        // Check authentication on load
+        window.addEventListener('DOMContentLoaded', async () => {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                window.location.href = '/auth/login';
+                return;
+            }
+
+            await loadCurrentUser();
+            await loadRoles();
+            await loadUsers();
+            bindEvents();
+        });
+
+        async function loadCurrentUser() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                const response = await fetch('/api/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    currentUser = await response.json();
+                    document.getElementById('currentUserInfo').innerHTML = `
+                        <span>${currentUser.email}</span>
+                        <span>|</span>
+                        <span>${currentUser.roles.join(', ')}</span>
+                        <button class="btn btn-secondary" onclick="logout()" style="margin-left: 10px;">Logout</button>
+                    `;
+
+                    // Check if user has manage_users permission
+                    if (!currentUser.roles.includes('admin')) {
+                        showAlert('You do not have permission to manage users.', 'error');
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 2000);
+                    }
+                } else {
+                    window.location.href = '/auth/login';
+                }
+            } catch (error) {
+                console.error('Error loading current user:', error);
+                window.location.href = '/auth/login';
+            }
+        }
+
+        async function loadRoles() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                const response = await fetch('/api/auth/roles', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    allRoles = await response.json();
+                    populateRolesCheckbox();
+                }
+            } catch (error) {
+                console.error('Error loading roles:', error);
+            }
+        }
+
+        function populateRolesCheckbox() {
+            const container = document.getElementById('rolesCheckboxGroup');
+            container.innerHTML = '';
+            allRoles.forEach(role => {
+                const checkbox = document.createElement('div');
+                checkbox.className = 'checkbox-item';
+                checkbox.innerHTML = `
+                    <input type="checkbox" id="role-${role.id}" value="${role.id}">
+                    <label for="role-${role.id}">${role.name}</label>
+                `;
+                container.appendChild(checkbox);
+            });
+        }
+
+        async function loadUsers() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                const response = await fetch('/api/auth/users', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    users = await response.json();
+                    renderUsers();
+                } else {
+                    showAlert('Failed to load users.', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+                showAlert('Error loading users.', 'error');
+            }
+        }
+
+        function renderUsers() {
+            const tbody = document.getElementById('usersTableBody');
+            
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No users found.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = users.map(user => `
+                <tr>
+                    <td>${user.email}</td>
+                    <td>
+                        ${user.roles.map(role => `<span class="role-badge role-${role}">${role}</span>`).join('')}
+                    </td>
+                    <td>
+                        <span class="status-badge status-${user.active ? 'active' : 'inactive'}">
+                            ${user.active ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-icon btn-edit" onclick="editUser('${user.id}')">Edit Roles</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function bindEvents() {
+            document.getElementById('addUserBtn').addEventListener('click', () => openModal());
+            document.getElementById('refreshBtn').addEventListener('click', () => loadUsers());
+            document.getElementById('closeModalBtn').addEventListener('click', () => closeModal());
+            document.getElementById('cancelBtn').addEventListener('click', () => closeModal());
+            document.getElementById('userForm').addEventListener('submit', handleSubmit);
+            
+            // Close modal on outside click
+            document.getElementById('userModal').addEventListener('click', (e) => {
+                if (e.target.id === 'userModal') {
+                    closeModal();
+                }
+            });
+        }
+
+        function openModal(userId = null) {
+            const modal = document.getElementById('userModal');
+            const form = document.getElementById('userForm');
+            const title = document.getElementById('modalTitle');
+            
+            if (userId) {
+                title.textContent = 'Edit User Roles';
+                const user = users.find(u => u.id === userId);
+                if (user) {
+                    document.getElementById('userId').value = user.id;
+                    document.getElementById('userEmail').value = user.email;
+                    document.getElementById('userEmail').disabled = true;
+                    document.getElementById('userPassword').required = false;
+                    document.getElementById('userPassword').style.display = 'none';
+                    document.getElementById('userPassword').parentElement.querySelector('small').style.display = 'none';
+                    
+                    // Check user's current roles
+                    allRoles.forEach(role => {
+                        const checkbox = document.getElementById(`role-${role.id}`);
+                        checkbox.checked = user.roles.includes(role.id);
+                    });
+                }
+            } else {
+                title.textContent = 'Add User';
+                form.reset();
+                document.getElementById('userId').value = '';
+                document.getElementById('userEmail').disabled = false;
+                document.getElementById('userPassword').required = true;
+                document.getElementById('userPassword').style.display = 'block';
+                document.getElementById('userPassword').parentElement.querySelector('small').style.display = 'block';
+                
+                // Uncheck all roles
+                allRoles.forEach(role => {
+                    const checkbox = document.getElementById(`role-${role.id}`);
+                    checkbox.checked = false;
+                });
+            }
+            
+            modal.classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('userModal').classList.remove('show');
+            document.getElementById('userForm').reset();
+        }
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+            
+            const userId = document.getElementById('userId').value;
+            const email = document.getElementById('userEmail').value;
+            const password = document.getElementById('userPassword').value;
+            const selectedRoles = Array.from(document.querySelectorAll('#rolesCheckboxGroup input:checked'))
+                .map(cb => cb.value);
+
+            const token = localStorage.getItem('auth_token');
+
+            try {
+                if (userId) {
+                    // Update user roles
+                    for (const role of allRoles) {
+                        const checkbox = document.getElementById(`role-${role.id}`);
+                        const userHasRole = users.find(u => u.id === userId)?.roles.includes(role.id);
+                        
+                        if (checkbox.checked && !userHasRole) {
+                            // Add role
+                            await fetch(`/api/auth/users/${userId}/roles`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${token}`
+                                },
+                                body: JSON.stringify({ role: role.id })
+                            });
+                        } else if (!checkbox.checked && userHasRole) {
+                            // Remove role
+                            await fetch(`/api/auth/users/${userId}/roles/${role.id}`, {
+                                method: 'DELETE',
+                                headers: {
+                                    'Authorization': `Bearer ${token}`
+                                }
+                            });
+                        }
+                    }
+                    showAlert('User roles updated successfully!', 'success');
+                } else {
+                    // Create new user
+                    const response = await fetch('/api/auth/users', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            email,
+                            password,
+                            roles: selectedRoles
+                        })
+                    });
+
+                    if (response.ok) {
+                        showAlert('User created successfully!', 'success');
+                    } else {
+                        const data = await response.json();
+                        showAlert(data.error || 'Failed to create user.', 'error');
+                        return;
+                    }
+                }
+                
+                closeModal();
+                await loadUsers();
+            } catch (error) {
+                console.error('Error saving user:', error);
+                showAlert('Error saving user.', 'error');
+            }
+        }
+
+        function editUser(userId) {
+            openModal(userId);
+        }
+
+        function showAlert(message, type) {
+            const container = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} show`;
+            alert.textContent = message;
+            container.innerHTML = '';
+            container.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.classList.remove('show');
+                setTimeout(() => container.innerHTML = '', 300);
+            }, 3000);
+        }
+
+        function logout() {
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+            }
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user');
+            window.location.href = '/auth/login';
+        }
+    </script>
+</body>
+</html>
+

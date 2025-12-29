@@ -100,4 +100,16 @@ module DecisionAgent
       super
     end
   end
+
+  class AuthenticationError < Error
+    def initialize(message = "Authentication failed")
+      super
+    end
+  end
+
+  class PermissionDeniedError < Error
+    def initialize(message = "Permission denied")
+      super
+    end
+  end
 end

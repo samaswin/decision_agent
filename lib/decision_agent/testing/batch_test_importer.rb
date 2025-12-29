@@ -41,7 +41,14 @@ module DecisionAgent
 
         # Count total rows for progress tracking (if callback provided)
         total_rows = nil
-        total_rows = count_csv_rows(file_path, options[:skip_header]) if options[:progress_callback]
+        if options[:progress_callback]
+          begin
+            total_rows = count_csv_rows(file_path, options[:skip_header])
+          rescue StandardError
+            # If counting fails, continue without progress tracking
+            total_rows = nil
+          end
+        end
 
         if options[:skip_header]
           CSV.foreach(file_path, headers: true) do |row|
@@ -130,29 +137,61 @@ module DecisionAgent
           row_number = 0
 
           # Get total rows for progress tracking
-          total_rows = spreadsheet.last_row || 0
+          first_row = spreadsheet.first_row
+          last_row = spreadsheet.last_row
+          return [] unless first_row && last_row && first_row <= last_row
+
+          total_rows = last_row - first_row + 1
           total_rows -= 1 if options[:skip_header] && total_rows.positive?
 
           # Read header row if skip_header is true
           header_row = nil
-          if options[:skip_header] && spreadsheet.first_row
-            header_row = spreadsheet.row(spreadsheet.first_row)
+          if options[:skip_header] && first_row
+            header_data = spreadsheet.row(first_row)
+            # Handle different return types from Roo (including Proc/lambda)
+            header_row = if header_data.is_a?(Array)
+                          header_data
+                        elsif header_data.is_a?(Proc)
+                          header_data.call
+                        elsif header_data.respond_to?(:to_a)
+                          header_data.to_a
+                        elsif header_data.respond_to?(:to_ary)
+                          header_data.to_ary
+                        else
+                          # Fallback: try to convert to array
+                          [header_data].flatten
+                        end
             row_number = 1 # Start from row 2 (after header)
           end
 
           # Process data rows
-          start_row = options[:skip_header] ? (spreadsheet.first_row + 1) : spreadsheet.first_row
-          (start_row..spreadsheet.last_row).each do |row_index|
+          start_row = options[:skip_header] ? (first_row + 1) : first_row
+          return [] unless start_row && last_row && start_row <= last_row
+
+          (start_row..last_row).each do |row_index|
             row_number += 1
-            row_data = spreadsheet.row(row_index)
+            row_data_raw = spreadsheet.row(row_index)
+            # Handle different return types from Roo (including Proc/lambda)
+            row_data = if row_data_raw.is_a?(Array)
+                        row_data_raw
+                      elsif row_data_raw.is_a?(Proc)
+                        row_data_raw.call
+                      elsif row_data_raw.respond_to?(:to_a)
+                        row_data_raw.to_a
+                      elsif row_data_raw.respond_to?(:to_ary)
+                        row_data_raw.to_ary
+                      else
+                        # Fallback: try to convert to array
+                        [row_data_raw].flatten
+                      end
 
             begin
               # Convert row data to hash using headers
               row_hash = if header_row
-                           header_row.each_with_index.to_h { |header, idx| [header.to_s, row_data[idx]] }
+                           header_row.each_with_index.map { |header, idx| [header.to_s, row_data[idx]] }.to_h
                          else
                            # Use numeric indices if no headers
-                           row_data.each_with_index.to_h { |val, idx| [idx.to_s, val] }
+                           row_data.each_with_index.map { |val, idx| [idx.to_s, val] }.to_h
                          end
 
               scenario = parse_hash_row(row_hash, row_number, options)

@@ -9,6 +9,291 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Role-Based Access Control (RBAC) System** 🔐
+  - **Overview:** Complete enterprise-grade authentication and authorization system for rule management
+  - **Core Components:**
+    - `User` model with bcrypt password hashing, role management, and active/inactive status
+    - `Role` model with predefined roles (admin, editor, viewer, auditor, approver) and permission mappings
+    - `Permission` model with permission definitions and descriptions
+    - `Session` model with expiration and token-based authentication
+    - `SessionManager` for thread-safe session storage and automatic cleanup
+    - `Authenticator` for login/logout, user creation, and token authentication
+    - `PermissionChecker` for permission and role validation
+  - **Authentication Features:**
+    - Secure password hashing using bcrypt (~> 3.1)
+    - Session-based authentication with configurable expiration (default: 1 hour)
+    - Token extraction from Authorization header (Bearer token), cookies, or query parameters
+    - In-memory user store (extensible to ActiveRecord adapter)
+    - Thread-safe session management with automatic cleanup of expired sessions
+    - **Password Reset Functionality:**
+      - `PasswordResetToken` class for secure token generation and expiration management
+      - `PasswordResetManager` for thread-safe token storage and automatic cleanup
+      - Secure token generation (64-character hex tokens)
+      - Token expiration (default: 1 hour)
+      - Automatic session invalidation after password reset
+      - Password minimum length validation (8 characters)
+      - Security-conscious responses (doesn't reveal if email exists)
+      - Audit logging for password reset events
+  - **Role & Permission System:**
+    - **5 Default Roles:**
+      - **Admin** - Full access (read, write, delete, approve, deploy, manage_users, audit)
+      - **Editor** - Can create and modify rules (read, write)
+      - **Viewer** - Read-only access (read)
+      - **Auditor** - Read access + audit log access (read, audit)
+      - **Approver** - Can approve rule changes (read, approve)
+    - **7 Permissions:** read, write, delete, approve, deploy, manage_users, audit
+    - Role-permission mapping with easy extension
+    - User-role assignment via API
+  - **Access Audit Logging:**
+    - `AccessAuditLogger` for comprehensive access tracking
+    - Logs authentication events (login, logout, failed attempts)
+    - Logs permission checks (who tried to access what, granted/denied)
+    - Logs access attempts (resource access with success/failure)
+    - `InMemoryAccessAdapter` for audit log storage with querying capabilities
+    - Query filters: user_id, event_type, start_time, end_time, limit
+    - Thread-safe audit log storage
+  - **Web Server Integration:**
+    - **New Authentication Endpoints:**
+      - `POST /api/auth/login` - User login with email/password
+      - `POST /api/auth/logout` - User logout
+      - `GET /api/auth/me` - Get current authenticated user info
+      - `GET /api/auth/roles` - List all available roles
+      - `POST /api/auth/users` - Create new user (admin only)
+      - `GET /api/auth/users` - List all users (admin only)
+      - `POST /api/auth/users/:id/roles` - Assign role to user (admin only)
+      - `DELETE /api/auth/users/:id/roles/:role` - Remove role from user (admin only)
+      - `GET /api/auth/audit` - Query access audit logs
+      - `POST /api/auth/password/reset-request` - Request password reset token
+      - `POST /api/auth/password/reset` - Reset password with token
+    - **Web UI Pages:**
+      - `GET /auth/login` - Login page with email/password authentication
+      - `GET /auth/users` - User management page (admin only) with full CRUD operations
+      - Login page features: token-based authentication, auto-redirect, error handling
+      - User management page features: user list, create users, edit roles, role badges, status indicators
+    - **Permission Protection:**
+      - All versioning endpoints now require appropriate permissions
+      - `GET /api/rules/:rule_id/versions` - Requires `:read` permission
+      - `GET /api/rules/:rule_id/history` - Requires `:read` permission
+      - `GET /api/versions/:version_id` - Requires `:read` permission
+      - `GET /api/versions/:version_id_1/compare/:version_id_2` - Requires `:read` permission
+      - `POST /api/versions` - Requires `:write` permission
+      - `POST /api/versions/:version_id/activate` - Requires `:deploy` permission
+      - `DELETE /api/versions/:version_id` - Requires `:delete` permission
+    - **Middleware:**
+      - `AuthMiddleware` - Extracts and validates authentication tokens
+      - `PermissionMiddleware` - Enforces permission checks on requests
+      - Automatic user context injection into request environment
+  - **Error Handling:**
+    - `AuthenticationError` - Raised when authentication fails
+    - `PermissionDeniedError` - Raised when user lacks required permission
+  - **Configurable RBAC Adapter System** 🔌
+    - **Overview:** Flexible adapter pattern allowing integration with ANY existing authentication/authorization system
+    - **Core Components:**
+      - `RbacAdapter` base class - Interface for implementing custom RBAC adapters
+      - `RbacConfig` - Configuration system for RBAC adapters
+      - `DefaultAdapter` - Built-in adapter using default User/Role system
+      - `DeviseCanCanAdapter` - Adapter for Devise + CanCanCan integration
+      - `PunditAdapter` - Adapter for Pundit authorization
+      - `CustomAdapter` - Flexible adapter using procs for custom logic
+    - **Configuration Methods:**
+      - `DecisionAgent.configure_rbac(:default)` - Use built-in RBAC
+      - `DecisionAgent.configure_rbac(:devise_cancan, ability_class: Ability)` - Devise + CanCanCan
+      - `DecisionAgent.configure_rbac(:pundit)` - Pundit integration
+      - `DecisionAgent.configure_rbac(:custom, can_proc: ..., has_role_proc: ...)` - Custom procs
+      - `DecisionAgent.configure_rbac { |config| config.adapter = MyAdapter.new }` - Custom adapter class
+    - **Features:**
+      - Works with any authentication system (Devise, custom, etc.)
+      - Works with any authorization system (CanCanCan, Pundit, custom, etc.)
+      - Proc-based configuration for quick integration
+      - Custom adapter classes for complex logic
+      - Automatic permission mapping for common systems
+      - Backward compatible with existing RBAC implementation
+      - Web server automatically uses configured adapter
+    - **Integration Examples:**
+      - Devise + CanCanCan
+      - Devise + Rolify
+      - Pundit policies
+      - Custom hash-based permissions
+      - Simple proc-based permissions
+      - Custom adapter classes
+    - **API:**
+      - `DecisionAgent.configure_rbac(adapter_type, **options)` - Configure adapter
+      - `DecisionAgent.permission_checker` - Get configured permission checker
+      - `PermissionChecker#can?(user, permission, resource)` - Check permission via adapter
+      - `PermissionChecker#has_role?(user, role)` - Check role via adapter
+      - `PermissionChecker#active?(user)` - Check if user is active via adapter
+      - `PermissionChecker#user_id(user)` - Extract user ID via adapter
+      - `PermissionChecker#user_email(user)` - Extract user email via adapter
+  - **Files Added:**
+    - `lib/decision_agent/auth/user.rb` - User model with authentication
+    - `lib/decision_agent/auth/role.rb` - Role definitions and permission mappings
+    - `lib/decision_agent/auth/permission.rb` - Permission definitions
+    - `lib/decision_agent/auth/session.rb` - Session model with expiration
+    - `lib/decision_agent/auth/session_manager.rb` - Thread-safe session management
+    - `lib/decision_agent/auth/password_reset_token.rb` - Password reset token model
+    - `lib/decision_agent/auth/password_reset_manager.rb` - Password reset token management
+    - `lib/decision_agent/auth/authenticator.rb` - Authentication service
+    - `lib/decision_agent/auth/permission_checker.rb` - Permission validation
+    - `lib/decision_agent/auth/access_audit_logger.rb` - Access audit logging
+    - `lib/decision_agent/auth/rbac_adapter.rb` - RBAC adapter interface and implementations
+    - `lib/decision_agent/auth/rbac_config.rb` - RBAC configuration system
+    - `lib/decision_agent/web/middleware/auth_middleware.rb` - Authentication middleware
+    - `lib/decision_agent/web/middleware/permission_middleware.rb` - Permission middleware
+    - `examples/rbac_configuration_examples.rb` - Examples for all adapter types
+    - `examples/rails_rbac_integration.rb` - Rails integration examples
+    - `docs/RBAC_CONFIGURATION.md` - Complete RBAC configuration guide
+    - `docs/RBAC_QUICK_REFERENCE.md` - Quick reference for RBAC configuration
+    - `lib/decision_agent/web/public/login.html` - Login page UI
+    - `lib/decision_agent/web/public/users.html` - User management page UI
+    - `spec/auth/user_spec.rb` - User model tests
+    - `spec/auth/authenticator_spec.rb` - Authenticator tests
+    - `spec/auth/role_spec.rb` - Role model tests
+    - `spec/auth/permission_checker_spec.rb` - Permission checker tests
+    - `spec/auth/access_audit_logger_spec.rb` - Audit logger tests
+    - `spec/auth/password_reset_spec.rb` - Password reset functionality tests
+  - **Files Modified:**
+    - `decision_agent.gemspec` - Added `bcrypt ~> 3.1` dependency
+    - `lib/decision_agent/errors.rb` - Added `AuthenticationError` and `PermissionDeniedError`
+    - `lib/decision_agent/auth/user.rb` - Added `update_password` method
+    - `lib/decision_agent/auth/authenticator.rb` - Added `request_password_reset` and `reset_password` methods
+    - `lib/decision_agent/auth/access_audit_logger.rb` - Fixed module reference for Audit adapter
+    - `lib/decision_agent/auth/permission_checker.rb` - Refactored to use adapter pattern, added adapter support
+    - `lib/decision_agent/web/server.rb` - Added auth endpoints, permission checks, password reset endpoints, UI page routes, and adapter-based user ID/email extraction
+    - `lib/decision_agent/web/middleware/permission_middleware.rb` - Updated to use adapter's active? method and user_id extraction
+    - `lib/decision_agent.rb` - Added auth module requires including password reset components, RBAC adapter system, and global RBAC configuration API
+    - `spec/web_ui_rack_spec.rb` - Added password reset API endpoint tests
+  - **Usage Example:**
+    ```ruby
+    # Create authenticator
+    authenticator = DecisionAgent::Auth::Authenticator.new
+    
+    # Create admin user
+    admin = authenticator.create_user(
+      email: "admin@example.com",
+      password: "secure_password",
+      roles: [:admin]
+    )
+    
+    # Login
+    session = authenticator.login("admin@example.com", "secure_password")
+    # => #<DecisionAgent::Auth::Session token="...", user_id="...", expires_at="...">
+    
+    # Check permissions
+    checker = DecisionAgent::Auth::PermissionChecker.new
+    checker.can?(admin, :write) # => true
+    checker.can?(admin, :approve) # => true
+    
+    # Request password reset
+    token = authenticator.request_password_reset("admin@example.com")
+    # => #<DecisionAgent::Auth::PasswordResetToken token="...", user_id="...", expires_at="...">
+    
+    # Reset password
+    user = authenticator.reset_password(token.token, "new_secure_password")
+    # => #<DecisionAgent::Auth::User ...>
+    # Note: All existing sessions are invalidated after password reset
+    
+    # Use in API requests
+    
+    # Configure RBAC to work with existing auth system (e.g., Devise + CanCanCan)
+    DecisionAgent.configure_rbac(:devise_cancan, ability_class: Ability)
+    
+    # Or use custom adapter with procs
+    DecisionAgent.configure_rbac(:custom,
+      can_proc: ->(user, permission, resource) {
+        user.has_permission?(permission)
+      },
+      has_role_proc: ->(user, role) {
+        user.has_role?(role)
+      },
+      active_proc: ->(user) {
+        user.active?
+      }
+    )
+    
+    # Or create custom adapter class
+    class MyAdapter < DecisionAgent::Auth::RbacAdapter
+      def can?(user, permission, resource = nil)
+        # Your custom logic
+      end
+    end
+    
+    DecisionAgent.configure_rbac do |config|
+      config.adapter = MyAdapter.new
+    end
+    
+    # Use with any user object from your auth system
+    checker = DecisionAgent.permission_checker
+    checker.can?(current_user, :read)  # Works with any user object
+    checker.can?(current_user, :write, rule)  # Resource-level permissions
+    # Authorization: Bearer <session.token>
+    ```
+  - **Web API Usage:**
+    ```bash
+    # Login
+    curl -X POST http://localhost:4567/api/auth/login \
+      -H "Content-Type: application/json" \
+      -d '{"email":"admin@example.com","password":"secure_password"}'
+    # => {"token":"...","user":{...},"expires_at":"..."}
+    
+    # Request password reset
+    curl -X POST http://localhost:4567/api/auth/password/reset-request \
+      -H "Content-Type: application/json" \
+      -d '{"email":"admin@example.com"}'
+    # => {"success":true,"token":"...","expires_at":"..."}
+    
+    # Reset password with token
+    curl -X POST http://localhost:4567/api/auth/password/reset \
+      -H "Content-Type: application/json" \
+      -d '{"token":"...","password":"new_secure_password"}'
+    # => {"success":true,"message":"Password has been reset successfully"}
+    
+    # Access login page
+    # Navigate to: http://localhost:4567/auth/login
+    
+    # Access user management page (admin only)
+    # Navigate to: http://localhost:4567/auth/users
+    
+    # Access protected endpoint
+    curl -X GET http://localhost:4567/api/rules/rule123/versions \
+      -H "Authorization: Bearer <token>"
+    
+    # Query audit logs
+    curl -X GET "http://localhost:4567/api/auth/audit?user_id=user123&event_type=login" \
+      -H "Authorization: Bearer <token>"
+    ```
+  - **Features:**
+    - Thread-safe implementations throughout
+    - Automatic session expiration and cleanup
+    - Comprehensive audit trail for compliance
+    - Extensible architecture (can add ActiveRecord adapters)
+    - Zero breaking changes to existing endpoints (auth is opt-in)
+  - **Security:**
+    - Bcrypt password hashing with secure defaults
+    - Token-based authentication (32-byte hex tokens)
+    - Session expiration (default 1 hour, configurable)
+    - Password reset tokens with expiration (default 1 hour)
+    - Automatic session invalidation after password reset
+    - Password minimum length validation (8 characters)
+    - Security-conscious password reset responses (doesn't reveal if email exists)
+    - Permission checks on all protected endpoints
+    - Access audit logging for compliance (SOX, HIPAA, GDPR)
+  - **Testing:**
+    - 5 comprehensive test files covering all components
+    - User authentication and role management tests
+    - Permission checking and validation tests
+    - Access audit logging tests
+    - All tests passing with proper coverage
+  - **Documentation:**
+    - Complete API documentation in monthly priorities plan
+    - Usage examples and integration guide
+    - Role and permission reference
+  - **Impact:**
+    - Enables enterprise adoption with proper access control
+    - Supports regulatory compliance requirements
+    - Provides audit trail for security and compliance
+    - Foundation for multi-person approval workflows
+    - Separation of duties enforcement
+
 - **Batch Testing Enhancements**
   - **Excel File Support:**
     - Added `roo` gem dependency (~> 2.10) for Excel file parsing

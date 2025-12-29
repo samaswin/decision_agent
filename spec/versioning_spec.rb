@@ -186,6 +186,259 @@ RSpec.describe "DecisionAgent Versioning System" do
         expect(comparison).to be_nil
       end
     end
+
+    describe "#delete_version" do
+      it "deletes a version and removes it from index" do
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content, metadata: { status: "draft" })
+        v2 = adapter.create_version(rule_id: rule_id, content: rule_content)
+
+        # Delete v1 (draft, not active)
+        result = adapter.delete_version(version_id: v1[:id])
+        expect(result).to be true
+
+        # Verify it's deleted
+        expect(adapter.get_version(version_id: v1[:id])).to be_nil
+      end
+
+      it "raises error when trying to delete active version" do
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content)
+
+        expect do
+          adapter.delete_version(version_id: v1[:id])
+        end.to raise_error(DecisionAgent::ValidationError, /Cannot delete active version/)
+      end
+
+      it "raises error for nonexistent version" do
+        expect do
+          adapter.delete_version(version_id: "nonexistent")
+        end.to raise_error(DecisionAgent::NotFoundError)
+      end
+
+      it "handles file already deleted" do
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content, metadata: { status: "draft" })
+        v2 = adapter.create_version(rule_id: rule_id, content: rule_content)
+
+        # Delete the file manually
+        rule_dir = File.join(adapter.storage_path, rule_id)
+        filename = "#{v1[:version_number]}.json"
+        filepath = File.join(rule_dir, filename)
+        File.delete(filepath) if File.exist?(filepath)
+
+        # Should handle gracefully
+        result = adapter.delete_version(version_id: v1[:id])
+        expect(result).to be false
+      end
+
+      it "converts index lookup errors to NotFoundError" do
+        # Simulate an error during index lookup
+        allow(adapter).to receive(:get_rule_id_from_index).and_raise(StandardError.new("Index error"))
+
+        expect do
+          adapter.delete_version(version_id: "test_version")
+        end.to raise_error(DecisionAgent::NotFoundError, /Version not found: test_version/)
+      end
+
+      it "handles missing directory when searching for version files" do
+        # Create a version
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content, metadata: { status: "draft" })
+        v2 = adapter.create_version(rule_id: rule_id, content: rule_content)
+        version_id = v1[:id]
+
+        # Manually remove the rule directory to simulate missing directory
+        rule_dir = File.join(adapter.storage_path, rule_id)
+        FileUtils.rm_rf(rule_dir) if Dir.exist?(rule_dir)
+
+        # The version should still be in the index, but directory is gone
+        # This simulates a stale index entry
+        # When delete_version is called, it will find the rule_id from index,
+        # but the directory won't exist when searching for files
+        result = adapter.delete_version(version_id: version_id)
+        expect(result).to be false
+      end
+
+      it "handles version ID type mismatches with string conversion" do
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content, metadata: { status: "draft" })
+        v2 = adapter.create_version(rule_id: rule_id, content: rule_content)
+
+        # Version IDs are stored as strings, but test that .to_s comparison works
+        # This ensures the code handles cases where version_id might be passed as different types
+        version_id = v1[:id]
+        expect(version_id).to be_a(String)
+
+        # Should work with string version_id
+        result = adapter.delete_version(version_id: version_id)
+        expect(result).to be true
+
+        # Verify it's actually deleted
+        expect(adapter.get_version(version_id: version_id)).to be_nil
+      end
+
+      it "handles file read errors gracefully when searching for version" do
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content, metadata: { status: "draft" })
+        v2 = adapter.create_version(rule_id: rule_id, content: rule_content)
+
+        # Delete the actual version file but keep it in the index
+        # This simulates a scenario where the file was manually deleted
+        rule_dir = File.join(adapter.storage_path, rule_id)
+        filename = "#{v1[:version_number]}.json"
+        filepath = File.join(rule_dir, filename)
+        File.delete(filepath) if File.exist?(filepath)
+
+        # The version should still be in the index, but the file is gone
+        # When delete_version is called, it will:
+        # 1. Find rule_id from index
+        # 2. List versions - v1 won't be found (file deleted), but v2 will be
+        # 3. Since v1 not in list, search through files
+        # 4. Should handle missing files gracefully and return false
+        result = adapter.delete_version(version_id: v1[:id])
+        expect(result).to be false
+      end
+
+      it "handles case where version is in index but not in versions list and directory missing" do
+        # Create a version
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content, metadata: { status: "draft" })
+        version_id = v1[:id]
+
+        # Remove the directory but keep the index entry
+        rule_dir = File.join(adapter.storage_path, rule_id)
+        FileUtils.rm_rf(rule_dir) if Dir.exist?(rule_dir)
+
+        # This tests the path where:
+        # 1. get_rule_id_from_index returns a rule_id (version is in index)
+        # 2. list_versions_unsafe returns empty (directory doesn't exist)
+        # 3. Dir.glob fails with Errno::ENOENT (directory missing)
+        # 4. Should return false gracefully
+        result = adapter.delete_version(version_id: version_id)
+        expect(result).to be false
+      end
+
+      it "handles unexpected errors during lock operation and converts to NotFoundError" do
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content, metadata: { status: "draft" })
+
+        # Simulate an unexpected error during the lock operation (e.g., mutex error, file system error)
+        allow(adapter).to receive(:list_versions_unsafe).and_raise(StandardError.new("Unexpected lock error"))
+
+        # Should convert unexpected error to NotFoundError instead of letting it propagate as 500
+        expect do
+          adapter.delete_version(version_id: v1[:id])
+        end.to raise_error(DecisionAgent::NotFoundError, /Version not found: #{v1[:id]}/)
+      end
+
+      it "preserves ValidationError when trying to delete active version" do
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content)
+
+        # Should raise ValidationError, not NotFoundError
+        expect do
+          adapter.delete_version(version_id: v1[:id])
+        end.to raise_error(DecisionAgent::ValidationError, /Cannot delete active version/)
+      end
+    end
+
+    describe "#list_versions_unsafe" do
+      it "handles corrupted JSON files gracefully" do
+        # Create a valid version
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content)
+
+        # Create a corrupted JSON file in the same directory
+        rule_dir = File.join(adapter.storage_path, rule_id)
+        corrupted_file = File.join(rule_dir, "999.json")
+        File.write(corrupted_file, "invalid json content{")
+
+        # Should skip corrupted files and return only valid versions
+        versions = adapter.send(:list_versions_unsafe, rule_id: rule_id)
+        expect(versions.length).to eq(1)
+        expect(versions.first[:id]).to eq(v1[:id])
+
+        # Clean up
+        File.delete(corrupted_file) if File.exist?(corrupted_file)
+      end
+
+      it "handles missing files gracefully" do
+        # Create a valid version
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content)
+
+        # Delete the file but keep directory
+        rule_dir = File.join(adapter.storage_path, rule_id)
+        filename = "#{v1[:version_number]}.json"
+        filepath = File.join(rule_dir, filename)
+        File.delete(filepath) if File.exist?(filepath)
+
+        # Should handle missing files gracefully
+        versions = adapter.send(:list_versions_unsafe, rule_id: rule_id)
+        expect(versions).to be_an(Array)
+        # May or may not include the deleted version depending on timing
+      end
+    end
+
+    describe "index management" do
+      it "loads index on initialization" do
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content)
+
+        # Create new adapter instance - should load index
+        new_adapter = DecisionAgent::Versioning::FileStorageAdapter.new(storage_path: temp_dir)
+
+        # Should be able to find version using index
+        found = new_adapter.get_version(version_id: v1[:id])
+        expect(found).not_to be_nil
+      end
+
+      it "handles corrupted JSON files in index loading" do
+        # Create a corrupted JSON file
+        rule_dir = File.join(temp_dir, rule_id)
+        FileUtils.mkdir_p(rule_dir)
+        corrupted_file = File.join(rule_dir, "1.json")
+        File.write(corrupted_file, "invalid json content{")
+
+        # Should handle gracefully and skip corrupted files
+        expect do
+          _new_adapter = DecisionAgent::Versioning::FileStorageAdapter.new(storage_path: temp_dir)
+        end.not_to raise_error
+      end
+
+      it "updates index when creating versions" do
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content)
+
+        # Index should be updated
+        found = adapter.get_version(version_id: v1[:id])
+        expect(found).not_to be_nil
+      end
+
+      it "removes from index when deleting versions" do
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content, metadata: { status: "draft" })
+        v2 = adapter.create_version(rule_id: rule_id, content: rule_content)
+
+        version_id = v1[:id]
+        adapter.delete_version(version_id: version_id)
+
+        # Should not find in index
+        expect(adapter.get_version(version_id: version_id)).to be_nil
+      end
+    end
+
+    describe "filename sanitization" do
+      it "sanitizes special characters in rule_id" do
+        special_rule_id = "rule/with\\special:chars*?"
+        version = adapter.create_version(rule_id: special_rule_id, content: rule_content)
+
+        # Should create valid filename
+        expect(version[:rule_id]).to eq(special_rule_id)
+
+        # Should be able to retrieve it
+        found = adapter.get_version(version_id: version[:id])
+        expect(found).not_to be_nil
+      end
+    end
+
+    describe "error handling" do
+      it "handles update_version_status_unsafe with invalid status" do
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content)
+
+        # Try to update with invalid status via reflection (testing private method behavior)
+        expect do
+          adapter.send(:update_version_status_unsafe, v1[:id], "invalid_status", rule_id)
+        end.to raise_error(DecisionAgent::ValidationError, /Invalid status/)
+      end
+    end
   end
 
   describe DecisionAgent::Versioning::VersionManager do
