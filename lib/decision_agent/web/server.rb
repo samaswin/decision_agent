@@ -819,10 +819,15 @@ module DecisionAgent
         begin
           version_id = params[:version_id]
 
-          version_manager.delete_version(version_id: version_id)
-
-          status 200
-          { success: true, message: "Version deleted successfully" }.to_json
+          result = version_manager.delete_version(version_id: version_id)
+          
+          if result == false
+            status 404
+            { error: "Version not found" }.to_json
+          else
+            status 200
+            { success: true, message: "Version deleted successfully" }.to_json
+          end
         rescue DecisionAgent::NotFoundError => e
           status 404
           { error: e.message }.to_json

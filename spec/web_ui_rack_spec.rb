@@ -723,12 +723,13 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
 
       it "handles import errors gracefully" do
         file = Tempfile.new(["test", ".csv"])
-        file.write("invalid,content\n")
+        # Create CSV with missing required 'id' column to trigger an error
+        file.write("col1,col2\nvalue1,value2\n")
         file.rewind
 
         post "/api/testing/batch/import", { file: Rack::Test::UploadedFile.new(file.path, "text/csv") }, { "CONTENT_TYPE" => "multipart/form-data" }
 
-        # Should handle error gracefully
+        # Should handle error gracefully (missing 'id' column should cause 422)
         expect([400, 422, 500]).to include(last_response.status)
 
         file.close
@@ -1097,12 +1098,12 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
              }.to_json,
              { "CONTENT_TYPE" => "application/json", "HTTP_AUTHORIZATION" => "Bearer #{user[:session].token}" }
         version_json = JSON.parse(last_response.body)
-        version_id = version_json["version_id"]
+        version_id = version_json["id"]
 
         get "/api/versions/#{version_id}", {}, { "HTTP_AUTHORIZATION" => "Bearer #{user[:session].token}" }
         expect(last_response).to be_ok
         json = JSON.parse(last_response.body)
-        expect(json["version_id"]).to eq(version_id)
+        expect(json["id"]).to eq(version_id)
       end
 
       it "handles server errors" do
@@ -1123,7 +1124,7 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
              }.to_json,
              { "CONTENT_TYPE" => "application/json", "HTTP_AUTHORIZATION" => "Bearer #{user[:session].token}" }
         version_json = JSON.parse(last_response.body)
-        version_id = version_json["version_id"]
+        version_id = version_json["id"]
 
         # Need deploy permission, create admin user
         admin = authenticator.create_user(
@@ -1139,7 +1140,7 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
 
         expect(last_response).to be_ok
         json = JSON.parse(last_response.body)
-        expect(json["version_id"]).to eq(version_id)
+        expect(json["id"]).to eq(version_id)
       end
 
       it "activates with empty body" do

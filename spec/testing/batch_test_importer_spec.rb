@@ -445,21 +445,21 @@ RSpec.describe DecisionAgent::Testing::BatchTestImporter do
         double("Spreadsheet",
                sheets: ["Sheet1", "Sheet2"],
                first_row: 1,
-               last_row: 3,
-               row: lambda { |idx|
-                 case idx
-                 when 1
-                   ["id", "user_id", "amount"]
-                 when 2
-                   ["test_1", "123", "1000"]
-                 when 3
-                   ["test_2", "456", "5000"]
-                 end
-               })
+               last_row: 3)
       end
 
       before do
         allow(spreadsheet_double).to receive(:default_sheet=)
+        allow(spreadsheet_double).to receive(:row) do |idx|
+          case idx
+          when 1
+            ["id", "user_id", "amount"]
+          when 2
+            ["test_1", "123", "1000"]
+          when 3
+            ["test_2", "456", "5000"]
+          end
+        end
       end
 
       it "imports Excel file with default sheet" do
@@ -490,12 +490,16 @@ RSpec.describe DecisionAgent::Testing::BatchTestImporter do
 
       it "imports Excel file without header" do
         allow(Roo::Spreadsheet).to receive(:open).and_return(spreadsheet_double)
-        allow(spreadsheet_double).to receive(:first_row).and_return(nil)
+        allow(spreadsheet_double).to receive(:first_row).and_return(1)
         allow(spreadsheet_double).to receive(:last_row).and_return(2)
-        allow(spreadsheet_double).to receive(:row).and_return(
-          ["test_1", "123", "1000"],
-          ["test_2", "456", "5000"]
-        )
+        allow(spreadsheet_double).to receive(:row) do |idx|
+          case idx
+          when 1
+            ["test_1", "123", "1000"]
+          when 2
+            ["test_2", "456", "5000"]
+          end
+        end
 
         scenarios = importer.import_excel("test.xlsx", skip_header: false, id_column: "0")
 
