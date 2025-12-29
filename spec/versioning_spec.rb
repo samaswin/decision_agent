@@ -311,6 +311,63 @@ RSpec.describe "DecisionAgent Versioning System" do
         result = adapter.delete_version(version_id: version_id)
         expect(result).to be false
       end
+
+      it "handles unexpected errors during lock operation and converts to NotFoundError" do
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content, metadata: { status: "draft" })
+
+        # Simulate an unexpected error during the lock operation (e.g., mutex error, file system error)
+        allow(adapter).to receive(:list_versions_unsafe).and_raise(StandardError.new("Unexpected lock error"))
+
+        # Should convert unexpected error to NotFoundError instead of letting it propagate as 500
+        expect do
+          adapter.delete_version(version_id: v1[:id])
+        end.to raise_error(DecisionAgent::NotFoundError, /Version not found: #{v1[:id]}/)
+      end
+
+      it "preserves ValidationError when trying to delete active version" do
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content)
+
+        # Should raise ValidationError, not NotFoundError
+        expect do
+          adapter.delete_version(version_id: v1[:id])
+        end.to raise_error(DecisionAgent::ValidationError, /Cannot delete active version/)
+      end
+    end
+
+    describe "#list_versions_unsafe" do
+      it "handles corrupted JSON files gracefully" do
+        # Create a valid version
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content)
+
+        # Create a corrupted JSON file in the same directory
+        rule_dir = File.join(adapter.storage_path, rule_id)
+        corrupted_file = File.join(rule_dir, "999.json")
+        File.write(corrupted_file, "invalid json content{")
+
+        # Should skip corrupted files and return only valid versions
+        versions = adapter.send(:list_versions_unsafe, rule_id: rule_id)
+        expect(versions.length).to eq(1)
+        expect(versions.first[:id]).to eq(v1[:id])
+
+        # Clean up
+        File.delete(corrupted_file) if File.exist?(corrupted_file)
+      end
+
+      it "handles missing files gracefully" do
+        # Create a valid version
+        v1 = adapter.create_version(rule_id: rule_id, content: rule_content)
+
+        # Delete the file but keep directory
+        rule_dir = File.join(adapter.storage_path, rule_id)
+        filename = "#{v1[:version_number]}.json"
+        filepath = File.join(rule_dir, filename)
+        File.delete(filepath) if File.exist?(filepath)
+
+        # Should handle missing files gracefully
+        versions = adapter.send(:list_versions_unsafe, rule_id: rule_id)
+        expect(versions).to be_an(Array)
+        # May or may not include the deleted version depending on timing
+      end
     end
 
     describe "index management" do

@@ -1146,24 +1146,32 @@ module DecisionAgent
         require_authentication!
         checker = self.class.permission_checker
         unless checker.can?(@current_user, permission, resource)
+          begin
+            self.class.access_audit_logger.log_permission_check(
+              user_id: checker.user_id(@current_user),
+              permission: permission,
+              resource_type: resource&.class&.name,
+              resource_id: resource&.id,
+              granted: false
+            )
+          rescue StandardError
+            # If logging fails, continue with permission denial
+          end
+          content_type :json
+          halt 403, { error: "Permission denied: #{permission}" }.to_json
+        end
+
+        begin
           self.class.access_audit_logger.log_permission_check(
             user_id: checker.user_id(@current_user),
             permission: permission,
             resource_type: resource&.class&.name,
             resource_id: resource&.id,
-            granted: false
+            granted: true
           )
-          content_type :json
-          halt 403, { error: "Permission denied: #{permission}" }.to_json
+        rescue StandardError
+          # If logging fails, continue - permission was granted
         end
-
-        self.class.access_audit_logger.log_permission_check(
-          user_id: checker.user_id(@current_user),
-          permission: permission,
-          resource_type: resource&.class&.name,
-          resource_id: resource&.id,
-          granted: true
-        )
       end
 
       def parse_validation_errors(error_message)

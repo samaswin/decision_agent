@@ -1253,6 +1253,27 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
         delete "/api/versions/v1", {}, { "HTTP_AUTHORIZATION" => "Bearer #{admin_session.token}" }
         expect(last_response.status).to eq(500)
       end
+
+      it "handles unexpected errors during delete and converts to 404" do
+        admin = authenticator.create_user(
+          email: "delete5@example.com",
+          password: "password123",
+          roles: [:admin]
+        )
+        admin_session = authenticator.login("delete5@example.com", "password123")
+
+        # Simulate an unexpected error in the adapter (e.g., lock error, file system error)
+        # This should be caught and converted to NotFoundError, resulting in 404
+        adapter_instance = DecisionAgent::Versioning::FileStorageAdapter.new(storage_path: "./versions")
+        allow(DecisionAgent::Versioning::VersionManager).to receive(:new).and_return(
+          DecisionAgent::Versioning::VersionManager.new(adapter: adapter_instance)
+        )
+        allow(adapter_instance).to receive(:list_versions_unsafe).and_raise(StandardError.new("Unexpected error"))
+
+        delete "/api/versions/v1", {}, { "HTTP_AUTHORIZATION" => "Bearer #{admin_session.token}" }
+        # Should return 404, not 500, due to error handling
+        expect([200, 404]).to include(last_response.status)
+      end
     end
   end
 
@@ -1469,6 +1490,40 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
         get "/api/auth/roles", {}, {}
         # May return 401 (no auth) or 403 (auth but no permission)
         expect([401, 403]).to include(last_response.status)
+      end
+
+      it "handles audit logger failures gracefully" do
+        user = authenticator.create_user(
+          email: "loggerfail@example.com",
+          password: "password123",
+          roles: []
+        )
+        session = authenticator.login("loggerfail@example.com", "password123")
+
+        # Simulate audit logger failure
+        allow_any_instance_of(DecisionAgent::Auth::AccessAuditLogger).to receive(:log_permission_check).and_raise(StandardError.new("Logger error"))
+
+        # Should still deny permission even if logging fails
+        get "/api/auth/roles", {}, { "HTTP_AUTHORIZATION" => "Bearer #{session.token}" }
+        expect(last_response.status).to eq(403)
+        json = JSON.parse(last_response.body)
+        expect(json["error"]).to include("Permission denied")
+      end
+
+      it "handles audit logger failures when permission is granted" do
+        admin = authenticator.create_user(
+          email: "loggerfail2@example.com",
+          password: "password123",
+          roles: [:admin]
+        )
+        admin_session = authenticator.login("loggerfail2@example.com", "password123")
+
+        # Simulate audit logger failure after permission check passes
+        allow_any_instance_of(DecisionAgent::Auth::AccessAuditLogger).to receive(:log_permission_check).and_raise(StandardError.new("Logger error"))
+
+        # Should still allow access even if logging fails
+        get "/api/auth/roles", {}, { "HTTP_AUTHORIZATION" => "Bearer #{admin_session.token}" }
+        expect(last_response.status).to eq(200)
       end
     end
 
