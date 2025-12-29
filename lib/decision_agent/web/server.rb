@@ -819,6 +819,12 @@ module DecisionAgent
           require_permission!(:delete)
           version_id = params[:version_id]
 
+          # Ensure version_id is present
+          unless version_id
+            status 400
+            return { error: "Version ID is required" }.to_json
+          end
+
           result = version_manager.delete_version(version_id: version_id)
           
           if result == false
@@ -834,9 +840,11 @@ module DecisionAgent
         rescue DecisionAgent::ValidationError => e
           status 422
           { error: e.message }.to_json
-        rescue StandardError => e
+        rescue StandardError, ThreadError, SystemCallError => e
+          # Log the error for debugging but return a safe response
+          # In production, you might want to log this to a proper logger
           status 500
-          { error: e.message }.to_json
+          { error: "Internal server error" }.to_json
         end
       end
 

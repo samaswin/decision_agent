@@ -152,12 +152,15 @@ module DecisionAgent
         # Use index to find rule_id quickly - O(1) instead of O(n)
         begin
           rule_id = get_rule_id_from_index(version_id)
-        rescue StandardError
+        rescue StandardError, ThreadError
           # If index lookup fails, version doesn't exist
           raise DecisionAgent::NotFoundError, "Version not found: #{version_id}"
         end
         
-        raise DecisionAgent::NotFoundError, "Version not found: #{version_id}" unless rule_id
+        # Validate rule_id - must be present and non-empty
+        unless rule_id && !rule_id.to_s.strip.empty?
+          raise DecisionAgent::NotFoundError, "Version not found: #{version_id}"
+        end
 
         # Now lock on the specific rule
         begin
@@ -219,9 +222,10 @@ module DecisionAgent
         rescue DecisionAgent::ValidationError, DecisionAgent::NotFoundError
           # Re-raise expected errors
           raise
-        rescue StandardError => e
+        rescue StandardError, ThreadError, SystemCallError => e
           # If any unexpected error occurs during the lock operation, treat as version not found
           # This prevents 500 errors from propagating when version doesn't exist or is in an invalid state
+          # This handles ThreadError (deadlocks, recursive locks), SystemCallError (file system issues), etc.
           # This is safe because if the version existed and was valid, we would have found it above
           remove_from_index(version_id) rescue nil
           raise DecisionAgent::NotFoundError, "Version not found: #{version_id}"
@@ -309,8 +313,14 @@ module DecisionAgent
       # Get or create a mutex for a specific rule_id
       # This allows different rules to be processed in parallel
       def with_rule_lock(rule_id, &block)
-        mutex = @rule_mutexes_lock.synchronize { @rule_mutexes[rule_id] }
-        mutex.synchronize(&block)
+        begin
+          mutex = @rule_mutexes_lock.synchronize { @rule_mutexes[rule_id] }
+          mutex.synchronize(&block)
+        rescue ThreadError => e
+          # Handle potential deadlock or recursive locking issues in Ruby 3.3+
+          # Re-raise as StandardError so it can be caught by callers
+          raise StandardError, "Lock error: #{e.message}"
+        end
       end
 
       # Index management methods for O(1) version_id -> rule_id lookups
