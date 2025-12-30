@@ -657,8 +657,8 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
               return if version_number.present?
 
               last_version = self.class.where(rule_id: rule_id)
-                                      .order(version_number: :desc)
-                                      .first
+                                 .order(version_number: :desc)
+                                 .first
               self.version_number = last_version ? last_version.version_number + 1 : 1
             end
           end
@@ -1048,7 +1048,7 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
   describe "extract_token method" do
     it "extracts token from cookie" do
       authenticator = DecisionAgent::Web::Server.authenticator
-      user = authenticator.create_user(email: "cookie@example.com", password: "password123")
+      authenticator.create_user(email: "cookie@example.com", password: "password123")
       session = authenticator.login("cookie@example.com", "password123")
 
       get "/api/auth/me", {}, { "HTTP_COOKIE" => "decision_agent_session=#{session.token}" }
@@ -1150,8 +1150,8 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
               return if version_number.present?
 
               last_version = self.class.where(rule_id: rule_id)
-                                      .order(version_number: :desc)
-                                      .first
+                                 .order(version_number: :desc)
+                                 .first
               self.version_number = last_version ? last_version.version_number + 1 : 1
             end
           end
@@ -1289,7 +1289,7 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
         version_id = version_json["id"]
 
         # Need deploy permission, create admin user
-        admin = authenticator.create_user(
+        authenticator.create_user(
           email: "deploy@example.com",
           password: "password123",
           roles: [:admin]
@@ -1307,7 +1307,7 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
 
       it "activates with empty body" do
         # Create admin user for deploy permission
-        admin = authenticator.create_user(
+        authenticator.create_user(
           email: "deploy2@example.com",
           password: "password123",
           roles: [:admin]
@@ -1323,7 +1323,7 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
       end
 
       it "handles server errors" do
-        admin = authenticator.create_user(
+        authenticator.create_user(
           email: "deploy3@example.com",
           password: "password123",
           roles: [:admin]
@@ -1358,7 +1358,7 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
     describe "DELETE /api/versions/:version_id" do
       xit "deletes a version" do
         # Need delete permission, create admin user
-        admin = authenticator.create_user(
+        authenticator.create_user(
           email: "delete@example.com",
           password: "password123",
           roles: [:admin]
@@ -1371,7 +1371,7 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
       end
 
       it "handles NotFoundError" do
-        admin = authenticator.create_user(
+        authenticator.create_user(
           email: "delete2@example.com",
           password: "password123",
           roles: [:admin]
@@ -1387,7 +1387,7 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
       end
 
       it "handles ValidationError" do
-        admin = authenticator.create_user(
+        authenticator.create_user(
           email: "delete3@example.com",
           password: "password123",
           roles: [:admin]
@@ -1403,7 +1403,7 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
       end
 
       it "handles server errors" do
-        admin = authenticator.create_user(
+        authenticator.create_user(
           email: "delete4@example.com",
           password: "password123",
           roles: [:admin]
@@ -1417,7 +1417,7 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
       end
 
       it "handles unexpected errors during delete and converts to 404" do
-        admin = authenticator.create_user(
+        authenticator.create_user(
           email: "delete5@example.com",
           password: "password123",
           roles: [:admin]
@@ -1635,7 +1635,7 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
 
     describe "require_permission!" do
       it "denies access and logs permission check" do
-        user = authenticator.create_user(
+        authenticator.create_user(
           email: "noperm@example.com",
           password: "password123",
           roles: []
@@ -1655,7 +1655,7 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
       end
 
       it "handles audit logger failures gracefully" do
-        user = authenticator.create_user(
+        authenticator.create_user(
           email: "loggerfail@example.com",
           password: "password123",
           roles: []
@@ -1673,7 +1673,7 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
       end
 
       it "handles audit logger failures when permission is granted" do
-        admin = authenticator.create_user(
+        authenticator.create_user(
           email: "loggerfail2@example.com",
           password: "password123",
           roles: [:admin]
@@ -1691,7 +1691,7 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
 
     describe "extract_token" do
       it "extracts token from cookie" do
-        user = authenticator.create_user(
+        authenticator.create_user(
           email: "cookieuser@example.com",
           password: "password123"
         )
@@ -1704,7 +1704,7 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
       end
 
       it "extracts token from query parameter" do
-        user = authenticator.create_user(
+        authenticator.create_user(
           email: "queryuser@example.com",
           password: "password123"
         )
@@ -1717,12 +1717,12 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
       end
 
       it "prefers Authorization header over cookie" do
-        user1 = authenticator.create_user(
+        authenticator.create_user(
           email: "prefuser@example.com",
           password: "password123"
         )
         session1 = authenticator.login("prefuser@example.com", "password123")
-        user2 = authenticator.create_user(
+        authenticator.create_user(
           email: "prefuser2@example.com",
           password: "password123"
         )
@@ -1787,10 +1787,10 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
       it "initializes storage hash if nil" do
         original_storage = DecisionAgent::Web::Server.instance_variable_get(:@batch_test_storage)
         DecisionAgent::Web::Server.instance_variable_set(:@batch_test_storage, nil)
-        
+
         storage = DecisionAgent::Web::Server.batch_test_storage
         expect(storage).to be_a(Hash)
-        
+
         DecisionAgent::Web::Server.instance_variable_set(:@batch_test_storage, original_storage)
       end
     end
@@ -1799,10 +1799,10 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
       it "initializes mutex if nil" do
         original_mutex = DecisionAgent::Web::Server.instance_variable_get(:@batch_test_storage_mutex)
         DecisionAgent::Web::Server.instance_variable_set(:@batch_test_storage_mutex, nil)
-        
+
         mutex = DecisionAgent::Web::Server.batch_test_storage_mutex
         expect(mutex).to be_a(Mutex)
-        
+
         DecisionAgent::Web::Server.instance_variable_set(:@batch_test_storage_mutex, original_mutex)
       end
     end
