@@ -181,6 +181,56 @@ end
 config.force_ssl = true  # Enforce HTTPS
 ```
 
+### Disabling Permissions in Development
+
+For development environments, you can disable permission checks to simplify testing and development. **Note:** Authentication is still required; only permission checks are skipped.
+
+**Option 1: Automatic (Development Environment)**
+
+Permissions are automatically disabled when running in development mode:
+
+```bash
+# Development mode (permissions disabled automatically)
+RACK_ENV=development
+# or
+RAILS_ENV=development
+```
+
+**Option 2: Explicit Environment Variable**
+
+You can explicitly control permission checks using the `DISABLE_WEBUI_PERMISSIONS` environment variable:
+
+```bash
+# Disable permissions in any environment
+DISABLE_WEBUI_PERMISSIONS=true
+
+# Explicitly enable permissions (even in development)
+DISABLE_WEBUI_PERMISSIONS=false RACK_ENV=development
+```
+
+**In Rails:**
+
+Add to your `config/environments/development.rb`:
+
+```ruby
+# config/environments/development.rb
+ENV['DISABLE_WEBUI_PERMISSIONS'] = 'true'
+```
+
+Or use an initializer:
+
+```ruby
+# config/initializers/decision_agent_web.rb
+if Rails.env.development?
+  ENV['DISABLE_WEBUI_PERMISSIONS'] = 'true'
+end
+```
+
+**Security Notes:**
+- Authentication is still required - only permission checks are skipped
+- Production environments are safe by default (permissions enabled unless explicitly disabled)
+- Use this feature only in development/testing environments
+
 ## Troubleshooting
 
 ### UI Not Loading

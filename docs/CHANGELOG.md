@@ -79,6 +79,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       - `POST /api/versions` - Requires `:write` permission
       - `POST /api/versions/:version_id/activate` - Requires `:deploy` permission
       - `DELETE /api/versions/:version_id` - Requires `:delete` permission
+    - **Development Mode Configuration:**
+      - `DISABLE_WEBUI_PERMISSIONS` environment variable to disable permission checks in development
+      - Automatically disables permissions when `RACK_ENV` or `RAILS_ENV` is set to `development`
+      - Authentication is still required; only permission checks are skipped
+      - Production environments are safe by default (permissions enabled unless explicitly disabled)
+      - Useful for simplifying development and testing workflows
     - **Middleware:**
       - `AuthMiddleware` - Extracts and validates authentication tokens
       - `PermissionMiddleware` - Enforces permission checks on requests

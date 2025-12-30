@@ -100,7 +100,46 @@ module DecisionAgent
 
       # Main page - serve the rule builder UI
       get "/" do
-        send_file File.join(settings.public_folder, "index.html")
+        # Read the HTML file
+        html_file = File.join(settings.public_folder, "index.html")
+        unless File.exist?(html_file)
+          status 404
+          return "Index page not found"
+        end
+
+        html_content = File.read(html_file, encoding: "UTF-8")
+
+        # Determine the base path from the request
+        # When mounted in Rails, request.script_name contains the mount path
+        base_path = request.script_name.empty? ? "./" : "#{request.script_name}/"
+
+        # Inject or update base tag
+        base_tag = "<base href=\"#{base_path}\">"
+        html_content = if html_content.include?("<base")
+                         # Replace existing base tag
+                         html_content.sub(/<base[^>]*>/, base_tag)
+                       else
+                         # Insert base tag after <head>
+                         html_content.sub("<head>", "<head>\n    #{base_tag}")
+                       end
+
+        content_type "text/html"
+        html_content
+      rescue StandardError => e
+        status 500
+        content_type "text/html"
+        "Error loading page: #{e.message}"
+      end
+
+      # Serve static assets explicitly (needed when mounted in Rails)
+      get "/styles.css" do
+        content_type "text/css"
+        send_file File.join(settings.public_folder, "styles.css")
+      end
+
+      get "/app.js" do
+        content_type "application/javascript"
+        send_file File.join(settings.public_folder, "app.js")
       end
 
       # API: Validate rules
@@ -1147,7 +1186,14 @@ module DecisionAgent
       end
 
       def require_permission!(permission, resource = nil)
+        # Always require authentication first
         require_authentication!
+
+        # Skip permission checks if disabled via environment variable
+        # Useful for development environments
+        # This allows authenticated users to bypass permission checks
+        return true if permissions_disabled?
+
         checker = self.class.permission_checker
         unless checker.can?(@current_user, permission, resource)
           begin
@@ -1177,6 +1223,21 @@ module DecisionAgent
         rescue StandardError
           # If logging fails, continue - permission was granted
         end
+      end
+
+      def permissions_disabled?
+        # Check explicit environment variable first
+        # Make it case-insensitive and handle whitespace
+        disable_flag = ENV.fetch("DISABLE_WEBUI_PERMISSIONS", nil)
+        if disable_flag
+          normalized = disable_flag.to_s.strip.downcase
+          return true if %w[true 1 yes].include?(normalized)
+          return false if %w[false 0 no].include?(normalized)
+        end
+
+        # Auto-disable in development environments if not explicitly set
+        env = ENV["RACK_ENV"] || ENV["RAILS_ENV"] || "development"
+        env == "development"
       end
 
       def parse_validation_errors(error_message)
