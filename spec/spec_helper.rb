@@ -16,7 +16,9 @@ rescue LoadError
 end
 
 # Store original value for cleanup
+# rubocop:disable Style/GlobalVars
 $original_disable_webui_permissions = nil
+# rubocop:enable Style/GlobalVars
 
 RSpec.configure do |config|
   config.expect_with :rspec do |expectations|
@@ -40,15 +42,19 @@ RSpec.configure do |config|
 
   # Ensure permissions are enabled for tests
   config.before(:suite) do
-    $original_disable_webui_permissions = ENV["DISABLE_WEBUI_PERMISSIONS"]
+    # rubocop:disable Style/GlobalVars
+    $original_disable_webui_permissions = ENV.fetch("DISABLE_WEBUI_PERMISSIONS", nil)
+    # rubocop:enable Style/GlobalVars
     ENV["DISABLE_WEBUI_PERMISSIONS"] = "false"
   end
 
   config.after(:suite) do
+    # rubocop:disable Style/GlobalVars
     if $original_disable_webui_permissions
       ENV["DISABLE_WEBUI_PERMISSIONS"] = $original_disable_webui_permissions
     else
       ENV.delete("DISABLE_WEBUI_PERMISSIONS")
     end
+    # rubocop:enable Style/GlobalVars
   end
 end
