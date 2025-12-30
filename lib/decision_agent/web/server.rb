@@ -1176,7 +1176,15 @@ module DecisionAgent
       end
 
       def require_permission!(permission, resource = nil)
+        # Skip permission checks if disabled via environment variable
+        # Useful for development environments
+        # Check this FIRST before requiring authentication
+        if permissions_disabled?
+          return true
+        end
+        
         require_authentication!
+        
         checker = self.class.permission_checker
         unless checker.can?(@current_user, permission, resource)
           begin
@@ -1206,6 +1214,21 @@ module DecisionAgent
         rescue StandardError
           # If logging fails, continue - permission was granted
         end
+      end
+      
+      def permissions_disabled?
+        # Check explicit environment variable first
+        # Make it case-insensitive and handle whitespace
+        disable_flag = ENV["DISABLE_WEBUI_PERMISSIONS"]
+        if disable_flag
+          normalized = disable_flag.to_s.strip.downcase
+          return true if normalized == "true" || normalized == "1" || normalized == "yes"
+          return false if normalized == "false" || normalized == "0" || normalized == "no"
+        end
+        
+        # Auto-disable in development environments if not explicitly set
+        env = ENV["RACK_ENV"] || ENV["RAILS_ENV"] || "development"
+        env == "development"
       end
 
       def parse_validation_errors(error_message)
