@@ -1206,10 +1206,12 @@ module DecisionAgent
             )
           rescue StandardError
             # If logging fails, continue with permission denial
-          ensure
-            content_type :json
-            halt 403, { error: "Permission denied: #{permission}" }.to_json
           end
+          # Move halt outside ensure block - Ruby 3.1 compatibility
+          # Placing halt here instead of ensure block fixes Ruby 3.1 issue where
+          # halt inside ensure doesn't reliably stop execution
+          content_type :json
+          halt 403, { error: "Permission denied: #{permission}" }.to_json
         end
 
         begin
