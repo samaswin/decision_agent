@@ -1,3 +1,5 @@
+require "set"
+
 module DecisionAgent
   module Dsl
     # Evaluates conditions in the rule DSL against a context
@@ -15,9 +17,13 @@ module DecisionAgent
       @path_cache_mutex = Mutex.new
       @date_cache = {}
       @date_cache_mutex = Mutex.new
+      @geospatial_cache = {}
+      @geospatial_cache_mutex = Mutex.new
+      @param_cache = {}
+      @param_cache_mutex = Mutex.new
 
       class << self
-        attr_reader :regex_cache, :path_cache, :date_cache
+        attr_reader :regex_cache, :path_cache, :date_cache, :geospatial_cache, :param_cache
       end
 
       def self.evaluate(condition, context)
@@ -171,7 +177,9 @@ module DecisionAgent
           return false unless actual_value.is_a?(Numeric)
           return false unless expected_value.is_a?(Numeric)
 
-          Math.sin(actual_value).round(10) == expected_value.round(10)
+          # Optimize: Use epsilon comparison instead of round for better performance
+          result = Math.sin(actual_value)
+          (result - expected_value).abs < 1e-10
 
         when "cos"
           # Checks if cos(field_value) equals expected_value
@@ -179,7 +187,9 @@ module DecisionAgent
           return false unless actual_value.is_a?(Numeric)
           return false unless expected_value.is_a?(Numeric)
 
-          Math.cos(actual_value).round(10) == expected_value.round(10)
+          # Optimize: Use epsilon comparison instead of round for better performance
+          result = Math.cos(actual_value)
+          (result - expected_value).abs < 1e-10
 
         when "tan"
           # Checks if tan(field_value) equals expected_value
@@ -187,7 +197,9 @@ module DecisionAgent
           return false unless actual_value.is_a?(Numeric)
           return false unless expected_value.is_a?(Numeric)
 
-          Math.tan(actual_value).round(10) == expected_value.round(10)
+          # Optimize: Use epsilon comparison instead of round for better performance
+          result = Math.tan(actual_value)
+          (result - expected_value).abs < 1e-10
 
         # Exponential and logarithmic functions
         when "sqrt"
@@ -197,7 +209,9 @@ module DecisionAgent
           return false unless expected_value.is_a?(Numeric)
           return false if actual_value.negative? # sqrt of negative number is invalid
 
-          Math.sqrt(actual_value).round(10) == expected_value.round(10)
+          # Optimize: Use epsilon comparison instead of round for better performance
+          result = Math.sqrt(actual_value)
+          (result - expected_value).abs < 1e-10
 
         when "power"
           # Checks if power(field_value, exponent) equals result
@@ -207,7 +221,9 @@ module DecisionAgent
           params = parse_power_params(expected_value)
           return false unless params
 
-          (actual_value**params[:exponent]).round(10) == params[:result].round(10)
+          # Optimize: Use epsilon comparison instead of round for better performance
+          result = actual_value**params[:exponent]
+          (result - params[:result]).abs < 1e-10
 
         when "exp"
           # Checks if exp(field_value) equals expected_value
@@ -215,7 +231,9 @@ module DecisionAgent
           return false unless actual_value.is_a?(Numeric)
           return false unless expected_value.is_a?(Numeric)
 
-          Math.exp(actual_value).round(10) == expected_value.round(10)
+          # Optimize: Use epsilon comparison instead of round for better performance
+          result = Math.exp(actual_value)
+          (result - expected_value).abs < 1e-10
 
         when "log"
           # Checks if log(field_value) equals expected_value
@@ -224,7 +242,9 @@ module DecisionAgent
           return false unless expected_value.is_a?(Numeric)
           return false if actual_value <= 0 # log of non-positive number is invalid
 
-          Math.log(actual_value).round(10) == expected_value.round(10)
+          # Optimize: Use epsilon comparison instead of round for better performance
+          result = Math.log(actual_value)
+          (result - expected_value).abs < 1e-10
 
         # Rounding and absolute value functions
         when "round"
@@ -285,10 +305,17 @@ module DecisionAgent
           return false unless actual_value.is_a?(Array)
           return false if actual_value.empty?
 
-          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
-          return false if numeric_array.empty?
+          # Optimize: calculate sum in single pass, filtering as we go
+          sum_value = 0.0
+          found_numeric = false
+          actual_value.each do |v|
+            if v.is_a?(Numeric)
+              sum_value += v
+              found_numeric = true
+            end
+          end
+          return false unless found_numeric
 
-          sum_value = numeric_array.sum
           compare_aggregation_result(sum_value, expected_value)
 
         when "average", "mean"
@@ -296,10 +323,18 @@ module DecisionAgent
           return false unless actual_value.is_a?(Array)
           return false if actual_value.empty?
 
-          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
-          return false if numeric_array.empty?
+          # Optimize: calculate sum and count in single pass
+          sum_value = 0.0
+          count = 0
+          actual_value.each do |v|
+            if v.is_a?(Numeric)
+              sum_value += v
+              count += 1
+            end
+          end
+          return false if count.zero?
 
-          avg_value = numeric_array.sum.to_f / numeric_array.size
+          avg_value = sum_value / count
           compare_aggregation_result(avg_value, expected_value)
 
         when "median"
@@ -677,6 +712,7 @@ module DecisionAgent
           return false unless actual_value.is_a?(Array)
           return false if actual_value.empty?
 
+          # Optimize: filter once and reuse
           numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
           return false if numeric_array.empty?
 
@@ -686,7 +722,9 @@ module DecisionAgent
           window = [params[:window], numeric_array.size].min
           return false if window < 1
 
-          moving_avg = numeric_array.last(window).sum.to_f / window
+          # Optimize: use slice instead of last for better performance
+          window_array = numeric_array.slice(-window, window)
+          moving_avg = window_array.sum.to_f / window
           compare_moving_window_result(moving_avg, params)
 
         when "moving_sum"
@@ -703,7 +741,9 @@ module DecisionAgent
           window = [params[:window], numeric_array.size].min
           return false if window < 1
 
-          moving_sum = numeric_array.last(window).sum
+          # Optimize: use slice instead of last
+          window_array = numeric_array.slice(-window, window)
+          moving_sum = window_array.sum
           compare_moving_window_result(moving_sum, params)
 
         when "moving_max"
@@ -720,7 +760,9 @@ module DecisionAgent
           window = [params[:window], numeric_array.size].min
           return false if window < 1
 
-          moving_max = numeric_array.last(window).max
+          # Optimize: use slice instead of last, iterate directly for max
+          window_array = numeric_array.slice(-window, window)
+          moving_max = window_array.max
           compare_moving_window_result(moving_max, params)
 
         when "moving_min"
@@ -737,7 +779,9 @@ module DecisionAgent
           window = [params[:window], numeric_array.size].min
           return false if window < 1
 
-          moving_min = numeric_array.last(window).min
+          # Optimize: use slice instead of last
+          window_array = numeric_array.slice(-window, window)
+          moving_min = window_array.min
           compare_moving_window_result(moving_min, params)
 
         # FINANCIAL CALCULATIONS
@@ -864,32 +908,52 @@ module DecisionAgent
           # expected_value should be an array
           return false unless actual_value.is_a?(Array)
           return false unless expected_value.is_a?(Array)
+          return true if expected_value.empty?
 
-          expected_value.all? { |item| actual_value.include?(item) }
+          # Optimize: Use Set for O(1) lookups instead of O(n) include?
+          # For small arrays, Set overhead is minimal; for large arrays, huge win
+          actual_set = actual_value.to_set
+          expected_value.all? { |item| actual_set.include?(item) }
 
         when "contains_any"
           # Checks if array contains any of the specified elements
           # expected_value should be an array
           return false unless actual_value.is_a?(Array)
           return false unless expected_value.is_a?(Array)
+          return false if expected_value.empty?
 
-          expected_value.any? { |item| actual_value.include?(item) }
+          # Optimize: Use Set for O(1) lookups instead of O(n) include?
+          # Early exit on first match for better performance
+          actual_set = actual_value.to_set
+          expected_value.any? { |item| actual_set.include?(item) }
 
         when "intersects"
           # Checks if two arrays have any common elements
           # expected_value should be an array
           return false unless actual_value.is_a?(Array)
           return false unless expected_value.is_a?(Array)
+          return false if actual_value.empty? || expected_value.empty?
 
-          !(actual_value & expected_value).empty?
+          # Optimize: Use Set intersection for O(n) instead of array & which creates intermediate array
+          # Check smaller array against larger set for better performance
+          if actual_value.size <= expected_value.size
+            expected_set = expected_value.to_set
+            actual_value.any? { |item| expected_set.include?(item) }
+          else
+            actual_set = actual_value.to_set
+            expected_value.any? { |item| actual_set.include?(item) }
+          end
 
         when "subset_of"
           # Checks if array is a subset of another array
           # All elements in actual_value must be in expected_value
           return false unless actual_value.is_a?(Array)
           return false unless expected_value.is_a?(Array)
+          return true if actual_value.empty?
 
-          actual_value.all? { |item| expected_value.include?(item) }
+          # Optimize: Use Set for O(1) lookups instead of O(n) include?
+          expected_set = expected_value.to_set
+          actual_value.all? { |item| expected_set.include?(item) }
 
         # GEOSPATIAL OPERATORS
         when "within_radius"
@@ -902,7 +966,8 @@ module DecisionAgent
           params = parse_radius_params(expected_value)
           return false unless params
 
-          distance = haversine_distance(point, params[:center])
+          # Cache geospatial distance calculations
+          distance = get_cached_distance(point, params[:center])
           distance <= params[:radius]
 
         when "in_polygon"
@@ -939,7 +1004,16 @@ module DecisionAgent
         keys.reduce(hash) do |memo, key|
           return nil unless memo.is_a?(Hash)
 
-          memo[key] || memo[key.to_sym]
+          # Optimize: try symbol first (most common), then string
+          # Check key existence first to avoid double lookup
+          key_sym = key.to_sym
+          if memo.key?(key_sym)
+            memo[key_sym]
+          elsif memo.key?(key)
+            memo[key]
+          else
+            nil
+          end
         end
       end
 
@@ -961,9 +1035,24 @@ module DecisionAgent
       # Parse range for 'between' operator
       # Accepts [min, max] or {min: x, max: y}
       def self.parse_range(value)
+        # Generate cache key from normalized value
+        cache_key = normalize_param_cache_key(value, "range")
+        
+        # Fast path: check cache without lock
+        cached = @param_cache[cache_key]
+        return cached if cached
+
+        # Slow path: parse and cache
+        @param_cache_mutex.synchronize do
+          @param_cache[cache_key] ||= parse_range_impl(value)
+        end
+      end
+
+      def self.parse_range_impl(value)
         if value.is_a?(Array) && value.size == 2
           { min: value[0], max: value[1] }
         elsif value.is_a?(Hash)
+          # Normalize keys to symbols for consistency
           min = value["min"] || value[:min]
           max = value["max"] || value[:max]
           return nil unless min && max
@@ -975,9 +1064,24 @@ module DecisionAgent
       # Parse modulo parameters
       # Accepts [divisor, remainder] or {divisor: x, remainder: y}
       def self.parse_modulo_params(value)
+        # Generate cache key from normalized value
+        cache_key = normalize_param_cache_key(value, "modulo")
+        
+        # Fast path: check cache without lock
+        cached = @param_cache[cache_key]
+        return cached if cached
+
+        # Slow path: parse and cache
+        @param_cache_mutex.synchronize do
+          @param_cache[cache_key] ||= parse_modulo_params_impl(value)
+        end
+      end
+
+      def self.parse_modulo_params_impl(value)
         if value.is_a?(Array) && value.size == 2
           { divisor: value[0], remainder: value[1] }
         elsif value.is_a?(Hash)
+          # Normalize keys to symbols for consistency
           divisor = value["divisor"] || value[:divisor]
           remainder = value["remainder"] || value[:remainder]
           return nil unless divisor && !remainder.nil?
@@ -1013,9 +1117,18 @@ module DecisionAgent
       end
 
       # Compare two dates with given operator
+      # Optimized: Early return if values are already Time/Date objects
       def self.compare_dates(actual_value, expected_value, operator)
         return false unless actual_value && expected_value
 
+        # Fast path: Both are already Time/Date objects (no parsing needed)
+        if actual_value.is_a?(Time) || actual_value.is_a?(Date) || actual_value.is_a?(DateTime)
+          if expected_value.is_a?(Time) || expected_value.is_a?(Date) || expected_value.is_a?(DateTime)
+            return actual_value.send(operator, expected_value)
+          end
+        end
+
+        # Slow path: Parse dates (with caching)
         actual_date = parse_date(actual_value)
         expected_date = parse_date(expected_value)
 
@@ -1102,6 +1215,27 @@ module DecisionAgent
         c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 
         earth_radius_km * c
+      end
+
+      # Get cached distance between two points (with precision rounding for cache key)
+      def self.get_cached_distance(point1, point2)
+        # Round coordinates to 4 decimal places (~11m precision) for cache key
+        # This balances cache hit rate with precision
+        key = [
+          point1[:lat].round(4),
+          point1[:lon].round(4),
+          point2[:lat].round(4),
+          point2[:lon].round(4)
+        ].join(",")
+
+        # Fast path: check cache without lock
+        cached = @geospatial_cache[key]
+        return cached if cached
+
+        # Slow path: calculate and cache
+        @geospatial_cache_mutex.synchronize do
+          @geospatial_cache[key] ||= haversine_distance(point1, point2)
+        end
       end
 
       # Check if point is inside polygon using ray casting algorithm
@@ -1411,7 +1545,7 @@ module DecisionAgent
         end
       end
 
-      # Get cached parsed date
+      # Get cached parsed date with fast-path for common formats
       def self.get_cached_date(date_string)
         # Fast path: check cache without lock
         cached = @date_cache[date_string]
@@ -1419,8 +1553,35 @@ module DecisionAgent
 
         # Slow path: parse and cache
         @date_cache_mutex.synchronize do
-          @date_cache[date_string] ||= Time.parse(date_string)
+          @date_cache[date_string] ||= parse_date_fast(date_string)
         end
+      end
+
+      # Fast-path date parsing for common formats (ISO8601, etc.)
+      # Falls back to Time.parse for other formats
+      def self.parse_date_fast(date_string)
+        return nil unless date_string.is_a?(String)
+
+        # Fast-path: ISO8601 date format (YYYY-MM-DD)
+        if date_string.match?(/^\d{4}-\d{2}-\d{2}$/)
+          year, month, day = date_string.split("-").map(&:to_i)
+          return Time.new(year, month, day) rescue nil
+        end
+
+        # Fast-path: ISO8601 datetime format (YYYY-MM-DDTHH:MM:SS or YYYY-MM-DDTHH:MM:SSZ)
+        if date_string.match?(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
+          begin
+            # Try ISO8601 parsing first (faster than Time.parse for this format)
+            return Time.iso8601(date_string)
+          rescue ArgumentError
+            # Fall through to Time.parse
+          end
+        end
+
+        # Fallback to Time.parse for other formats
+        Time.parse(date_string)
+      rescue ArgumentError, TypeError
+        nil
       end
 
       # Clear all caches (useful for testing or memory management)
@@ -1428,6 +1589,8 @@ module DecisionAgent
         @regex_cache_mutex.synchronize { @regex_cache.clear }
         @path_cache_mutex.synchronize { @path_cache.clear }
         @date_cache_mutex.synchronize { @date_cache.clear }
+        @geospatial_cache_mutex.synchronize { @geospatial_cache.clear }
+        @param_cache_mutex.synchronize { @param_cache.clear }
       end
 
       # Get cache statistics
@@ -1435,8 +1598,29 @@ module DecisionAgent
         {
           regex_cache_size: @regex_cache.size,
           path_cache_size: @path_cache.size,
-          date_cache_size: @date_cache.size
+          date_cache_size: @date_cache.size,
+          geospatial_cache_size: @geospatial_cache.size,
+          param_cache_size: @param_cache.size
         }
+      end
+
+      # Normalize parameter value for cache key generation
+      # Converts hash keys to symbols for consistency
+      def self.normalize_param_cache_key(value, prefix)
+        case value
+        when Array
+          "#{prefix}:#{value.inspect}"
+        when Hash
+          # Normalize keys to symbols and sort for consistent cache keys
+          normalized = value.each_with_object({}) do |(k, v), h|
+            key = k.is_a?(String) ? k.to_sym : k
+            h[key] = v
+          end
+          sorted_keys = normalized.keys.sort
+          "#{prefix}:#{sorted_keys.map { |k| "#{k}:#{normalized[k]}" }.join(",")}"
+        else
+          "#{prefix}:#{value.inspect}"
+        end
       end
       # rubocop:enable Metrics/ClassLength
     end

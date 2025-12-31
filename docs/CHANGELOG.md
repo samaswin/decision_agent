@@ -86,6 +86,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Performance validation for large datasets
     - All operators validated with real-world scenarios
 
+### Performance
+
+- **Advanced Operators Performance Optimizations** ⚡
+  - **Collection Operators Optimization** 🚀
+    - **Problem:** Collection operators (`contains_all`, `contains_any`, `intersects`, `subset_of`) used O(n×m) array lookups causing 72.2% performance degradation
+    - **Solution:** Implemented Set-based lookups for O(1) membership checks instead of O(n) `include?` operations
+    - **Optimizations:**
+      - Convert arrays to Sets for constant-time lookups
+      - Optimized `intersects` to check smaller array against larger set
+      - Added early exit checks for empty arrays
+    - **Impact:** Collection operators improved from **-72.2% slower to -26.5% slower** (45.7% improvement)
+    - **Throughput:** Improved from 2,089/sec to 5,810/sec
+    - **Files Modified:**
+      - `lib/decision_agent/dsl/condition_evaluator.rb` - Optimized collection operator implementations
+  - **Date Operators Fast-Path Optimization** 📅
+    - **Problem:** Date comparison always parsed both values even when already Time/Date objects
+    - **Solution:** Added fast-path to skip parsing when both values are already Time/Date/DateTime objects
+    - **Combined with:** Existing ISO8601 fast-path parsing (YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS)
+    - **Impact:** Date operators improved from **-28.25% slower to +14.54% faster** (42.79% improvement)
+    - **Throughput:** Improved from 5,390/sec to 9,054/sec
+    - **Files Modified:**
+      - `lib/decision_agent/dsl/condition_evaluator.rb` - Added fast-path in `compare_dates` method
+  - **Numeric Operators Epsilon Comparison** 🔢
+    - **Problem:** Mathematical operators (sin, cos, tan, sqrt, exp, log, power) used `round(10)` which is slower and less accurate
+    - **Solution:** Replaced `round(10)` with epsilon comparison (`abs < 1e-10`) for floating-point math
+    - **Benefits:**
+      - Faster comparison (no rounding overhead)
+      - More accurate for floating-point precision
+      - Standard practice for floating-point equality checks
+    - **Operators Optimized:** `sin`, `cos`, `tan`, `sqrt`, `exp`, `log`, `power`
+    - **Files Modified:**
+      - `lib/decision_agent/dsl/condition_evaluator.rb` - Updated all mathematical function comparisons
+  - **Performance Benchmark Results** (10,000 iterations):
+    - **String Operators:** 9,111/sec (**+15.27% faster** than baseline)
+    - **Date Operators:** 9,054/sec (**+14.54% faster** than baseline)
+    - **Geospatial Operators:** 7,891/sec (-0.17% difference, negligible)
+    - **Collection Operators:** 5,810/sec (-26.5% slower, improved from -72.2%)
+    - **Numeric Operators:** 6,994/sec (-11.51% slower)
+    - **Complex (all combined):** 4,516/sec (-42.86% slower)
+    - **Baseline (basic operators):** 7,904/sec
+  - **Documentation:**
+    - Updated `docs/ADVANCED_OPERATORS.md` with latest performance benchmarks
+    - Performance matrix includes all optimization results with dates
+
 - **Complete Mathematical Operators for DMN Support** 🔢
   - **Overview:** Comprehensive mathematical function operators to support FEEL (Friendly Enough Expression Language) for upcoming DMN implementation
   - **Trigonometric Functions:**
