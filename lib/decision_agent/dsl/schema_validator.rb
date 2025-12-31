@@ -7,7 +7,17 @@ module DecisionAgent
         eq neq gt gte lt lte in present blank
         contains starts_with ends_with matches
         between modulo
+        sin cos tan sqrt power exp log
+        round floor ceil abs
+        min max sum average mean median stddev standard_deviation variance percentile count
         before_date after_date within_days day_of_week
+        duration_seconds duration_minutes duration_hours duration_days
+        add_days subtract_days add_hours subtract_hours add_minutes subtract_minutes
+        hour_of_day day_of_month month year week_of_year
+        rate_per_second rate_per_minute rate_per_hour
+        moving_average moving_sum moving_max moving_min
+        compound_interest present_value future_value payment
+        join length
         contains_all contains_any intersects subset_of
         within_radius in_polygon
       ].freeze

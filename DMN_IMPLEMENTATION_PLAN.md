@@ -38,17 +38,17 @@ This document outlines the implementation plan for adding **DMN 1.3** (Decision 
 **Remaining Work**:
 - ✅ `between` operator (exists)
 - ✅ `modulo` operator (exists)
-- ❌ `sin`, `cos`, `tan` - trigonometric functions
-- ❌ `sqrt`, `power`, `exp`, `log` - exponential functions
-- ❌ `round`, `floor`, `ceil`, `abs` - rounding and absolute value
-- ❌ `min`, `max` - aggregation functions (may already exist in collections)
+- ✅ `sin`, `cos`, `tan` - trigonometric functions
+- ✅ `sqrt`, `power`, `exp`, `log` - exponential functions
+- ✅ `round`, `floor`, `ceil`, `abs` - rounding and absolute value
+- ✅ `min`, `max` - aggregation functions
 
-**Files to Modify**:
-- `lib/decision_agent/dsl/condition_evaluator.rb` - Add operator implementations
-- `lib/decision_agent/evaluators/json_rule_evaluator.rb` - Register new operators
-- `spec/advanced_operators_spec.rb` - Add comprehensive tests
+**Files Modified**:
+- ✅ `lib/decision_agent/dsl/condition_evaluator.rb` - Added operator implementations
+- ✅ `lib/decision_agent/dsl/schema_validator.rb` - Registered new operators in schema validator
+- ✅ `spec/advanced_operators_spec.rb` - Added comprehensive tests
 
-**Deliverable**: All mathematical operators implemented and tested before DMN work begins.
+**Status**: ✅ **COMPLETE** - All mathematical operators implemented and tested. Ready for DMN work to begin.
 
 ---
 

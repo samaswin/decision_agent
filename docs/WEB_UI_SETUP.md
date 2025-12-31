@@ -54,7 +54,6 @@ decision_agent/
 First, install Sinatra:
 
 ```bash
-cd /Users/ashwin.raj/git/internal/decision_agent
 bundle add sinatra
 ```
 
@@ -323,7 +322,7 @@ chmod +x bin/decision_agent
 Add to your application's Gemfile:
 
 ```ruby
-gem 'decision_agent', path: '/Users/ashwin.raj/git/internal/decision_agent'
+gem 'decision_agent'
 ```
 
 Then:

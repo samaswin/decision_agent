@@ -275,6 +275,234 @@ Checks if a value modulo a divisor equals a specified remainder.
 
 ---
 
+## Statistical Aggregations
+
+### `sum`
+
+Calculates the sum of numeric array elements.
+
+**Syntax:**
+```json
+{
+  "field": "transaction.amounts",
+  "op": "sum",
+  "value": 1000
+}
+```
+
+**Syntax (with comparison):**
+```json
+{
+  "field": "prices",
+  "op": "sum",
+  "value": { "min": 50, "max": 150 }
+}
+```
+
+**Example:**
+```json
+{
+  "id": "total_amount_check",
+  "if": {
+    "field": "order.items.prices",
+    "op": "sum",
+    "value": { "gte": 100 }
+  },
+  "then": {
+    "decision": "free_shipping",
+    "weight": 1.0,
+    "reason": "Order total exceeds $100"
+  }
+}
+```
+
+**Behavior:**
+- Field must be an array
+- Only numeric values are included in calculation
+- Returns `false` if array is empty or contains no numeric values
+- Supports direct comparison or hash with comparison operators (`min`, `max`, `gt`, `lt`, `gte`, `lte`, `eq`)
+
+---
+
+### `average` / `mean`
+
+Calculates the average (mean) of numeric array elements.
+
+**Syntax:**
+```json
+{
+  "field": "response_times",
+  "op": "average",
+  "value": 150
+}
+```
+
+**Example:**
+```json
+{
+  "id": "latency_check",
+  "if": {
+    "field": "api.response_times",
+    "op": "average",
+    "value": { "lt": 200 }
+  },
+  "then": {
+    "decision": "acceptable_latency",
+    "weight": 0.9
+  }
+}
+```
+
+---
+
+### `median`
+
+Calculates the median value of a numeric array.
+
+**Syntax:**
+```json
+{
+  "field": "scores",
+  "op": "median",
+  "value": 75
+}
+```
+
+**Example:**
+```json
+{
+  "id": "median_score_check",
+  "if": {
+    "field": "test.scores",
+    "op": "median",
+    "value": { "gte": 70 }
+  },
+  "then": {
+    "decision": "passing_grade",
+    "weight": 0.8
+  }
+}
+```
+
+---
+
+### `stddev` / `standard_deviation`
+
+Calculates the standard deviation of a numeric array.
+
+**Syntax:**
+```json
+{
+  "field": "latencies",
+  "op": "stddev",
+  "value": { "lt": 50 }
+}
+```
+
+**Example:**
+```json
+{
+  "id": "consistency_check",
+  "if": {
+    "field": "performance.metrics",
+    "op": "stddev",
+    "value": { "lt": 25 }
+  },
+  "then": {
+    "decision": "stable_performance",
+    "weight": 0.9
+  }
+}
+```
+
+**Behavior:**
+- Requires at least 2 numeric values
+- Returns `false` if array has fewer than 2 numeric elements
+
+---
+
+### `variance`
+
+Calculates the variance of a numeric array.
+
+**Syntax:**
+```json
+{
+  "field": "scores",
+  "op": "variance",
+  "value": { "lt": 100 }
+}
+```
+
+---
+
+### `percentile`
+
+Calculates the Nth percentile of a numeric array.
+
+**Syntax:**
+```json
+{
+  "field": "response_times",
+  "op": "percentile",
+  "value": { "percentile": 95, "threshold": 200 }
+}
+```
+
+**Example:**
+```json
+{
+  "id": "p95_latency_alert",
+  "if": {
+    "field": "api.response_times",
+    "op": "percentile",
+    "value": { "percentile": 95, "gt": 500 }
+  },
+  "then": {
+    "decision": "high_latency_alert",
+    "weight": 0.95
+  }
+}
+```
+
+**Supported Parameters:**
+- `percentile`: Number between 0-100 (required)
+- `threshold`: Direct comparison value
+- `gt`, `lt`, `gte`, `lte`, `eq`: Comparison operators
+
+---
+
+### `count`
+
+Counts the number of elements in an array.
+
+**Syntax:**
+```json
+{
+  "field": "errors",
+  "op": "count",
+  "value": { "gte": 10 }
+}
+```
+
+**Example:**
+```json
+{
+  "id": "error_threshold",
+  "if": {
+    "field": "recent_errors",
+    "op": "count",
+    "value": { "gte": 5 }
+  },
+  "then": {
+    "decision": "alert_required",
+    "weight": 1.0
+  }
+}
+```
+
+---
+
 ## Date/Time Operators
 
 All date/time operators accept dates in multiple formats:
@@ -428,6 +656,400 @@ Checks if a date falls on a specified day of the week.
 - **Strings:** `"sunday"`, `"monday"`, `"tuesday"`, `"wednesday"`, `"thursday"`, `"friday"`, `"saturday"`
 - **Abbreviations:** `"sun"`, `"mon"`, `"tue"`, `"wed"`, `"thu"`, `"fri"`, `"sat"`
 - **Numbers:** `0` (Sunday) through `6` (Saturday)
+
+---
+
+## Duration Calculations
+
+### `duration_seconds`
+
+Calculates the duration between two dates in seconds.
+
+**Syntax:**
+```json
+{
+  "field": "session.start_time",
+  "op": "duration_seconds",
+  "value": { "end": "now", "max": 3600 }
+}
+```
+
+**Example:**
+```json
+{
+  "id": "session_timeout",
+  "if": {
+    "field": "session.last_activity",
+    "op": "duration_seconds",
+    "value": { "end": "now", "gt": 1800 }
+  },
+  "then": {
+    "decision": "session_expired",
+    "weight": 1.0
+  }
+}
+```
+
+**Parameters:**
+- `end`: `"now"` or a field path (e.g., `"session.end_time"`)
+- `min`, `max`, `gt`, `lt`, `gte`, `lte`: Comparison operators
+
+---
+
+### `duration_minutes`, `duration_hours`, `duration_days`
+
+Similar to `duration_seconds` but returns duration in minutes, hours, or days respectively.
+
+**Example:**
+```json
+{
+  "field": "order.created_at",
+  "op": "duration_hours",
+  "value": { "end": "now", "gte": 24 }
+}
+```
+
+---
+
+## Date Arithmetic
+
+### `add_days`
+
+Adds days to a date and compares the result.
+
+**Syntax:**
+```json
+{
+  "field": "order.created_at",
+  "op": "add_days",
+  "value": { "days": 7, "compare": "lt", "target": "now" }
+}
+```
+
+**Example:**
+```json
+{
+  "id": "trial_expiring_soon",
+  "if": {
+    "field": "trial.started_at",
+    "op": "add_days",
+    "value": { "days": 7, "compare": "lte", "target": "now" }
+  },
+  "then": {
+    "decision": "trial_expiring",
+    "weight": 0.9
+  }
+}
+```
+
+**Parameters:**
+- `days`: Number of days to add
+- `target`: `"now"` or a field path
+- `compare`: Comparison operator (`"eq"`, `"gt"`, `"lt"`, `"gte"`, `"lte"`)
+- Or use direct operators: `eq`, `gt`, `lt`, `gte`, `lte`
+
+---
+
+### `subtract_days`, `add_hours`, `subtract_hours`, `add_minutes`, `subtract_minutes`
+
+Similar to `add_days` but for subtracting days or adding/subtracting hours/minutes.
+
+**Example:**
+```json
+{
+  "field": "deadline",
+  "op": "subtract_hours",
+  "value": { "hours": 1, "compare": "gt", "target": "now" }
+}
+```
+
+---
+
+## Time Component Extraction
+
+### `hour_of_day`
+
+Extracts the hour of day (0-23) from a date.
+
+**Syntax:**
+```json
+{
+  "field": "event.timestamp",
+  "op": "hour_of_day",
+  "value": { "min": 9, "max": 17 }
+}
+```
+
+**Example:**
+```json
+{
+  "id": "business_hours",
+  "if": {
+    "field": "request.timestamp",
+    "op": "hour_of_day",
+    "value": { "gte": 9, "lte": 17 }
+  },
+  "then": {
+    "decision": "within_business_hours",
+    "weight": 1.0
+  }
+}
+```
+
+---
+
+### `day_of_month`, `month`, `year`, `week_of_year`
+
+Similar to `hour_of_day` but extracts day of month (1-31), month (1-12), year, or week of year (1-52).
+
+**Example:**
+```json
+{
+  "field": "event.date",
+  "op": "month",
+  "value": 12
+}
+```
+
+---
+
+## Rate Calculations
+
+### `rate_per_second`
+
+Calculates the rate per second from an array of timestamps.
+
+**Syntax:**
+```json
+{
+  "field": "request_timestamps",
+  "op": "rate_per_second",
+  "value": { "max": 10 }
+}
+```
+
+**Example:**
+```json
+{
+  "id": "rate_limit_check",
+  "if": {
+    "field": "user.recent_request_timestamps",
+    "op": "rate_per_second",
+    "value": { "max": 10 }
+  },
+  "then": {
+    "decision": "rate_limit_exceeded",
+    "weight": 1.0
+  }
+}
+```
+
+**Behavior:**
+- Field must be an array of timestamps
+- Requires at least 2 timestamps
+- Calculates rate as: `count / time_span_in_seconds`
+
+---
+
+### `rate_per_minute`, `rate_per_hour`
+
+Similar to `rate_per_second` but calculates rate per minute or per hour.
+
+---
+
+## Moving Window Calculations
+
+### `moving_average`
+
+Calculates the moving average over a specified window.
+
+**Syntax:**
+```json
+{
+  "field": "metrics.values",
+  "op": "moving_average",
+  "value": { "window": 5, "threshold": 100 }
+}
+```
+
+**Example:**
+```json
+{
+  "id": "trend_analysis",
+  "if": {
+    "field": "performance.metrics",
+    "op": "moving_average",
+    "value": { "window": 10, "gt": 50 }
+  },
+  "then": {
+    "decision": "increasing_trend",
+    "weight": 0.8
+  }
+}
+```
+
+**Parameters:**
+- `window`: Number of elements to include (required)
+- `threshold`, `gt`, `lt`, `gte`, `lte`, `eq`: Comparison operators
+
+---
+
+### `moving_sum`, `moving_max`, `moving_min`
+
+Similar to `moving_average` but calculates moving sum, max, or min over the window.
+
+---
+
+## Financial Calculations
+
+### `compound_interest`
+
+Calculates compound interest: `A = P(1 + r/n)^(nt)`
+
+**Syntax:**
+```json
+{
+  "field": "principal",
+  "op": "compound_interest",
+  "value": { "rate": 0.05, "periods": 12, "result": 1050 }
+}
+```
+
+**Example:**
+```json
+{
+  "id": "investment_check",
+  "if": {
+    "field": "investment.principal",
+    "op": "compound_interest",
+    "value": { "rate": 0.05, "periods": 12, "gt": 1000 }
+  },
+  "then": {
+    "decision": "profitable_investment",
+    "weight": 0.9
+  }
+}
+```
+
+**Parameters:**
+- `rate`: Interest rate (e.g., 0.05 for 5%)
+- `periods`: Number of compounding periods
+- `result`: Expected result (optional, for exact match)
+- `gt`, `lt`, `threshold`: Comparison operators
+
+---
+
+### `present_value`
+
+Calculates present value: `PV = FV / (1 + r)^n`
+
+**Syntax:**
+```json
+{
+  "field": "future_value",
+  "op": "present_value",
+  "value": { "rate": 0.05, "periods": 10, "result": 613.91 }
+}
+```
+
+---
+
+### `future_value`
+
+Calculates future value: `FV = PV * (1 + r)^n`
+
+**Syntax:**
+```json
+{
+  "field": "present_value",
+  "op": "future_value",
+  "value": { "rate": 0.05, "periods": 10, "result": 1628.89 }
+}
+```
+
+---
+
+### `payment`
+
+Calculates loan payment (PMT): `PMT = P * [r(1+r)^n] / [(1+r)^n - 1]`
+
+**Syntax:**
+```json
+{
+  "field": "loan.principal",
+  "op": "payment",
+  "value": { "rate": 0.05, "periods": 12, "result": 100 }
+}
+```
+
+---
+
+## String Aggregations
+
+### `join`
+
+Joins an array of strings with a separator.
+
+**Syntax:**
+```json
+{
+  "field": "tags",
+  "op": "join",
+  "value": { "separator": ",", "result": "tag1,tag2,tag3" }
+}
+```
+
+**Example:**
+```json
+{
+  "id": "tag_formatting",
+  "if": {
+    "field": "article.tags",
+    "op": "join",
+    "value": { "separator": ",", "contains": "important" }
+  },
+  "then": {
+    "decision": "has_important_tag",
+    "weight": 0.8
+  }
+}
+```
+
+**Parameters:**
+- `separator`: String to join with (default: `","`)
+- `result`: Expected joined string (for exact match)
+- `contains`: Substring to check for in joined string
+
+---
+
+### `length`
+
+Gets the length of a string or array.
+
+**Syntax:**
+```json
+{
+  "field": "description",
+  "op": "length",
+  "value": { "max": 500 }
+}
+```
+
+**Example:**
+```json
+{
+  "id": "description_length",
+  "if": {
+    "field": "product.description",
+    "op": "length",
+    "value": { "min": 10, "max": 500 }
+  },
+  "then": {
+    "decision": "valid_description",
+    "weight": 1.0
+  }
+}
+```
 
 ---
 

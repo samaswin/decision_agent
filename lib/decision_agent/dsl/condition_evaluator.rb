@@ -56,7 +56,8 @@ module DecisionAgent
         op = condition["op"]
         expected_value = condition["value"]
 
-        actual_value = get_nested_value(context.to_h, field)
+        context_hash = context.to_h
+        actual_value = get_nested_value(context_hash, field)
 
         case op
         when "eq"
@@ -161,6 +162,216 @@ module DecisionAgent
 
           (actual_value % params[:divisor]) == params[:remainder]
 
+        # MATHEMATICAL FUNCTIONS
+        # Trigonometric functions
+        when "sin"
+          # Checks if sin(field_value) equals expected_value
+          # expected_value is the expected result of sin(actual_value)
+          return false unless actual_value.is_a?(Numeric)
+          return false unless expected_value.is_a?(Numeric)
+
+          Math.sin(actual_value).round(10) == expected_value.round(10)
+
+        when "cos"
+          # Checks if cos(field_value) equals expected_value
+          # expected_value is the expected result of cos(actual_value)
+          return false unless actual_value.is_a?(Numeric)
+          return false unless expected_value.is_a?(Numeric)
+
+          Math.cos(actual_value).round(10) == expected_value.round(10)
+
+        when "tan"
+          # Checks if tan(field_value) equals expected_value
+          # expected_value is the expected result of tan(actual_value)
+          return false unless actual_value.is_a?(Numeric)
+          return false unless expected_value.is_a?(Numeric)
+
+          Math.tan(actual_value).round(10) == expected_value.round(10)
+
+        # Exponential and logarithmic functions
+        when "sqrt"
+          # Checks if sqrt(field_value) equals expected_value
+          # expected_value is the expected result of sqrt(actual_value)
+          return false unless actual_value.is_a?(Numeric)
+          return false unless expected_value.is_a?(Numeric)
+          return false if actual_value < 0 # sqrt of negative number is invalid
+
+          Math.sqrt(actual_value).round(10) == expected_value.round(10)
+
+        when "power"
+          # Checks if power(field_value, exponent) equals result
+          # expected_value should be [exponent, result] or {exponent: x, result: y}
+          return false unless actual_value.is_a?(Numeric)
+
+          params = parse_power_params(expected_value)
+          return false unless params
+
+          (actual_value**params[:exponent]).round(10) == params[:result].round(10)
+
+        when "exp"
+          # Checks if exp(field_value) equals expected_value
+          # expected_value is the expected result of exp(actual_value) (e^actual_value)
+          return false unless actual_value.is_a?(Numeric)
+          return false unless expected_value.is_a?(Numeric)
+
+          Math.exp(actual_value).round(10) == expected_value.round(10)
+
+        when "log"
+          # Checks if log(field_value) equals expected_value
+          # expected_value is the expected result of log(actual_value) (natural logarithm)
+          return false unless actual_value.is_a?(Numeric)
+          return false unless expected_value.is_a?(Numeric)
+          return false if actual_value <= 0 # log of non-positive number is invalid
+
+          Math.log(actual_value).round(10) == expected_value.round(10)
+
+        # Rounding and absolute value functions
+        when "round"
+          # Checks if round(field_value) equals expected_value
+          # expected_value is the expected result of round(actual_value)
+          return false unless actual_value.is_a?(Numeric)
+          return false unless expected_value.is_a?(Numeric)
+
+          actual_value.round == expected_value
+
+        when "floor"
+          # Checks if floor(field_value) equals expected_value
+          # expected_value is the expected result of floor(actual_value)
+          return false unless actual_value.is_a?(Numeric)
+          return false unless expected_value.is_a?(Numeric)
+
+          actual_value.floor == expected_value
+
+        when "ceil"
+          # Checks if ceil(field_value) equals expected_value
+          # expected_value is the expected result of ceil(actual_value)
+          return false unless actual_value.is_a?(Numeric)
+          return false unless expected_value.is_a?(Numeric)
+
+          actual_value.ceil == expected_value
+
+        when "abs"
+          # Checks if abs(field_value) equals expected_value
+          # expected_value is the expected result of abs(actual_value)
+          return false unless actual_value.is_a?(Numeric)
+          return false unless expected_value.is_a?(Numeric)
+
+          actual_value.abs == expected_value
+
+        # Aggregation functions
+        when "min"
+          # Checks if min(field_value) equals expected_value
+          # field_value should be an array, expected_value is the minimum value
+          return false unless actual_value.is_a?(Array)
+          return false if actual_value.empty?
+          return false unless expected_value.is_a?(Numeric)
+
+          actual_value.min == expected_value
+
+        when "max"
+          # Checks if max(field_value) equals expected_value
+          # field_value should be an array, expected_value is the maximum value
+          return false unless actual_value.is_a?(Array)
+          return false if actual_value.empty?
+          return false unless expected_value.is_a?(Numeric)
+
+          actual_value.max == expected_value
+
+        # STATISTICAL AGGREGATIONS
+        when "sum"
+          # Checks if sum of numeric array equals expected_value
+          # expected_value can be numeric or hash with comparison operators
+          return false unless actual_value.is_a?(Array)
+          return false if actual_value.empty?
+
+          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
+          return false if numeric_array.empty?
+
+          sum_value = numeric_array.sum
+          compare_aggregation_result(sum_value, expected_value)
+
+        when "average", "mean"
+          # Checks if average of numeric array equals expected_value
+          return false unless actual_value.is_a?(Array)
+          return false if actual_value.empty?
+
+          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
+          return false if numeric_array.empty?
+
+          avg_value = numeric_array.sum.to_f / numeric_array.size
+          compare_aggregation_result(avg_value, expected_value)
+
+        when "median"
+          # Checks if median of numeric array equals expected_value
+          return false unless actual_value.is_a?(Array)
+          return false if actual_value.empty?
+
+          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }.sort
+          return false if numeric_array.empty?
+
+          median_value = if numeric_array.size.odd?
+                           numeric_array[numeric_array.size / 2]
+                         else
+                           (numeric_array[numeric_array.size / 2 - 1] + numeric_array[numeric_array.size / 2]) / 2.0
+                         end
+          compare_aggregation_result(median_value, expected_value)
+
+        when "stddev", "standard_deviation"
+          # Checks if standard deviation of numeric array equals expected_value
+          return false unless actual_value.is_a?(Array)
+          return false if actual_value.size < 2
+
+          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
+          return false if numeric_array.size < 2
+
+          mean = numeric_array.sum.to_f / numeric_array.size
+          variance = numeric_array.sum { |v| (v - mean)**2 } / numeric_array.size
+          stddev_value = Math.sqrt(variance)
+          compare_aggregation_result(stddev_value, expected_value)
+
+        when "variance"
+          # Checks if variance of numeric array equals expected_value
+          return false unless actual_value.is_a?(Array)
+          return false if actual_value.size < 2
+
+          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
+          return false if numeric_array.size < 2
+
+          mean = numeric_array.sum.to_f / numeric_array.size
+          variance_value = numeric_array.sum { |v| (v - mean)**2 } / numeric_array.size
+          compare_aggregation_result(variance_value, expected_value)
+
+        when "percentile"
+          # Checks if Nth percentile of numeric array meets threshold
+          # expected_value: {percentile: 95, threshold: 200} or {percentile: 95, gt: 200, lt: 500}
+          return false unless actual_value.is_a?(Array)
+          return false if actual_value.empty?
+
+          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }.sort
+          return false if numeric_array.empty?
+
+          params = parse_percentile_params(expected_value)
+          return false unless params
+
+          percentile_index = (params[:percentile] / 100.0) * (numeric_array.size - 1)
+          percentile_value = if percentile_index == percentile_index.to_i
+                               numeric_array[percentile_index.to_i]
+                             else
+                               lower = numeric_array[percentile_index.floor]
+                               upper = numeric_array[percentile_index.ceil]
+                               lower + (upper - lower) * (percentile_index - percentile_index.floor)
+                             end
+
+          compare_percentile_result(percentile_value, params)
+
+        when "count"
+          # Checks if count of array elements meets threshold
+          # expected_value can be numeric or hash with comparison operators
+          return false unless actual_value.is_a?(Array)
+
+          count_value = actual_value.size
+          compare_aggregation_result(count_value, expected_value)
+
         # DATE/TIME OPERATORS
         when "before_date"
           # Checks if date is before specified date
@@ -195,6 +406,456 @@ module DecisionAgent
           return false unless expected_day
 
           date.wday == expected_day
+
+        # DURATION CALCULATIONS
+        when "duration_seconds"
+          # Calculates duration between two dates in seconds
+          # expected_value: {end: "field.path", max: 3600} or {end: "now", min: 60}
+          return false unless actual_value
+
+          start_date = parse_date(actual_value)
+          return false unless start_date
+
+          params = parse_duration_params(expected_value)
+          return false unless params
+
+          end_date = params[:end] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:end]))
+          return false unless end_date
+
+          duration = (end_date - start_date).abs
+          compare_duration_result(duration, params)
+
+        when "duration_minutes"
+          # Calculates duration between two dates in minutes
+          return false unless actual_value
+
+          start_date = parse_date(actual_value)
+          return false unless start_date
+
+          params = parse_duration_params(expected_value)
+          return false unless params
+
+          end_date = params[:end] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:end]))
+          return false unless end_date
+
+          duration = ((end_date - start_date).abs / 60.0)
+          compare_duration_result(duration, params)
+
+        when "duration_hours"
+          # Calculates duration between two dates in hours
+          return false unless actual_value
+
+          start_date = parse_date(actual_value)
+          return false unless start_date
+
+          params = parse_duration_params(expected_value)
+          return false unless params
+
+          end_date = params[:end] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:end]))
+          return false unless end_date
+
+          duration = ((end_date - start_date).abs / 3600.0)
+          compare_duration_result(duration, params)
+
+        when "duration_days"
+          # Calculates duration between two dates in days
+          return false unless actual_value
+
+          start_date = parse_date(actual_value)
+          return false unless start_date
+
+          params = parse_duration_params(expected_value)
+          return false unless params
+
+          end_date = params[:end] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:end]))
+          return false unless end_date
+
+          duration = ((end_date - start_date).abs / 86_400.0)
+          compare_duration_result(duration, params)
+
+        # DATE ARITHMETIC
+        when "add_days"
+          # Adds days to a date and compares
+          # expected_value: {days: 7, compare: "lt", target: "now"} or {days: 7, eq: target_date}
+          return false unless actual_value
+
+          start_date = parse_date(actual_value)
+          return false unless start_date
+
+          params = parse_date_arithmetic_params(expected_value)
+          return false unless params
+
+          result_date = start_date + (params[:days] * 86_400)
+          target_date = params[:target] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:target]))
+          return false unless target_date
+
+          compare_date_result(result_date, target_date, params)
+
+        when "subtract_days"
+          # Subtracts days from a date and compares
+          return false unless actual_value
+
+          start_date = parse_date(actual_value)
+          return false unless start_date
+
+          params = parse_date_arithmetic_params(expected_value)
+          return false unless params
+
+          result_date = start_date - (params[:days] * 86_400)
+          target_date = params[:target] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:target]))
+          return false unless target_date
+
+          compare_date_result(result_date, target_date, params)
+
+        when "add_hours"
+          # Adds hours to a date and compares
+          return false unless actual_value
+
+          start_date = parse_date(actual_value)
+          return false unless start_date
+
+          params = parse_date_arithmetic_params(expected_value, :hours)
+          return false unless params
+
+          result_date = start_date + (params[:hours] * 3600)
+          target_date = params[:target] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:target]))
+          return false unless target_date
+
+          compare_date_result(result_date, target_date, params)
+
+        when "subtract_hours"
+          # Subtracts hours from a date and compares
+          return false unless actual_value
+
+          start_date = parse_date(actual_value)
+          return false unless start_date
+
+          params = parse_date_arithmetic_params(expected_value, :hours)
+          return false unless params
+
+          result_date = start_date - (params[:hours] * 3600)
+          target_date = params[:target] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:target]))
+          return false unless target_date
+
+          compare_date_result(result_date, target_date, params)
+
+        when "add_minutes"
+          # Adds minutes to a date and compares
+          return false unless actual_value
+
+          start_date = parse_date(actual_value)
+          return false unless start_date
+
+          params = parse_date_arithmetic_params(expected_value, :minutes)
+          return false unless params
+
+          result_date = start_date + (params[:minutes] * 60)
+          target_date = params[:target] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:target]))
+          return false unless target_date
+
+          compare_date_result(result_date, target_date, params)
+
+        when "subtract_minutes"
+          # Subtracts minutes from a date and compares
+          return false unless actual_value
+
+          start_date = parse_date(actual_value)
+          return false unless start_date
+
+          params = parse_date_arithmetic_params(expected_value, :minutes)
+          return false unless params
+
+          result_date = start_date - (params[:minutes] * 60)
+          target_date = params[:target] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:target]))
+          return false unless target_date
+
+          compare_date_result(result_date, target_date, params)
+
+        # TIME COMPONENT EXTRACTION
+        when "hour_of_day"
+          # Extracts hour of day (0-23) and compares
+          return false unless actual_value
+
+          date = parse_date(actual_value)
+          return false unless date
+
+          hour = date.hour
+          compare_numeric_result(hour, expected_value)
+
+        when "day_of_month"
+          # Extracts day of month (1-31) and compares
+          return false unless actual_value
+
+          date = parse_date(actual_value)
+          return false unless date
+
+          day = date.day
+          compare_numeric_result(day, expected_value)
+
+        when "month"
+          # Extracts month (1-12) and compares
+          return false unless actual_value
+
+          date = parse_date(actual_value)
+          return false unless date
+
+          month = date.month
+          compare_numeric_result(month, expected_value)
+
+        when "year"
+          # Extracts year and compares
+          return false unless actual_value
+
+          date = parse_date(actual_value)
+          return false unless date
+
+          year = date.year
+          compare_numeric_result(year, expected_value)
+
+        when "week_of_year"
+          # Extracts week of year (1-52) and compares
+          return false unless actual_value
+
+          date = parse_date(actual_value)
+          return false unless date
+
+          week = date.strftime("%U").to_i + 1 # %U returns 0-53, we want 1-53
+          compare_numeric_result(week, expected_value)
+
+        # RATE CALCULATIONS
+        when "rate_per_second"
+          # Calculates rate per second from array of timestamps
+          # expected_value: {max: 10} or {min: 5, max: 100}
+          return false unless actual_value.is_a?(Array)
+          return false if actual_value.empty?
+
+          timestamps = actual_value.map { |ts| parse_date(ts) }.compact
+          return false if timestamps.size < 2
+
+          sorted_timestamps = timestamps.sort
+          time_span = sorted_timestamps.last - sorted_timestamps.first
+          return false if time_span <= 0
+
+          rate = timestamps.size.to_f / time_span
+          compare_rate_result(rate, expected_value)
+
+        when "rate_per_minute"
+          # Calculates rate per minute from array of timestamps
+          return false unless actual_value.is_a?(Array)
+          return false if actual_value.empty?
+
+          timestamps = actual_value.map { |ts| parse_date(ts) }.compact
+          return false if timestamps.size < 2
+
+          sorted_timestamps = timestamps.sort
+          time_span = sorted_timestamps.last - sorted_timestamps.first
+          return false if time_span <= 0
+
+          rate = (timestamps.size.to_f / time_span) * 60.0
+          compare_rate_result(rate, expected_value)
+
+        when "rate_per_hour"
+          # Calculates rate per hour from array of timestamps
+          return false unless actual_value.is_a?(Array)
+          return false if actual_value.empty?
+
+          timestamps = actual_value.map { |ts| parse_date(ts) }.compact
+          return false if timestamps.size < 2
+
+          sorted_timestamps = timestamps.sort
+          time_span = sorted_timestamps.last - sorted_timestamps.first
+          return false if time_span <= 0
+
+          rate = (timestamps.size.to_f / time_span) * 3600.0
+          compare_rate_result(rate, expected_value)
+
+        # MOVING WINDOW CALCULATIONS
+        when "moving_average"
+          # Calculates moving average over window
+          # expected_value: {window: 5, threshold: 100} or {window: 5, gt: 100}
+          return false unless actual_value.is_a?(Array)
+          return false if actual_value.empty?
+
+          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
+          return false if numeric_array.empty?
+
+          params = parse_moving_window_params(expected_value)
+          return false unless params
+
+          window = [params[:window], numeric_array.size].min
+          return false if window < 1
+
+          moving_avg = numeric_array.last(window).sum.to_f / window
+          compare_moving_window_result(moving_avg, params)
+
+        when "moving_sum"
+          # Calculates moving sum over window
+          return false unless actual_value.is_a?(Array)
+          return false if actual_value.empty?
+
+          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
+          return false if numeric_array.empty?
+
+          params = parse_moving_window_params(expected_value)
+          return false unless params
+
+          window = [params[:window], numeric_array.size].min
+          return false if window < 1
+
+          moving_sum = numeric_array.last(window).sum
+          compare_moving_window_result(moving_sum, params)
+
+        when "moving_max"
+          # Calculates moving max over window
+          return false unless actual_value.is_a?(Array)
+          return false if actual_value.empty?
+
+          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
+          return false if numeric_array.empty?
+
+          params = parse_moving_window_params(expected_value)
+          return false unless params
+
+          window = [params[:window], numeric_array.size].min
+          return false if window < 1
+
+          moving_max = numeric_array.last(window).max
+          compare_moving_window_result(moving_max, params)
+
+        when "moving_min"
+          # Calculates moving min over window
+          return false unless actual_value.is_a?(Array)
+          return false if actual_value.empty?
+
+          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
+          return false if numeric_array.empty?
+
+          params = parse_moving_window_params(expected_value)
+          return false unless params
+
+          window = [params[:window], numeric_array.size].min
+          return false if window < 1
+
+          moving_min = numeric_array.last(window).min
+          compare_moving_window_result(moving_min, params)
+
+        # FINANCIAL CALCULATIONS
+        when "compound_interest"
+          # Calculates compound interest: A = P(1 + r/n)^(nt)
+          # expected_value: {rate: 0.05, periods: 12, result: 1050} or {rate: 0.05, periods: 12, compare: "gt", threshold: 1000}
+          return false unless actual_value.is_a?(Numeric)
+
+          params = parse_compound_interest_params(expected_value)
+          return false unless params
+
+          principal = actual_value
+          rate = params[:rate]
+          periods = params[:periods]
+          result = principal * ((1 + rate / periods)**periods)
+
+          if params[:result]
+            (result.round(2) == params[:result].round(2))
+          else
+            compare_financial_result(result, params)
+          end
+
+        when "present_value"
+          # Calculates present value: PV = FV / (1 + r)^n
+          # expected_value: {rate: 0.05, periods: 10, result: 613.91}
+          return false unless actual_value.is_a?(Numeric)
+
+          params = parse_present_value_params(expected_value)
+          return false unless params
+
+          future_value = actual_value
+          rate = params[:rate]
+          periods = params[:periods]
+          present_value = future_value / ((1 + rate)**periods)
+
+          if params[:result]
+            (present_value.round(2) == params[:result].round(2))
+          else
+            compare_financial_result(present_value, params)
+          end
+
+        when "future_value"
+          # Calculates future value: FV = PV * (1 + r)^n
+          # expected_value: {rate: 0.05, periods: 10, result: 1628.89}
+          return false unless actual_value.is_a?(Numeric)
+
+          params = parse_future_value_params(expected_value)
+          return false unless params
+
+          present_value = actual_value
+          rate = params[:rate]
+          periods = params[:periods]
+          future_value = present_value * ((1 + rate)**periods)
+
+          if params[:result]
+            (future_value.round(2) == params[:result].round(2))
+          else
+            compare_financial_result(future_value, params)
+          end
+
+        when "payment"
+          # Calculates loan payment: PMT = P * [r(1+r)^n] / [(1+r)^n - 1]
+          # expected_value: {rate: 0.05, periods: 12, result: 100}
+          return false unless actual_value.is_a?(Numeric)
+
+          params = parse_payment_params(expected_value)
+          return false unless params
+
+          principal = actual_value
+          rate = params[:rate]
+          periods = params[:periods]
+
+          return false if rate <= 0 || periods <= 0
+
+          if rate == 0
+            payment = principal / periods
+          else
+            payment = principal * (rate * ((1 + rate)**periods)) / (((1 + rate)**periods) - 1)
+          end
+
+          if params[:result]
+            (payment.round(2) == params[:result].round(2))
+          else
+            compare_financial_result(payment, params)
+          end
+
+        # STRING AGGREGATIONS
+        when "join"
+          # Joins array of strings with separator
+          # expected_value: {separator: ",", result: "a,b,c"} or {separator: ",", contains: "a"}
+          return false unless actual_value.is_a?(Array)
+          return false if actual_value.empty?
+
+          string_array = actual_value.map(&:to_s)
+          params = parse_join_params(expected_value)
+          return false unless params
+
+          joined = string_array.join(params[:separator])
+
+          if params[:result]
+            joined == params[:result]
+          elsif params[:contains]
+            joined.include?(params[:contains])
+          else
+            false
+          end
+
+        when "length"
+          # Gets length of string or array
+          # expected_value: {max: 500} or {min: 10, max: 100}
+          return false if actual_value.nil?
+
+          length_value = if actual_value.is_a?(String) || actual_value.is_a?(Array)
+                           actual_value.length
+                         else
+                           return false
+                         end
+
+          compare_length_result(length_value, expected_value)
 
         # COLLECTION OPERATORS
         when "contains_all"
@@ -324,6 +985,20 @@ module DecisionAgent
         end
       end
 
+      # Parse power parameters
+      # Accepts [exponent, result] or {exponent: x, result: y}
+      def self.parse_power_params(value)
+        if value.is_a?(Array) && value.size == 2
+          { exponent: value[0], result: value[1] }
+        elsif value.is_a?(Hash)
+          exponent = value["exponent"] || value[:exponent]
+          result = value["result"] || value[:result]
+          return nil unless exponent && !result.nil?
+
+          { exponent: exponent, result: result }
+        end
+      end
+
       # Parse date from string, Time, Date, or DateTime (with caching)
       def self.parse_date(value)
         case value
@@ -449,6 +1124,258 @@ module DecisionAgent
         end
 
         inside
+      end
+
+      # Helper methods for new operators
+
+      # Compare aggregation result with expected value (supports hash with comparison operators)
+      def self.compare_aggregation_result(actual, expected)
+        if expected.is_a?(Hash)
+          result = true
+          result &&= (actual >= expected[:min]) if expected[:min]
+          result &&= (actual <= expected[:max]) if expected[:max]
+          result &&= (actual > expected[:gt]) if expected[:gt]
+          result &&= (actual < expected[:lt]) if expected[:lt]
+          result &&= (actual >= expected[:gte]) if expected[:gte]
+          result &&= (actual <= expected[:lte]) if expected[:lte]
+          result &&= (actual == expected[:eq]) if expected[:eq]
+          result
+        else
+          actual == expected
+        end
+      end
+
+      # Parse percentile parameters
+      def self.parse_percentile_params(value)
+        return nil unless value.is_a?(Hash)
+
+        percentile = value["percentile"] || value[:percentile]
+        return nil unless percentile && percentile.is_a?(Numeric) && percentile >= 0 && percentile <= 100
+
+        {
+          percentile: percentile.to_f,
+          threshold: value["threshold"] || value[:threshold],
+          gt: value["gt"] || value[:gt],
+          lt: value["lt"] || value[:lt],
+          gte: value["gte"] || value[:gte],
+          lte: value["lte"] || value[:lte],
+          eq: value["eq"] || value[:eq]
+        }
+      end
+
+      # Compare percentile result
+      def self.compare_percentile_result(actual, params)
+        result = true
+        result &&= (actual >= params[:threshold]) if params[:threshold]
+        result &&= (actual > params[:gt]) if params[:gt]
+        result &&= (actual < params[:lt]) if params[:lt]
+        result &&= (actual >= params[:gte]) if params[:gte]
+        result &&= (actual <= params[:lte]) if params[:lte]
+        result &&= (actual == params[:eq]) if params[:eq]
+        result
+      end
+
+      # Parse duration parameters
+      def self.parse_duration_params(value)
+        return nil unless value.is_a?(Hash)
+
+        end_field = value["end"] || value[:end]
+        return nil unless end_field
+
+        {
+          end: end_field.to_s,
+          min: value["min"] || value[:min],
+          max: value["max"] || value[:max],
+          gt: value["gt"] || value[:gt],
+          lt: value["lt"] || value[:lt],
+          gte: value["gte"] || value[:gte],
+          lte: value["lte"] || value[:lte]
+        }
+      end
+
+      # Compare duration result
+      def self.compare_duration_result(actual, params)
+        result = true
+        result &&= (actual >= params[:min]) if params[:min]
+        result &&= (actual <= params[:max]) if params[:max]
+        result &&= (actual > params[:gt]) if params[:gt]
+        result &&= (actual < params[:lt]) if params[:lt]
+        result &&= (actual >= params[:gte]) if params[:gte]
+        result &&= (actual <= params[:lte]) if params[:lte]
+        result
+      end
+
+      # Parse date arithmetic parameters
+      def self.parse_date_arithmetic_params(value, unit = :days)
+        return nil unless value.is_a?(Hash)
+
+        unit_value = value[unit.to_s] || value[unit]
+        return nil unless unit_value && unit_value.is_a?(Numeric)
+
+        {
+          unit => unit_value.to_f,
+          target: value["target"] || value[:target] || "now",
+          compare: value["compare"] || value[:compare],
+          eq: value["eq"] || value[:eq],
+          gt: value["gt"] || value[:gt],
+          lt: value["lt"] || value[:lt],
+          gte: value["gte"] || value[:gte],
+          lte: value["lte"] || value[:lte]
+        }
+      end
+
+      # Compare date result
+      def self.compare_date_result(actual, target, params)
+        if params[:compare]
+          case params[:compare].to_s
+          when "eq", "=="
+            (actual - target).abs < 1
+          when "gt", ">"
+            actual > target
+          when "lt", "<"
+            actual < target
+          when "gte", ">="
+            actual >= target
+          when "lte", "<="
+            actual <= target
+          else
+            false
+          end
+        elsif params[:eq]
+          (actual - target).abs < 1
+        elsif params[:gt]
+          actual > target
+        elsif params[:lt]
+          actual < target
+        elsif params[:gte]
+          actual >= target
+        elsif params[:lte]
+          actual <= target
+        else
+          false
+        end
+      end
+
+      # Compare numeric result (for time component extraction)
+      def self.compare_numeric_result(actual, expected)
+        if expected.is_a?(Hash)
+          result = true
+          result &&= (actual >= expected[:min]) if expected[:min]
+          result &&= (actual <= expected[:max]) if expected[:max]
+          result &&= (actual > expected[:gt]) if expected[:gt]
+          result &&= (actual < expected[:lt]) if expected[:lt]
+          result &&= (actual >= expected[:gte]) if expected[:gte]
+          result &&= (actual <= expected[:lte]) if expected[:lte]
+          result &&= (actual == expected[:eq]) if expected[:eq]
+          result
+        else
+          actual == expected
+        end
+      end
+
+      # Compare rate result
+      def self.compare_rate_result(actual, expected)
+        compare_aggregation_result(actual, expected)
+      end
+
+      # Parse moving window parameters
+      def self.parse_moving_window_params(value)
+        return nil unless value.is_a?(Hash)
+
+        window = value["window"] || value[:window]
+        return nil unless window && window.is_a?(Numeric) && window > 0
+
+        {
+          window: window.to_i,
+          threshold: value["threshold"] || value[:threshold],
+          gt: value["gt"] || value[:gt],
+          lt: value["lt"] || value[:lt],
+          gte: value["gte"] || value[:gte],
+          lte: value["lte"] || value[:lte],
+          eq: value["eq"] || value[:eq]
+        }
+      end
+
+      # Compare moving window result
+      def self.compare_moving_window_result(actual, params)
+        result = true
+        result &&= (actual >= params[:threshold]) if params[:threshold]
+        result &&= (actual > params[:gt]) if params[:gt]
+        result &&= (actual < params[:lt]) if params[:lt]
+        result &&= (actual >= params[:gte]) if params[:gte]
+        result &&= (actual <= params[:lte]) if params[:lte]
+        result &&= (actual == params[:eq]) if params[:eq]
+        result
+      end
+
+      # Parse compound interest parameters
+      def self.parse_compound_interest_params(value)
+        return nil unless value.is_a?(Hash)
+
+        rate = value["rate"] || value[:rate]
+        periods = value["periods"] || value[:periods]
+        return nil unless rate && periods
+
+        {
+          rate: rate.to_f,
+          periods: periods.to_i,
+          result: value["result"] || value[:result],
+          threshold: value["threshold"] || value[:threshold],
+          gt: value["gt"] || value[:gt],
+          lt: value["lt"] || value[:lt]
+        }
+      end
+
+      # Parse present value parameters
+      def self.parse_present_value_params(value)
+        return nil unless value.is_a?(Hash)
+
+        rate = value["rate"] || value[:rate]
+        periods = value["periods"] || value[:periods]
+        return nil unless rate && periods
+
+        {
+          rate: rate.to_f,
+          periods: periods.to_i,
+          result: value["result"] || value[:result],
+          threshold: value["threshold"] || value[:threshold]
+        }
+      end
+
+      # Parse future value parameters
+      def self.parse_future_value_params(value)
+        parse_present_value_params(value)
+      end
+
+      # Parse payment parameters
+      def self.parse_payment_params(value)
+        parse_compound_interest_params(value)
+      end
+
+      # Compare financial result
+      def self.compare_financial_result(actual, params)
+        result = true
+        result &&= (actual >= params[:threshold]) if params[:threshold]
+        result &&= (actual > params[:gt]) if params[:gt]
+        result &&= (actual < params[:lt]) if params[:lt]
+        result
+      end
+
+      # Parse join parameters
+      def self.parse_join_params(value)
+        return nil unless value.is_a?(Hash)
+
+        separator = value["separator"] || value[:separator] || ","
+        {
+          separator: separator.to_s,
+          result: value["result"] || value[:result],
+          contains: value["contains"] || value[:contains]
+        }
+      end
+
+      # Compare length result
+      def self.compare_length_result(actual, expected)
+        compare_aggregation_result(actual, expected)
       end
 
       # Cache management methods
