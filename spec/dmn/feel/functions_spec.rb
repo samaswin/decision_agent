@@ -386,7 +386,7 @@ RSpec.describe DecisionAgent::Dmn::Feel::Functions do
     it "raises error for unknown function" do
       expect do
         described_class.execute("unknown_func", [])
-      end.to raise_error(DecisionAgent::Dmn::Feel::FeelFunctionError, /Unknown function/)
+      end.to raise_error(DecisionAgent::Dmn::FeelFunctionError, /Unknown function/)
     end
   end
 
@@ -394,7 +394,7 @@ RSpec.describe DecisionAgent::Dmn::Feel::Functions do
     it "raises error for wrong argument count" do
       expect do
         described_class.execute("substring", ["hello"])
-      end.to raise_error(DecisionAgent::Dmn::Feel::FeelFunctionError, /Wrong number of arguments/)
+      end.to raise_error(DecisionAgent::Dmn::FeelFunctionError, /Wrong number of arguments/)
     end
   end
 end

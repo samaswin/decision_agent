@@ -31,7 +31,12 @@ module DecisionAgent
                         when nil then []
                         else [items]
                         end
-          { type: :list, elements: items_array }
+          { type: :list_literal, elements: items_array }
+        end
+
+        # Context entry (unwrap the entry wrapper)
+        rule(entry: { key: subtree(:k), value: subtree(:v) }) do
+          { key: k, value: v }
         end
 
         # Context literal
@@ -44,9 +49,20 @@ module DecisionAgent
                           end
 
           pairs = entries_array.map do |entry|
-            key = case entry[:key]
-                  when Hash
-                    entry[:key][:identifier]&.to_s || entry[:key][:string]&.to_s
+            # Extract key - could be a transformed field node, string node, or raw value
+            key = if entry[:key].is_a?(Hash)
+                    # Key is a structured node
+                    if entry[:key][:type] == :field
+                      entry[:key][:name].to_s
+                    elsif entry[:key][:type] == :string
+                      entry[:key][:value].to_s
+                    elsif entry[:key][:type] == :identifier
+                      entry[:key][:name].to_s
+                    else
+                      entry[:key][:identifier]&.to_s || entry[:key][:string]&.to_s || entry[:key].to_s
+                    end
+                  elsif entry[:key].is_a?(Parslet::Slice)
+                    entry[:key].to_s
                   else
                     entry[:key].to_s
                   end
@@ -54,7 +70,7 @@ module DecisionAgent
             [key, entry[:value]]
           end
 
-          { type: :context, pairs: pairs }
+          { type: :context_literal, pairs: pairs }
         end
 
         # Range literal
@@ -90,7 +106,12 @@ module DecisionAgent
 
           func_name = case name
                       when Hash
-                        name[:identifier]&.to_s&.strip || name.to_s
+                        # Handle transformed field nodes or raw identifier hashes
+                        if name[:type] == :field
+                          name[:name].to_s.strip
+                        else
+                          name[:identifier]&.to_s&.strip || name.to_s
+                        end
                       else
                         name.to_s.strip
                       end
@@ -188,6 +209,12 @@ module DecisionAgent
               type: :logical,
               operator: "not",
               operand: operand
+            }
+          elsif o.to_s == "-" && operand.is_a?(Hash) && operand[:type] == :number
+            # Special case: unary minus on a number literal -> negative number literal
+            {
+              type: :number,
+              value: -operand[:value]
             }
           else
             {

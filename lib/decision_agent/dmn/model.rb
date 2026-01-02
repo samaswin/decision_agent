@@ -35,13 +35,15 @@ module DecisionAgent
 
     # Represents a single decision element
     class Decision
-      attr_reader :id, :name, :decision_table, :description
+      attr_reader :id, :name, :decision_table, :decision_tree, :description, :information_requirements
 
       def initialize(id:, name:, description: nil)
         @id = id.to_s
         @name = name.to_s
         @description = description&.to_s
         @decision_table = nil
+        @decision_tree = nil
+        @information_requirements = []
       end
 
       def decision_table=(table)
@@ -50,11 +52,21 @@ module DecisionAgent
         @decision_table = table
       end
 
+      def decision_tree=(tree)
+        @decision_tree = tree
+      end
+
+      def add_information_requirement(requirement)
+        @information_requirements << requirement
+      end
+
       def freeze
         @id.freeze
         @name.freeze
         @description.freeze
         @decision_table&.freeze
+        @decision_tree&.freeze
+        @information_requirements.freeze
         super
       end
     end

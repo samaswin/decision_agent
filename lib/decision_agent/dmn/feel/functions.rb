@@ -27,23 +27,15 @@ module DecisionAgent
             # Validate argument count
             def validate_arg_count(args, expected)
               actual = args.length
-              if expected.is_a?(Range)
-                return if expected.cover?(actual)
+              valid = if expected.is_a?(Range)
+                        expected.cover?(actual)
+                      else
+                        actual == expected
+                      end
 
-                raise FeelFunctionError.new(
-                  "Wrong number of arguments (got #{actual}, expected #{expected})",
-                  function_name: name,
-                  arguments: args
-                )
-              else
-                return if actual == expected
+              return if valid
 
-                raise FeelFunctionError.new(
-                  "Wrong number of arguments (got #{actual}, expected #{expected})",
-                  function_name: name,
-                  arguments: args
-                )
-              end
+              raise FeelFunctionError, "Wrong number of arguments for #{name} (got #{actual}, expected #{expected})"
             end
           end
         end
@@ -411,10 +403,7 @@ module DecisionAgent
         # Execute a function
         def self.execute(name, args, context = {})
           func = get(name)
-          raise FeelFunctionError.new(
-            "Unknown function: #{name}",
-            function_name: name
-          ) unless func
+          raise FeelFunctionError, "Unknown function: #{name}" unless func
 
           func.call(args, context)
         end

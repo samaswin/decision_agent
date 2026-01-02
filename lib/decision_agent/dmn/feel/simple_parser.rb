@@ -49,7 +49,7 @@ module DecisionAgent
         # Parse expression and return AST-like structure
         def parse(expression)
           expr = expression.to_s.strip
-          raise FeelParseError.new("Empty expression", expression: expression) if expr.empty?
+          raise DecisionAgent::Dmn::FeelParseError, "Empty expression" if expr.empty?
 
           @tokens = tokenize(expr)
           @position = 0
@@ -87,16 +87,8 @@ module DecisionAgent
               end
             end
 
-            # Single character operators
-            if "+-*/%><()=".include?(char)
-              type = %w[( )].include?(char) ? :paren : :operator
-              tokens << { type: type, value: char }
-              i += 1
-              next
-            end
-
-            # Numbers (integer or float)
-            if char.match?(/\d/) || (char == "-" && i + 1 < expr.length && expr[i + 1].match?(/\d/))
+            # Numbers (integer or float) - check BEFORE single char operators to handle negative numbers
+            if char.match?(/\d/) || (char == "-" && i + 1 < expr.length && expr[i + 1].match?(/\d/) && (tokens.empty? || tokens.last[:type] == :operator || tokens.last[:type] == :paren))
               num_str = ""
               num_str << char if char == "-"
               i += 1 if char == "-"
@@ -108,6 +100,14 @@ module DecisionAgent
 
               value = num_str.include?(".") ? num_str.to_f : num_str.to_i
               tokens << { type: :number, value: value }
+              next
+            end
+
+            # Single character operators
+            if "+-*/%><()=".include?(char)
+              type = %w[( )].include?(char) ? :paren : :operator
+              tokens << { type: type, value: char }
+              i += 1
               next
             end
 
@@ -148,11 +148,7 @@ module DecisionAgent
               next
             end
 
-            raise FeelParseError.new(
-              "Unexpected character: #{char}",
-              expression: expr,
-              position: i
-            )
+            raise DecisionAgent::Dmn::FeelParseError, "Unexpected character: #{char} at position #{i}"
           end
 
           tokens
@@ -219,7 +215,7 @@ module DecisionAgent
         def parse_primary
           token = current_token
 
-          raise FeelParseError.new("Unexpected end of expression") unless token
+          raise DecisionAgent::Dmn::FeelParseError, "Unexpected end of expression" unless token
 
           case token[:type]
           when :number
@@ -232,7 +228,7 @@ module DecisionAgent
 
           when :boolean
             consume_token
-            { type: :literal, value: token[:value] }
+            { type: :boolean, value: token[:value] }
 
           when :field
             consume_token
@@ -243,16 +239,16 @@ module DecisionAgent
               consume_token
               expr = parse_expression
               closing = current_token
-              raise FeelParseError.new("Expected closing parenthesis") unless closing && closing[:value] == ")"
+              raise DecisionAgent::Dmn::FeelParseError, "Expected closing parenthesis" unless closing && closing[:value] == ")"
 
               consume_token
               expr
             else
-              raise FeelParseError.new("Unexpected closing parenthesis")
+              raise DecisionAgent::Dmn::FeelParseError, "Unexpected closing parenthesis"
             end
 
           else
-            raise FeelParseError.new("Unexpected token: #{token.inspect}")
+            raise DecisionAgent::Dmn::FeelParseError, "Unexpected token: #{token.inspect}"
           end
         end
 

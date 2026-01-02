@@ -400,6 +400,16 @@ module DecisionAgent
         def evaluate_ast_node(node, context)
           return node unless node.is_a?(Hash)
 
+          # Handle nodes without type - might be raw Parslet output
+          if node[:type].nil? || node[:type].to_s.empty?
+            # Try to extract value from common Parslet structures
+            return node[:value] if node.key?(:value)
+            return node[:number] if node.key?(:number)
+            return node[:string] if node.key?(:string)
+            return node[:boolean] if node.key?(:boolean)
+            return node
+          end
+
           case node[:type]
           when :number, :string, :boolean
             node[:value]
@@ -407,9 +417,9 @@ module DecisionAgent
             nil
           when :field
             get_field_value(node[:name], context)
-          when :list
+          when :list, :list_literal
             evaluate_list(node, context)
-          when :context
+          when :context, :context_literal
             evaluate_context(node, context)
           when :range
             evaluate_range(node, context)
@@ -482,7 +492,17 @@ module DecisionAgent
 
         # Evaluate function call
         def evaluate_function_call(node, context)
-          function_name = node[:name].is_a?(Hash) ? node[:name][:name] : node[:name]
+          # Extract function name - could be a string or a field node
+          function_name = if node[:name].is_a?(Hash)
+                            if node[:name][:type] == :field
+                              node[:name][:name]
+                            else
+                              node[:name][:name] || node[:name][:identifier] || node[:name].to_s
+                            end
+                          else
+                            node[:name]
+                          end
+
           args = Array(node[:arguments]).map { |arg| evaluate_ast_node(arg, context) }
 
           Functions.execute(function_name.to_s, args, context)

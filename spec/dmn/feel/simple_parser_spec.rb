@@ -255,19 +255,19 @@ RSpec.describe DecisionAgent::Dmn::Feel::SimpleParser do
       it "raises error for empty expression" do
         expect do
           parser.parse("")
-        end.to raise_error(DecisionAgent::Dmn::Feel::FeelParseError, /Empty expression/)
+        end.to raise_error(DecisionAgent::Dmn::FeelParseError, /Empty expression/)
       end
 
       it "raises error for unbalanced parentheses" do
         expect do
           parser.parse("(age + 5")
-        end.to raise_error(DecisionAgent::Dmn::Feel::FeelParseError)
+        end.to raise_error(DecisionAgent::Dmn::FeelParseError)
       end
 
       it "raises error for unexpected character" do
         expect do
           parser.parse("age @ 5")
-        end.to raise_error(DecisionAgent::Dmn::Feel::FeelParseError, /Unexpected character/)
+        end.to raise_error(DecisionAgent::Dmn::FeelParseError, /Unexpected character/)
       end
     end
   end

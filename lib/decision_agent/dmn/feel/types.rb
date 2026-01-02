@@ -19,12 +19,7 @@ module DecisionAgent
                      when String then BigDecimal(value)
                      when Integer, Float then value
                      else
-                       raise FeelTypeError.new(
-                         "Cannot convert to Number",
-                         expected_type: "Numeric",
-                         actual_type: value.class,
-                         value: value
-                       )
+                       raise FeelTypeError, "Cannot convert #{value.class} to Number: #{value.inspect}"
                      end
             @scale = scale
           end
@@ -61,12 +56,7 @@ module DecisionAgent
                      when ::Time, ::Date, ::DateTime then value
                      when String then parse_date(value)
                      else
-                       raise FeelTypeError.new(
-                         "Cannot convert to Date",
-                         expected_type: "Date",
-                         actual_type: value.class,
-                         value: value
-                       )
+                       raise FeelTypeError, "Cannot convert #{value.class} to Date: #{value.inspect}"
                      end
           end
 
@@ -87,17 +77,19 @@ module DecisionAgent
           private
 
           def parse_date(str)
-            # Try ISO 8601 formats
-            ::Time.iso8601(str)
-          rescue ArgumentError
-            # Try Ruby Date parsing
+            # Try ISO 8601 formats first
+            iso_result = begin
+              ::Time.iso8601(str)
+            rescue ArgumentError
+              nil
+            end
+
+            return iso_result if iso_result
+
+            # Fall back to Date parsing
             ::Date.parse(str).to_time
-          rescue ArgumentError => e
-            raise FeelTypeError.new(
-              "Invalid date format: #{e.message}",
-              expected_type: "ISO 8601 date",
-              value: str
-            )
+          rescue ::Date::Error => e
+            raise FeelTypeError, "Invalid date format: #{e.message}"
           end
         end
 
@@ -163,16 +155,8 @@ module DecisionAgent
           # Parse ISO 8601 duration string
           # Examples: P1Y, P1M, P1D, PT1H, PT1M, PT1S, P1Y2M3DT4H5M6S
           def self.parse(iso_string)
-            raise FeelTypeError.new(
-              "Duration must be a string",
-              expected_type: "String",
-              actual_type: iso_string.class
-            ) unless iso_string.is_a?(String)
-
-            raise FeelTypeError.new(
-              "Invalid duration format: must start with 'P'",
-              value: iso_string
-            ) unless iso_string.start_with?("P")
+            raise FeelTypeError, "Duration must be a string, got #{iso_string.class}" unless iso_string.is_a?(String)
+            raise FeelTypeError, "Invalid duration format: must start with 'P'" unless iso_string.start_with?("P")
 
             # Split on 'T' to separate date and time parts
             parts = iso_string[1..].split("T")

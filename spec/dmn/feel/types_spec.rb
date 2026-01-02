@@ -28,7 +28,7 @@ RSpec.describe DecisionAgent::Dmn::Feel::Types do
     it "raises error for invalid type" do
       expect do
         DecisionAgent::Dmn::Feel::Types::Number.new([])
-      end.to raise_error(DecisionAgent::Dmn::Feel::FeelTypeError)
+      end.to raise_error(DecisionAgent::Dmn::FeelTypeError)
     end
   end
 
@@ -52,7 +52,7 @@ RSpec.describe DecisionAgent::Dmn::Feel::Types do
     it "raises error for invalid format" do
       expect do
         DecisionAgent::Dmn::Feel::Types::Date.new("invalid")
-      end.to raise_error(DecisionAgent::Dmn::Feel::FeelTypeError)
+      end.to raise_error(DecisionAgent::Dmn::FeelTypeError)
     end
   end
 
@@ -111,13 +111,13 @@ RSpec.describe DecisionAgent::Dmn::Feel::Types do
     it "raises error for invalid format" do
       expect do
         DecisionAgent::Dmn::Feel::Types::Duration.parse("invalid")
-      end.to raise_error(DecisionAgent::Dmn::Feel::FeelTypeError)
+      end.to raise_error(DecisionAgent::Dmn::FeelTypeError)
     end
 
     it "raises error for non-P prefix" do
       expect do
         DecisionAgent::Dmn::Feel::Types::Duration.parse("1Y2M")
-      end.to raise_error(DecisionAgent::Dmn::Feel::FeelTypeError, /must start with 'P'/)
+      end.to raise_error(DecisionAgent::Dmn::FeelTypeError, /must start with 'P'/)
     end
   end
 

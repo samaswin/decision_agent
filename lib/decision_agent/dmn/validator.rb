@@ -81,9 +81,6 @@ module DecisionAgent
           @errors << "#{path}: Decision must have decision logic (table, tree, or literal expression)"
         end
 
-        # Validate decision table if present
-        validate_decision_table(decision.decision_table, path) if decision.decision_table
-
         # Validate information requirements
         validate_information_requirements(decision, path)
       end
