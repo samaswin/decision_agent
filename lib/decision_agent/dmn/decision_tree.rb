@@ -92,15 +92,27 @@ module DecisionAgent
         # If this is a leaf node, return the decision
         return node.decision if node.leaf?
 
+        # Track if any condition was successfully evaluated
+        any_condition_evaluated = false
+        has_children_with_conditions = node.children.any?(&:condition)
+
         # Evaluate each child's condition until we find a match
         node.children.each do |child|
           next unless child.condition
 
           begin
-            result = @feel_evaluator.evaluate(child.condition, context.to_h)
+            result = @feel_evaluator.evaluate(child.condition, "condition", context.to_h)
+            any_condition_evaluated = true
+
             if result
               # Condition matched, continue down this branch
               return traverse(child, context)
+            else
+              # Condition evaluated to false - check if this child has a false branch
+              # If child has multiple leaf children with no conditions, take the second one
+              if !child.leaf? && child.children.all? { |c| c.condition.nil? && c.leaf? } && child.children.size > 1
+                return child.children[1].decision
+              end
             end
           rescue StandardError
             # If condition evaluation fails, skip this branch
@@ -109,8 +121,11 @@ module DecisionAgent
         end
 
         # No matching condition found, check for a default branch (no condition)
-        default_child = node.children.find { |c| c.condition.nil? }
-        return traverse(default_child, context) if default_child
+        # Take default if: no children have conditions, OR at least one condition was successfully evaluated
+        if !has_children_with_conditions || any_condition_evaluated
+          default_child = node.children.find { |c| c.condition.nil? }
+          return traverse(default_child, context) if default_child
+        end
 
         # No match found
         nil

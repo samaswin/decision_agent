@@ -217,10 +217,11 @@ module DecisionAgent
           evaluate_decision_table(decision.decision_logic, context)
         when String
           # Evaluate as FEEL expression (literal expression)
-          @feel_evaluator.evaluate(decision.decision_logic, context)
+          @feel_evaluator.evaluate(decision.decision_logic, "result", context)
         when Proc
-          # Execute custom logic
-          decision.decision_logic.call(context)
+          # Execute custom logic with string keys
+          string_context = context.transform_keys(&:to_s)
+          decision.decision_logic.call(string_context)
         else
           # Return as-is
           decision.decision_logic
@@ -249,6 +250,7 @@ module DecisionAgent
 
         @feel_evaluator.evaluate(
           "#{value} #{condition}",
+          "condition",
           context
         )
       rescue
