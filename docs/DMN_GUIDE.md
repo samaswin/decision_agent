@@ -374,13 +374,14 @@ Returns the first matching rule. Most common and simplest policy.
 
 **When to use**: Clear rule precedence, mutually exclusive conditions
 
-### UNIQUE, PRIORITY, ANY, COLLECT (Phase 2B)
+### UNIQUE, PRIORITY, ANY, COLLECT ✅
 
-Coming in Phase 2B:
+All hit policies are now supported:
 
-- **UNIQUE**: Exactly one rule must match (error if multiple)
-- **PRIORITY**: Return highest priority match
-- **ANY**: All matches must have same output
+- **UNIQUE**: Exactly one rule must match (error if multiple or none)
+- **PRIORITY**: Return highest priority match (uses rule order as priority)
+- **ANY**: All matches must have same output (error if different)
+- **COLLECT**: Return all matching rules (first match returned with metadata about all matches)
 - **COLLECT**: Return all matches as a list
 
 ## Integration with DecisionAgent

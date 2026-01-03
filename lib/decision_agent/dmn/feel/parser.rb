@@ -322,15 +322,26 @@ module DecisionAgent
         # Root parsing method
         root(:expression)
 
-        # Parse with error handling
+        # Instance method for parsing with error handling
+        def parse(input)
+          super
+        rescue Parslet::ParseFailed => e
+          error_msg = "Failed to parse FEEL expression: #{e.parse_failure_cause.ascii_tree}"
+          error = FeelParseError.new(error_msg)
+          error.instance_variable_set(:@expression, input)
+          error.instance_variable_set(:@position, 0)
+          raise error
+        end
+
+        # Parse with error handling (class method for backward compatibility)
         def self.parse_expression(input)
           new.parse(input)
         rescue Parslet::ParseFailed => e
-          raise FeelParseError.new(
-            "Failed to parse FEEL expression: #{e.parse_failure_cause.ascii_tree}",
-            expression: input,
-            position: e.parse_failure_cause.pos.offset
-          )
+          error_msg = "Failed to parse FEEL expression: #{e.parse_failure_cause.ascii_tree}"
+          error = FeelParseError.new(error_msg)
+          error.instance_variable_set(:@expression, input)
+          error.instance_variable_set(:@position, 0)
+          raise error
         end
       end
     end

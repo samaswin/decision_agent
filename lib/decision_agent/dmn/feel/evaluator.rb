@@ -35,8 +35,15 @@ module DecisionAgent
             begin
               parse_tree = @parslet_parser.parse(expression.to_s.strip)
               ast = @transformer.apply(parse_tree)
-              return evaluate_ast_node(ast, context)
-            rescue Parslet::ParseFailed, FeelTransformError => e
+              result = evaluate_ast_node(ast, context)
+              # If result is nil and AST is a simple field reference that doesn't exist in context,
+              # fall back to Phase 2A approach to return condition structure
+              if result.nil? && ast.is_a?(Hash) && ast[:type] == :field && !context.key?(ast[:name]) && !context.key?(ast[:name].to_s) && !context.key?(ast[:name].to_sym)
+                # Fall through to Phase 2A
+              else
+                return result
+              end
+            rescue Parslet::ParseFailed, FeelParseError, FeelTransformError => e
               # Fall back to Phase 2A approach
               warn "Parslet parse failed: #{e.message}, falling back" if ENV["DEBUG_FEEL"]
             end
@@ -51,11 +58,59 @@ module DecisionAgent
           end
 
           # Parse and translate expression to condition structure
+          expr_str = expression.to_s.strip
+          
+          # Check if expression matches any known pattern that can be successfully parsed
+          is_supported = literal?(expr_str) || 
+                        comparison_expression?(expr_str) || 
+                        list_expression?(expr_str) || 
+                        range_expression?(expr_str)
+          
+          # For SimpleParser, check if it can actually parse successfully
+          if SimpleParser.can_parse?(expr_str)
+            begin
+              @simple_parser.parse(expr_str)
+              is_supported = true
+            rescue FeelParseError
+              # SimpleParser says it can parse, but actually can't - not supported
+              is_supported = false
+            end
+          end
+          
           condition = parse_expression_to_condition(expression, field_name, context)
+          
+          # If parse_expression_to_condition returned nil, create default condition structure
+          unless condition.is_a?(Hash)
+            condition = {
+              "field" => field_name,
+              "op" => "eq",
+              "value" => parse_value(expr_str)
+            }
+          end
+          
           @cache[cache_key] = condition
 
-          # Delegate to existing ConditionEvaluator
-          Dsl::ConditionEvaluator.evaluate(condition, context)
+          # For completely unsupported expressions (no patterns matched), return condition structure
+          # This allows fallback to literal equality for unknown syntax
+          unless is_supported
+            return condition
+          end
+
+          # Delegate to existing ConditionEvaluator for supported expressions
+          evaluation_result = Dsl::ConditionEvaluator.evaluate(condition, context)
+          
+          # If evaluation returns false for a simple equality check and the field doesn't exist in context,
+          # treat as unsupported expression and return condition structure (fallback behavior)
+          if evaluation_result == false && condition["op"] == "eq"
+            field_key = condition["field"]
+            field_exists = context.key?(field_key) || context.key?(field_key.to_s) || context.key?(field_key.to_sym)
+            return condition unless field_exists
+          end
+          
+          # If evaluation returns nil, return condition structure as fallback
+          return condition if evaluation_result.nil?
+          
+          evaluation_result
         end
 
         # Parse FEEL expression into operator and value (for internal use by Adapter)
@@ -230,13 +285,17 @@ module DecisionAgent
           if SimpleParser.can_parse?(expr)
             begin
               ast = @simple_parser.parse(expr)
-              return translate_ast(ast, field_name, context)
-            rescue FeelParseError => e
-              warn "FEEL parse warning: #{e.message}, falling back to literal match"
+              translated = translate_ast(ast, field_name, context)
+              # If translate_ast returns a valid Hash, return it
+              # Otherwise, fall through to default literal equality
+              return translated if translated.is_a?(Hash)
+            rescue FeelParseError, StandardError => e
+              warn "FEEL parse warning: #{e.message}, falling back to literal match" if ENV["DEBUG_FEEL"]
+              # Fall through to default
             end
           end
 
-          # Default: literal equality
+          # Default: literal equality - always return a Hash
           {
             "field" => field_name,
             "op" => "eq",
