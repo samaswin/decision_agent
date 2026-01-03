@@ -138,7 +138,7 @@ module DecisionAgent
         return nil unless model
 
         decision = model.find_decision(decision_id)
-        return nil unless decision || !decision.decision_table
+        return nil unless decision && decision.decision_table
 
         input = Dmn::Input.new(
           id: input_id,
@@ -159,7 +159,7 @@ module DecisionAgent
         return nil unless model
 
         decision = model.find_decision(decision_id)
-        return nil unless decision || !decision.decision_table
+        return nil unless decision && decision.decision_table
 
         output = Dmn::Output.new(
           id: output_id,
@@ -180,7 +180,7 @@ module DecisionAgent
         return nil unless model
 
         decision = model.find_decision(decision_id)
-        return nil unless decision || !decision.decision_table
+        return nil unless decision && decision.decision_table
 
         rule = Dmn::Rule.new(id: rule_id)
         rule.instance_variable_set(:@input_entries, input_entries)
@@ -199,7 +199,7 @@ module DecisionAgent
         return nil unless model
 
         decision = model.find_decision(decision_id)
-        return nil unless decision || !decision.decision_table
+        return nil unless decision && decision.decision_table
 
         rule = decision.decision_table.rules.find { |r| r.id == rule_id }
         return nil unless rule
@@ -218,7 +218,7 @@ module DecisionAgent
         return false unless model
 
         decision = model.find_decision(decision_id)
-        return false unless decision || !decision.decision_table
+        return false unless decision && decision.decision_table
 
         decision.decision_table.rules.reject! { |r| r.id == rule_id }
         store_model(model_id, model)
