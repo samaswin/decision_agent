@@ -38,12 +38,12 @@ module DecisionAgent
           if @use_parslet
             begin
               expr_key = expression.to_s.strip
-              
+
               # Check AST cache first
               ast = @cache_mutex.synchronize do
                 @ast_cache[expr_key]
               end
-              
+
               if ast.nil?
                 parse_tree = @parslet_parser.parse(expr_key)
                 ast = @transformer.apply(parse_tree)
@@ -51,7 +51,7 @@ module DecisionAgent
                   @ast_cache[expr_key] = ast
                 end
               end
-              
+
               result = evaluate_ast_node(ast, context)
               # If result is nil and AST is a simple field reference that doesn't exist in context,
               # fall back to Phase 2A approach to return condition structure
@@ -73,10 +73,8 @@ module DecisionAgent
           condition = @cache_mutex.synchronize do
             @cache[cache_key]
           end
-          
-          if condition
-            return Dsl::ConditionEvaluator.evaluate(condition, context)
-          end
+
+          return Dsl::ConditionEvaluator.evaluate(condition, context) if condition
 
           # Parse and translate expression to condition structure
           expr_str = expression.to_s.strip

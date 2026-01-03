@@ -40,9 +40,10 @@ module DecisionAgent
         hit_policy = @decision.decision_table.hit_policy
 
         # Short-circuit for FIRST and PRIORITY policies
-        if hit_policy == "FIRST" || hit_policy == "PRIORITY"
+        if %w[FIRST PRIORITY].include?(hit_policy)
           first_match = find_first_matching_evaluation(context, feedback: feedback)
           return first_match if first_match
+
           # If no match found, return nil (consistent with apply_first_policy behavior)
           return nil
         end
