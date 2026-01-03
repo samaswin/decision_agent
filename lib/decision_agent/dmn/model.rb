@@ -35,7 +35,8 @@ module DecisionAgent
 
     # Represents a single decision element
     class Decision
-      attr_reader :id, :name, :decision_table, :decision_tree, :description, :information_requirements
+      attr_accessor :decision_tree
+      attr_reader :id, :name, :decision_table, :description, :information_requirements
 
       def initialize(id:, name:, description: nil)
         @id = id.to_s
@@ -50,10 +51,6 @@ module DecisionAgent
         raise TypeError, "Expected DecisionTable, got #{table.class}" unless table.is_a?(DecisionTable)
 
         @decision_table = table
-      end
-
-      def decision_tree=(tree)
-        @decision_tree = tree
       end
 
       def add_information_requirement(requirement)

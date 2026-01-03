@@ -57,11 +57,12 @@ module DecisionAgent
             # Extract key - could be a transformed field node, string node, or raw value
             key = if entry[:key].is_a?(Hash)
                     # Key is a structured node
-                    if entry[:key][:type] == :field
+                    case entry[:key][:type]
+                    when :field
                       entry[:key][:name].to_s
-                    elsif entry[:key][:type] == :string
+                    when :string
                       entry[:key][:value].to_s
-                    elsif entry[:key][:type] == :identifier
+                    when :identifier
                       entry[:key][:name].to_s
                     else
                       entry[:key][:identifier]&.to_s || entry[:key][:string]&.to_s || entry[:key].to_s
@@ -358,7 +359,7 @@ module DecisionAgent
         # Helper to convert parse tree to AST
         def self.to_ast(parse_tree)
           new.apply(parse_tree)
-        rescue => e
+        rescue StandardError => e
           raise FeelTransformError.new(
             "Failed to transform parse tree to AST: #{e.message}",
             parse_tree: parse_tree,

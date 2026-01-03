@@ -8,7 +8,9 @@ module DecisionAgent
       # Functions either map to ConditionEvaluator operators or provide custom evaluation
       module Functions
         # Function registry
+        # rubocop:disable Style/MutableConstant
         REGISTRY = {}
+        # rubocop:enable Style/MutableConstant
 
         # Base class for all functions
         class Base
@@ -47,7 +49,7 @@ module DecisionAgent
         class Substring < Base
           register "substring", "substr"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 2..3)
             str = args[0].to_s
             start_pos = args[1].to_i - 1 # FEEL is 1-indexed
@@ -62,7 +64,7 @@ module DecisionAgent
         class StringLength < Base
           register "string length", "length"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             args[0].to_s.length
           end
@@ -71,7 +73,7 @@ module DecisionAgent
         class UpperCase < Base
           register "upper case", "upper"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             args[0].to_s.upcase
           end
@@ -80,7 +82,7 @@ module DecisionAgent
         class LowerCase < Base
           register "lower case", "lower"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             args[0].to_s.downcase
           end
@@ -89,7 +91,7 @@ module DecisionAgent
         class Contains < Base
           register "contains"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 2)
             args[0].to_s.include?(args[1].to_s)
           end
@@ -98,7 +100,7 @@ module DecisionAgent
         class StartsWith < Base
           register "starts with"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 2)
             args[0].to_s.start_with?(args[1].to_s)
           end
@@ -107,7 +109,7 @@ module DecisionAgent
         class EndsWith < Base
           register "ends with"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 2)
             args[0].to_s.end_with?(args[1].to_s)
           end
@@ -116,7 +118,7 @@ module DecisionAgent
         class SubstringBefore < Base
           register "substring before"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 2)
             str = args[0].to_s
             match = args[1].to_s
@@ -128,7 +130,7 @@ module DecisionAgent
         class SubstringAfter < Base
           register "substring after"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 2)
             str = args[0].to_s
             match = args[1].to_s
@@ -140,7 +142,7 @@ module DecisionAgent
         class Replace < Base
           register "replace"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 3)
             args[0].to_s.gsub(args[1].to_s, args[2].to_s)
           end
@@ -153,7 +155,7 @@ module DecisionAgent
         class Abs < Base
           register "abs", "absolute"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             args[0].to_f.abs
           end
@@ -162,7 +164,7 @@ module DecisionAgent
         class Floor < Base
           register "floor"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             args[0].to_f.floor
           end
@@ -171,7 +173,7 @@ module DecisionAgent
         class Ceiling < Base
           register "ceiling", "ceil"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             args[0].to_f.ceil
           end
@@ -180,10 +182,10 @@ module DecisionAgent
         class Round < Base
           register "round"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1..2)
             value = args[0].to_f
-            precision = args[1]&.to_i || 0
+            precision = args[1].to_i
             value.round(precision)
           end
         end
@@ -191,7 +193,7 @@ module DecisionAgent
         class Sqrt < Base
           register "sqrt", "square root"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             Math.sqrt(args[0].to_f)
           end
@@ -200,7 +202,7 @@ module DecisionAgent
         class Modulo < Base
           register "modulo", "mod"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 2)
             args[0].to_f % args[1].to_f
           end
@@ -209,7 +211,7 @@ module DecisionAgent
         class Odd < Base
           register "odd"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             args[0].to_i.odd?
           end
@@ -218,7 +220,7 @@ module DecisionAgent
         class Even < Base
           register "even"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             args[0].to_i.even?
           end
@@ -231,7 +233,7 @@ module DecisionAgent
         class Count < Base
           register "count"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             list = args[0]
             return 0 unless list.is_a?(Array) || list.is_a?(Types::List)
@@ -243,7 +245,7 @@ module DecisionAgent
         class Sum < Base
           register "sum"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             list = args[0]
             return 0 unless list.is_a?(Array) || list.is_a?(Types::List)
@@ -255,7 +257,7 @@ module DecisionAgent
         class Mean < Base
           register "mean", "average"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             list = args[0]
             return 0 unless list.is_a?(Array) || list.is_a?(Types::List)
@@ -268,7 +270,7 @@ module DecisionAgent
         class Min < Base
           register "min", "minimum"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             # Can accept multiple args or a single list
             values = args.length == 1 && (args[0].is_a?(Array) || args[0].is_a?(Types::List)) ? args[0] : args
             return nil if values.empty?
@@ -280,7 +282,7 @@ module DecisionAgent
         class Max < Base
           register "max", "maximum"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             # Can accept multiple args or a single list
             values = args.length == 1 && (args[0].is_a?(Array) || args[0].is_a?(Types::List)) ? args[0] : args
             return nil if values.empty?
@@ -292,7 +294,7 @@ module DecisionAgent
         class Append < Base
           register "append"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 2..)
             list = Array(args[0])
             items = args[1..]
@@ -303,7 +305,7 @@ module DecisionAgent
         class Reverse < Base
           register "reverse"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             Array(args[0]).reverse
           end
@@ -312,7 +314,7 @@ module DecisionAgent
         class IndexOf < Base
           register "index of"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 2)
             list = Array(args[0])
             match = args[1]
@@ -325,7 +327,7 @@ module DecisionAgent
         class DistinctValues < Base
           register "distinct values", "unique"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             Array(args[0]).uniq
           end
@@ -338,7 +340,7 @@ module DecisionAgent
         class Not < Base
           register "not"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             !args[0]
           end
@@ -347,20 +349,20 @@ module DecisionAgent
         class All < Base
           register "all"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             list = Array(args[0])
-            list.all? { |item| item == true || item == "true" }
+            list.all? { |item| [true, "true"].include?(item) }
           end
         end
 
         class Any < Base
           register "any"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             list = Array(args[0])
-            list.any? { |item| item == true || item == "true" }
+            list.any? { |item| [true, "true"].include?(item) }
           end
         end
 
@@ -371,7 +373,7 @@ module DecisionAgent
         class DateFunction < Base
           register "date"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             Types::Date.new(args[0])
           end
@@ -380,7 +382,7 @@ module DecisionAgent
         class TimeFunction < Base
           register "time"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             Types::Time.new(args[0])
           end
@@ -389,7 +391,7 @@ module DecisionAgent
         class DurationFunction < Base
           register "duration"
 
-          def self.call(args, context = {})
+          def self.call(args, _context = {})
             validate_arg_count(args, 1)
             Types::Duration.parse(args[0])
           end

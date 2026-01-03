@@ -145,8 +145,8 @@ decision1 = agent.decide(
 puts "  Final Decision: #{decision1.decision}"
 puts "  Evaluations:"
 decision1.evaluations.each do |eval|
-  puts "    - #{eval.evaluator_name}: #{eval.decision} (confidence: #{eval.confidence})"
-  puts "      Reason: #{eval.explanations.first&.reason}"
+  puts "    - #{eval.evaluator_name}: #{eval.decision} (weight: #{eval.weight})"
+  puts "      Reason: #{eval.reason}"
 end
 puts
 
@@ -168,8 +168,8 @@ decision2 = agent.decide(
 puts "  Final Decision: #{decision2.decision}"
 puts "  Evaluations:"
 decision2.evaluations.each do |eval|
-  puts "    - #{eval.evaluator_name}: #{eval.decision} (confidence: #{eval.confidence})"
-  puts "      Reason: #{eval.explanations.first&.reason}"
+  puts "    - #{eval.evaluator_name}: #{eval.decision} (weight: #{eval.weight})"
+  puts "      Reason: #{eval.reason}"
 end
 puts
 
@@ -191,8 +191,8 @@ decision3 = agent.decide(
 puts "  Final Decision: #{decision3.decision}"
 puts "  Evaluations:"
 decision3.evaluations.each do |eval|
-  puts "    - #{eval.evaluator_name}: #{eval.decision} (confidence: #{eval.confidence})"
-  puts "      Reason: #{eval.explanations.first&.reason}"
+  puts "    - #{eval.evaluator_name}: #{eval.decision} (weight: #{eval.weight})"
+  puts "      Reason: #{eval.reason}"
 end
 puts
 
@@ -211,8 +211,8 @@ decision4 = agent.decide(
 puts "  Final Decision: #{decision4.decision}"
 puts "  Evaluations:"
 decision4.evaluations.each do |eval|
-  puts "    - #{eval.evaluator_name}: #{eval.decision} (confidence: #{eval.confidence})"
-  puts "      Reason: #{eval.explanations.first&.reason}"
+  puts "    - #{eval.evaluator_name}: #{eval.decision} (weight: #{eval.weight})"
+  puts "      Reason: #{eval.reason}"
 end
 puts
 

@@ -39,7 +39,7 @@ module DecisionAgent
         def self.can_parse?(expression)
           expr = expression.to_s.strip
           # Can't handle: lists, contexts, functions, quantifiers, for expressions
-          return false if expr.match?(/[\[\{]/) # Lists or contexts
+          return false if expr.match?(/[\[{]/) # Lists or contexts
           return false if expr.match?(/\w+\s*\(/) # Function calls
           return false if expr.match?(/\b(some|every|for|if)\b/) # Complex constructs
 
@@ -60,6 +60,7 @@ module DecisionAgent
         private
 
         # Tokenize the expression
+        # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
         def tokenize(expr)
           tokens = []
           i = 0
@@ -88,7 +89,9 @@ module DecisionAgent
             end
 
             # Numbers (integer or float) - check BEFORE single char operators to handle negative numbers
-            if char.match?(/\d/) || (char == "-" && i + 1 < expr.length && expr[i + 1].match?(/\d/) && (tokens.empty? || tokens.last[:type] == :operator || tokens.last[:type] == :paren))
+            if char.match?(/\d/) ||
+               (char == "-" && i + 1 < expr.length && expr[i + 1].match?(/\d/) &&
+                (tokens.empty? || tokens.last[:type] == :operator || tokens.last[:type] == :paren))
               num_str = ""
               num_str << char if char == "-"
               i += 1 if char == "-"
@@ -132,19 +135,19 @@ module DecisionAgent
                 i += 1
               end
 
-              case word.downcase
-              when "true"
-                tokens << { type: :boolean, value: true }
-              when "false"
-                tokens << { type: :boolean, value: false }
-              when "not"
-                tokens << { type: :operator, value: "not" }
-              when "and", "or"
-                tokens << { type: :operator, value: word.downcase }
-              else
-                # Field reference
-                tokens << { type: :field, value: word }
-              end
+              tokens << case word.downcase
+                        when "true"
+                          { type: :boolean, value: true }
+                        when "false"
+                          { type: :boolean, value: false }
+                        when "not"
+                          { type: :operator, value: "not" }
+                        when "and", "or"
+                          { type: :operator, value: word.downcase }
+                        else
+                          # Field reference
+                          { type: :field, value: word }
+                        end
               next
             end
 
@@ -153,6 +156,7 @@ module DecisionAgent
 
           tokens
         end
+        # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
         # Parse expression with operator precedence
         def parse_expression(min_precedence = 0)
@@ -186,7 +190,8 @@ module DecisionAgent
           token = current_token
 
           if token && token[:type] == :operator
-            if token[:value] == "not"
+            case token[:value]
+            when "not"
               consume_token
               operand = parse_unary
               return {
@@ -194,7 +199,7 @@ module DecisionAgent
                 operator: "not",
                 operand: operand
               }
-            elsif token[:value] == "-"
+            when "-"
               consume_token
               operand = parse_unary
               return {
@@ -202,7 +207,7 @@ module DecisionAgent
                 operator: "negate",
                 operand: operand
               }
-            elsif token[:value] == "+"
+            when "+"
               consume_token # Skip unary plus
               return parse_unary
             end
@@ -235,17 +240,15 @@ module DecisionAgent
             { type: :field, name: token[:value] }
 
           when :paren
-            if token[:value] == "("
-              consume_token
-              expr = parse_expression
-              closing = current_token
-              raise DecisionAgent::Dmn::FeelParseError, "Expected closing parenthesis" unless closing && closing[:value] == ")"
+            raise DecisionAgent::Dmn::FeelParseError, "Unexpected closing parenthesis" unless token[:value] == "("
 
-              consume_token
-              expr
-            else
-              raise DecisionAgent::Dmn::FeelParseError, "Unexpected closing parenthesis"
-            end
+            consume_token
+            expr = parse_expression
+            closing = current_token
+            raise DecisionAgent::Dmn::FeelParseError, "Expected closing parenthesis" unless closing && closing[:value] == ")"
+
+            consume_token
+            expr
 
           else
             raise DecisionAgent::Dmn::FeelParseError, "Unexpected token: #{token.inspect}"

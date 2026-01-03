@@ -103,9 +103,7 @@ module DecisionAgent
         return nil if value_str.empty?
 
         # Remove quotes from string literals
-        if value_str.start_with?('"') && value_str.end_with?('"')
-          return value_str[1..-2]
-        end
+        return value_str[1..-2] if value_str.start_with?('"') && value_str.end_with?('"')
 
         # Try to parse as number
         if value_str.match?(/^-?\d+\.\d+$/)

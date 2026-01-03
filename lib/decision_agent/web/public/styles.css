@@ -42,11 +42,32 @@ header {
     background: linear-gradient(135deg, var(--primary-color), #6366f1);
     color: white;
     border-radius: 10px;
+    position: relative;
 }
 
 header h1 {
     font-size: 2.5rem;
     margin-bottom: 10px;
+}
+
+header .header-links {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+header .header-links .btn-link {
+    color: white;
+    text-decoration: none;
+    padding: 8px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    transition: background 0.2s;
+}
+
+header .header-links .btn-link:hover {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .subtitle {

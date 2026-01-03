@@ -43,7 +43,7 @@ module DecisionAgent
           end
 
           def inspect
-            "#<Feel::Number #{@value}#{@scale ? " (scale: #{@scale})" : ''}>"
+            "#<Feel::Number #{@value}#{" (scale: #{@scale})" if @scale}>"
           end
         end
 
@@ -208,8 +208,6 @@ module DecisionAgent
             "#<Feel::Duration P#{@years}Y#{@months}M#{@days}DT#{@hours}H#{@minutes}M#{@seconds}S>"
           end
 
-          private
-
           def self.extract_unit(str, unit)
             match = str.match(/(\d+(?:\.\d+)?)#{unit}/)
             match ? match[1].to_f.to_i : 0
@@ -219,7 +217,7 @@ module DecisionAgent
         # Wrapper for lists (adds FEEL semantics to Ruby Array)
         class List < Array
           def initialize(array = [])
-            super(array)
+            super
           end
 
           def to_ruby

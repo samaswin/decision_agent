@@ -218,7 +218,7 @@ RSpec.describe "FEEL Parser and Evaluator" do
 
     it "evaluates context literals" do
       context = {}
-      result = evaluator.evaluate('{ a: 1, b: 2 }', "ctx", context)
+      result = evaluator.evaluate("{ a: 1, b: 2 }", "ctx", context)
       expect(result).to eq({ a: 1, b: 2 })
     end
   end
@@ -436,7 +436,7 @@ RSpec.describe "FEEL Parser and Evaluator" do
     it "evaluates complex business rule" do
       context = {
         age: 25,
-        income: 50000,
+        income: 50_000,
         credit_score: 720
       }
 
