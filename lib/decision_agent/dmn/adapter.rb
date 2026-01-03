@@ -50,9 +50,7 @@ module DecisionAgent
 
         # If no conditions, return a condition that always matches
         # Use a simple true condition instead of empty "all" array
-        if conditions.empty?
-          return { "field" => "__always_match__", "op" => "eq", "value" => true }
-        end
+        return { "field" => "__always_match__", "op" => "eq", "value" => true } if conditions.empty?
 
         # If only one condition, return it directly
         return conditions.first if conditions.size == 1
@@ -63,11 +61,11 @@ module DecisionAgent
 
       def convert_feel_to_condition(feel_expression, field_name)
         parsed = @feel.parse_expression(feel_expression)
-        
+
         # Ensure we have valid operator and value
         operator = parsed[:operator] || "eq"
         value = parsed[:value]
-        
+
         # If value is nil, we can't create a valid condition
         if value.nil?
           warn "Warning: FEEL expression '#{feel_expression}' parsed to nil value, skipping"
@@ -94,9 +92,7 @@ module DecisionAgent
         parsed_value = parse_output_value(output_value)
 
         # Ensure we always have a valid decision value (not nil or empty string)
-        if parsed_value.nil? || (parsed_value.is_a?(String) && parsed_value.empty?)
-          parsed_value = "no_decision"
-        end
+        parsed_value = "no_decision" if parsed_value.nil? || (parsed_value.is_a?(String) && parsed_value.empty?)
 
         {
           "decision" => parsed_value,
