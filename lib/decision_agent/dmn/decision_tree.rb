@@ -104,15 +104,13 @@ module DecisionAgent
             result = @feel_evaluator.evaluate(child.condition, "condition", context.to_h)
             any_condition_evaluated = true
 
-            if result
-              # Condition matched, continue down this branch
-              return traverse(child, context)
-            else
-              # Condition evaluated to false - check if this child has a false branch
-              # If child has multiple leaf children with no conditions, take the second one
-              if !child.leaf? && child.children.all? { |c| c.condition.nil? && c.leaf? } && child.children.size > 1
-                return child.children[1].decision
-              end
+            return traverse(child, context) if result
+            # Condition matched, continue down this branch
+
+            # Condition evaluated to false - check if this child has a false branch
+            # If child has multiple leaf children with no conditions, take the second one
+            if !child.leaf? && child.children.all? { |c| c.condition.nil? && c.leaf? } && child.children.size > 1
+              return child.children[1].decision
             end
           rescue StandardError
             # If condition evaluation fails, skip this branch
@@ -139,10 +137,8 @@ module DecisionAgent
           decision: hash[:decision]
         )
 
-        if hash[:children]
-          hash[:children].each do |child_hash|
-            node.add_child(build_node(child_hash))
-          end
+        hash[:children]&.each do |child_hash|
+          node.add_child(build_node(child_hash))
         end
 
         node
@@ -165,7 +161,7 @@ module DecisionAgent
       end
 
       def collect_paths(node, current_path, paths = [])
-        current_path = current_path + [node]
+        current_path += [node]
 
         if node.leaf?
           paths << current_path
@@ -182,16 +178,14 @@ module DecisionAgent
       def self.parse(xml_element)
         # Parse DMN literal expression (decision tree representation)
         # This is a simplified parser - full DMN tree parsing would be more complex
-        tree_id = xml_element['id']
-        tree_name = xml_element['name'] || tree_id
+        tree_id = xml_element["id"]
+        tree_name = xml_element["name"] || tree_id
 
-        tree = DecisionTree.new(id: tree_id, name: tree_name)
+        DecisionTree.new(id: tree_id, name: tree_name)
 
         # Parse the tree structure from XML
         # Note: This is a placeholder for full DMN literal expression parsing
         # In a complete implementation, this would parse the DMN tree structure
-
-        tree
       end
     end
   end

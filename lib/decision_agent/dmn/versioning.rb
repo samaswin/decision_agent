@@ -41,21 +41,19 @@ module DecisionAgent
         return nil unless version
 
         # Parse DMN from version content
-        if version[:content].is_a?(Hash) && version[:content][:format] == "dmn"
-          parser = Parser.new
-          model = parser.parse(version[:content][:xml])
+        return unless version[:content].is_a?(Hash) && version[:content][:format] == "dmn"
 
-          {
-            version_id: version[:version_id],
-            model: model,
-            created_at: version[:created_at],
-            created_by: version[:created_by],
-            changelog: version[:changelog],
-            is_active: version[:is_active]
-          }
-        else
-          nil
-        end
+        parser = Parser.new
+        model = parser.parse(version[:content][:xml])
+
+        {
+          version_id: version[:version_id],
+          model: model,
+          created_at: version[:created_at],
+          created_by: version[:created_by],
+          changelog: version[:changelog],
+          is_active: version[:is_active]
+        }
       end
 
       # Get all versions of a DMN model
@@ -97,12 +95,10 @@ module DecisionAgent
         )
 
         # Parse and return the model
-        if version[:content].is_a?(Hash) && version[:content][:format] == "dmn"
-          parser = Parser.new
-          parser.parse(version[:content][:xml])
-        else
-          nil
-        end
+        return unless version[:content].is_a?(Hash) && version[:content][:format] == "dmn"
+
+        parser = Parser.new
+        parser.parse(version[:content][:xml])
       end
 
       # Compare two DMN versions
@@ -141,9 +137,12 @@ module DecisionAgent
       end
 
       # Tag a DMN version
+      # rubocop:disable Naming/PredicateMethod
       def tag_dmn_version(version_id:, tag:)
+        _tag = tag # TODO: Implement tag functionality
         version = @version_manager.get_version(version_id: version_id)
         return false unless version
+        # rubocop:enable Naming/PredicateMethod
 
         # Add tag to metadata (this would need to be implemented in VersionManager)
         # For now, we'll use changelog to append the tag
@@ -175,8 +174,8 @@ module DecisionAgent
         }
 
         # Find added/removed/modified decisions
-        ids_1 = model_1.decisions.map(&:id).to_set
-        ids_2 = model_2.decisions.map(&:id).to_set
+        ids_1 = model_1.decisions.to_set(&:id)
+        ids_2 = model_2.decisions.to_set(&:id)
 
         diff[:decisions_added] = (ids_2 - ids_1).to_a
         diff[:decisions_removed] = (ids_1 - ids_2).to_a
@@ -187,9 +186,7 @@ module DecisionAgent
           decision_1 = model_1.find_decision(decision_id)
           decision_2 = model_2.find_decision(decision_id)
 
-          if decision_changed?(decision_1, decision_2)
-            diff[:decisions_modified] << decision_id
-          end
+          diff[:decisions_modified] << decision_id if decision_changed?(decision_1, decision_2)
         end
 
         diff

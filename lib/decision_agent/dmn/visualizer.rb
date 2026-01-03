@@ -64,12 +64,12 @@ module DecisionAgent
 
         svg = [
           %(<svg xmlns="http://www.w3.org/2000/svg" width="#{width}" height="#{height}" viewBox="0 0 #{width} #{height}">),
-          '<defs>',
+          "<defs>",
           '  <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">',
           '    <polygon points="0 0, 10 3, 0 6" fill="#666" />',
-          '  </marker>',
-          '</defs>',
-          '<g>'
+          "  </marker>",
+          "</defs>",
+          "<g>"
         ]
 
         # Draw edges first (so they appear behind nodes)
@@ -78,8 +78,8 @@ module DecisionAgent
         # Draw nodes
         svg.concat(generate_nodes)
 
-        svg << '</g>'
-        svg << '</svg>'
+        svg << "</g>"
+        svg << "</svg>"
         svg.join("\n")
       end
 
@@ -87,18 +87,18 @@ module DecisionAgent
 
       def calculate_positions(node, depth, offset)
         @positions[node.id] = {
-          x: offset + NODE_WIDTH / 2,
-          y: depth * (NODE_HEIGHT + VERTICAL_SPACING) + 20
+          x: offset + (NODE_WIDTH / 2),
+          y: (depth * (NODE_HEIGHT + VERTICAL_SPACING)) + 20
         }
 
-        if node.children.any?
-          child_width = calculate_subtree_width(node)
-          child_offset = offset
+        return unless node.children.any?
 
-          node.children.each do |child|
-            calculate_positions(child, depth + 1, child_offset)
-            child_offset += calculate_subtree_width(child) + HORIZONTAL_SPACING
-          end
+        calculate_subtree_width(node)
+        child_offset = offset
+
+        node.children.each do |child|
+          calculate_positions(child, depth + 1, child_offset)
+          child_offset += calculate_subtree_width(child) + HORIZONTAL_SPACING
         end
       end
 
@@ -118,11 +118,11 @@ module DecisionAgent
           node = find_node(@tree.root, node_id)
           next unless node
 
-          x = pos[:x] - NODE_WIDTH / 2
+          x = pos[:x] - (NODE_WIDTH / 2)
           y = pos[:y]
 
           # Node background
-          color = node.leaf? ? '#e8f5e9' : '#e3f2fd'
+          color = node.leaf? ? "#e8f5e9" : "#e3f2fd"
           nodes << %(<rect x="#{x}" y="#{y}" width="#{NODE_WIDTH}" height="#{NODE_HEIGHT}" )
           nodes << %(fill="#{color}" stroke="#666" stroke-width="2" rx="5"/>)
 
@@ -189,11 +189,11 @@ module DecisionAgent
 
       def escape_xml(text)
         text.to_s
-          .gsub('&', '&amp;')
-          .gsub('<', '&lt;')
-          .gsub('>', '&gt;')
-          .gsub('"', '&quot;')
-          .gsub("'", '&apos;')
+            .gsub("&", "&amp;")
+            .gsub("<", "&lt;")
+            .gsub(">", "&gt;")
+            .gsub('"', "&quot;")
+            .gsub("'", "&apos;")
       end
     end
 
@@ -263,12 +263,12 @@ module DecisionAgent
 
         svg = [
           %(<svg xmlns="http://www.w3.org/2000/svg" width="#{width}" height="#{height}" viewBox="0 0 #{width} #{height}">),
-          '<defs>',
+          "<defs>",
           '  <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">',
           '    <polygon points="0 0, 10 3, 0 6" fill="#666" />',
-          '  </marker>',
-          '</defs>',
-          '<g>'
+          "  </marker>",
+          "</defs>",
+          "<g>"
         ]
 
         # Draw edges
@@ -277,8 +277,8 @@ module DecisionAgent
         # Draw nodes
         svg.concat(generate_nodes)
 
-        svg << '</g>'
-        svg << '</svg>'
+        svg << "</g>"
+        svg << "</svg>"
         svg.join("\n")
       end
 
@@ -288,7 +288,7 @@ module DecisionAgent
         # Use topological sort to arrange nodes in layers
         begin
           order = @graph.topological_order
-        rescue
+        rescue StandardError
           # If circular, just use the order as-is
           order = @graph.decisions.keys
         end
@@ -300,8 +300,8 @@ module DecisionAgent
         layers.each_with_index do |layer_nodes, layer_index|
           layer_nodes.each_with_index do |node_id, node_index|
             @positions[node_id] = {
-              x: node_index * (NODE_WIDTH + HORIZONTAL_SPACING) + 40,
-              y: layer_index * (NODE_HEIGHT + VERTICAL_SPACING) + 40
+              x: (node_index * (NODE_WIDTH + HORIZONTAL_SPACING)) + 40,
+              y: (layer_index * (NODE_HEIGHT + VERTICAL_SPACING)) + 40
             }
           end
         end
@@ -349,11 +349,11 @@ module DecisionAgent
 
           # Decision name
           name = truncate(decision.name, 22)
-          nodes << %(<text x="#{x + NODE_WIDTH/2}" y="#{y + 25}" text-anchor="middle" )
+          nodes << %(<text x="#{x + (NODE_WIDTH / 2)}" y="#{y + 25}" text-anchor="middle" )
           nodes << %(font-family="Arial, sans-serif" font-size="12" font-weight="bold">#{escape_xml(name)}</text>)
 
           # Decision ID
-          nodes << %(<text x="#{x + NODE_WIDTH/2}" y="#{y + 45}" text-anchor="middle" )
+          nodes << %(<text x="#{x + (NODE_WIDTH / 2)}" y="#{y + 45}" text-anchor="middle" )
           nodes << %(font-family="Arial, sans-serif" font-size="10" fill="#666">ID: #{escape_xml(decision_id)}</text>)
         end
 
@@ -372,21 +372,21 @@ module DecisionAgent
             next unless to_pos
 
             # Draw arrow from dependency to this decision
-            x1 = to_pos[:x] + NODE_WIDTH / 2
+            x1 = to_pos[:x] + (NODE_WIDTH / 2)
             y1 = to_pos[:y] + NODE_HEIGHT
-            x2 = from_pos[:x] + NODE_WIDTH / 2
+            x2 = from_pos[:x] + (NODE_WIDTH / 2)
             y2 = from_pos[:y]
 
             edges << %(<line x1="#{x1}" y1="#{y1}" x2="#{x2}" y2="#{y2}" )
             edges << %(stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>)
 
             # Add label for variable name if specified
-            if req[:variable_name] && req[:variable_name] != req[:decision_id]
-              mid_x = (x1 + x2) / 2
-              mid_y = (y1 + y2) / 2
-              edges << %(<text x="#{mid_x}" y="#{mid_y}" text-anchor="middle" )
-              edges << %(font-family="Arial, sans-serif" font-size="10" fill="#e65100">#{escape_xml(req[:variable_name])}</text>)
-            end
+            next unless req[:variable_name] && req[:variable_name] != req[:decision_id]
+
+            mid_x = (x1 + x2) / 2
+            mid_y = (y1 + y2) / 2
+            edges << %(<text x="#{mid_x}" y="#{mid_y}" text-anchor="middle" )
+            edges << %(font-family="Arial, sans-serif" font-size="10" fill="#e65100">#{escape_xml(req[:variable_name])}</text>)
           end
         end
 
@@ -399,11 +399,11 @@ module DecisionAgent
 
       def escape_xml(text)
         text.to_s
-          .gsub('&', '&amp;')
-          .gsub('<', '&lt;')
-          .gsub('>', '&gt;')
-          .gsub('"', '&quot;')
-          .gsub("'", '&apos;')
+            .gsub("&", "&amp;")
+            .gsub("<", "&lt;")
+            .gsub(">", "&gt;")
+            .gsub('"', "&quot;")
+            .gsub("'", "&apos;")
       end
     end
 
@@ -421,11 +421,9 @@ module DecisionAgent
         @graph.decisions.each do |decision_id, decision|
           label = escape_dot("#{decision.name}\\n(#{decision_id})")
           dot << %(  "#{decision_id}" [label="#{label}", fillcolor=lightyellow, style="rounded,filled"];)
-        end
 
-        @graph.decisions.each do |decision_id, decision|
           decision.information_requirements.each do |req|
-            label = req[:variable_name] != req[:decision_id] ? escape_dot(req[:variable_name]) : ""
+            label = req[:variable_name] == req[:decision_id] ? "" : escape_dot(req[:variable_name])
             label_attr = label.empty? ? "" : %( [label="#{label}"])
             dot << %(  "#{req[:decision_id]}" -> "#{decision_id}"#{label_attr};)
           end
@@ -479,7 +477,7 @@ module DecisionAgent
       end
 
       def escape_mermaid(text)
-        text.to_s.gsub('"', '&quot;')
+        text.to_s.gsub('"', "&quot;")
       end
     end
 
@@ -493,13 +491,11 @@ module DecisionAgent
         mermaid = ["graph TD"]
 
         @graph.decisions.each do |decision_id, decision|
-          label = escape_mermaid("#{decision.name}")
+          label = escape_mermaid(decision.name.to_s)
           mermaid << %(  #{decision_id}["#{label}"])
-        end
 
-        @graph.decisions.each do |decision_id, decision|
           decision.information_requirements.each do |req|
-            label = req[:variable_name] != req[:decision_id] ? "|#{escape_mermaid(req[:variable_name])}|" : ""
+            label = req[:variable_name] == req[:decision_id] ? "" : "|#{escape_mermaid(req[:variable_name])}|"
             mermaid << %(  #{req[:decision_id]} -->#{label} #{decision_id})
           end
         end
@@ -510,7 +506,7 @@ module DecisionAgent
       private
 
       def escape_mermaid(text)
-        text.to_s.gsub('"', '&quot;')
+        text.to_s.gsub('"', "&quot;")
       end
     end
   end

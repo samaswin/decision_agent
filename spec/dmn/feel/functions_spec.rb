@@ -89,7 +89,7 @@ RSpec.describe DecisionAgent::Dmn::Feel::Functions do
       end
 
       it "returns empty string when match not found" do
-        result = described_class.execute("substring before", ["hello", "x"])
+        result = described_class.execute("substring before", %w[hello x])
         expect(result).to eq("")
       end
     end
@@ -101,7 +101,7 @@ RSpec.describe DecisionAgent::Dmn::Feel::Functions do
       end
 
       it "returns empty string when match not found" do
-        result = described_class.execute("substring after", ["hello", "x"])
+        result = described_class.execute("substring after", %w[hello x])
         expect(result).to eq("")
       end
     end

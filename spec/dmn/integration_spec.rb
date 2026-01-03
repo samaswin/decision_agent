@@ -73,8 +73,8 @@ RSpec.describe "DMN Integration" do
       # Test excellent case
       context_excellent = DecisionAgent::Context.new({
                                                        credit_score: 800,
-                                                       income: 75000,
-                                                       loan_amount: 150000
+                                                       income: 75_000,
+                                                       loan_amount: 150_000
                                                      })
       evaluation_excellent = evaluator.evaluate(context_excellent)
 
@@ -84,8 +84,8 @@ RSpec.describe "DMN Integration" do
       # Test good case
       context_good = DecisionAgent::Context.new({
                                                   credit_score: 700,
-                                                  income: 45000,
-                                                  loan_amount: 100000
+                                                  income: 45_000,
+                                                  loan_amount: 100_000
                                                 })
       evaluation_good = evaluator.evaluate(context_good)
 
@@ -95,8 +95,8 @@ RSpec.describe "DMN Integration" do
       # Test rejection case
       context_reject = DecisionAgent::Context.new({
                                                     credit_score: 500,
-                                                    income: 25000,
-                                                    loan_amount: 100000
+                                                    income: 25_000,
+                                                    loan_amount: 100_000
                                                   })
       evaluation_reject = evaluator.evaluate(context_reject)
 
@@ -190,7 +190,7 @@ RSpec.describe "DMN Integration" do
         context: { age: 25, priority: "high" }
       )
 
-      expect(["approve", "escalate"]).to include(decision.decision)
+      expect(%w[approve escalate]).to include(decision.decision)
       expect(decision.evaluations.size).to eq(2)
       expect(decision.evaluations.map(&:evaluator_name)).to include(
         match(/DmnEvaluator/),

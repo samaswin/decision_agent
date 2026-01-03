@@ -50,11 +50,11 @@ module DecisionAgent
       def decision_logic_type
         case @decision_logic
         when DecisionTree
-          'decision_tree'
+          "decision_tree"
         when Hash
-          'decision_table'
+          "decision_table"
         else
-          'literal'
+          "literal"
         end
       end
     end
@@ -112,12 +112,10 @@ module DecisionAgent
         visited = Set.new
         temp_mark = Set.new
 
-        visit = ->(decision_id) do
+        visit = lambda do |decision_id|
           return if visited.include?(decision_id)
 
-          if temp_mark.include?(decision_id)
-            raise DmnError, "Circular dependency detected involving decision '#{decision_id}'"
-          end
+          raise DmnError, "Circular dependency detected involving decision '#{decision_id}'" if temp_mark.include?(decision_id)
 
           temp_mark.add(decision_id)
 
@@ -131,12 +129,12 @@ module DecisionAgent
           order << decision_id
         end
 
-        @decisions.keys.each { |decision_id| visit.call(decision_id) }
+        @decisions.each_key { |decision_id| visit.call(decision_id) }
         order
       end
 
       # Detect circular dependencies
-      def has_circular_dependencies?
+      def circular_dependencies?
         topological_order
         false
       rescue DmnError => e
@@ -246,14 +244,14 @@ module DecisionAgent
       end
 
       def evaluate_condition(condition, value, context)
-        return true if condition.nil? || condition == '-'
+        return true if condition.nil? || condition == "-"
 
         @feel_evaluator.evaluate(
           "#{value} #{condition}",
           "condition",
           context
         )
-      rescue
+      rescue StandardError
         false
       end
     end
@@ -262,30 +260,28 @@ module DecisionAgent
     class DecisionGraphParser
       def self.parse(xml_doc)
         # Extract namespace and model info
-        definitions = xml_doc.at_xpath('//dmn:definitions') || xml_doc.root
-        model_id = definitions['id'] || 'decision_graph'
-        model_name = definitions['name'] || model_id
+        definitions = xml_doc.at_xpath("//dmn:definitions") || xml_doc.root
+        model_id = definitions["id"] || "decision_graph"
+        model_name = definitions["name"] || model_id
 
         graph = DecisionGraph.new(id: model_id, name: model_name)
 
         # Parse all decisions
-        decisions = xml_doc.xpath('//dmn:decision')
+        decisions = xml_doc.xpath("//dmn:decision")
         decisions.each do |decision_xml|
           decision_node = parse_decision_node(decision_xml)
           graph.add_decision(decision_node)
-        end
 
-        # Parse information requirements (dependencies)
-        decisions.each do |decision_xml|
-          decision_id = decision_xml['id']
+          # Parse information requirements (dependencies)
+          decision_id = decision_xml["id"]
           decision_node = graph.get_decision(decision_id)
 
           # Find all information requirements
-          info_reqs = decision_xml.xpath('.//dmn:informationRequirement')
+          info_reqs = decision_xml.xpath(".//dmn:informationRequirement")
           info_reqs.each do |req|
-            required_decision = req.at_xpath('.//dmn:requiredDecision')
+            required_decision = req.at_xpath(".//dmn:requiredDecision")
             if required_decision
-              required_id = required_decision['href']&.sub('#', '')
+              required_id = required_decision["href"]&.sub("#", "")
               decision_node.add_dependency(required_id) if required_id
             end
           end
@@ -295,18 +291,18 @@ module DecisionAgent
       end
 
       def self.parse_decision_node(decision_xml)
-        decision_id = decision_xml['id']
-        decision_name = decision_xml['name'] || decision_id
+        decision_id = decision_xml["id"]
+        decision_name = decision_xml["name"] || decision_id
 
         # Check for decision table
-        decision_table = decision_xml.at_xpath('.//dmn:decisionTable')
+        decision_table = decision_xml.at_xpath(".//dmn:decisionTable")
         if decision_table
           # Parse decision table (simplified)
           decision_logic = parse_decision_table(decision_table)
         else
           # Check for literal expression (could be decision tree or simple expression)
-          literal_expr = decision_xml.at_xpath('.//dmn:literalExpression')
-          decision_logic = literal_expr ? literal_expr.text.strip : nil
+          literal_expr = decision_xml.at_xpath(".//dmn:literalExpression")
+          decision_logic = literal_expr&.text&.strip
         end
 
         DecisionNode.new(
@@ -320,8 +316,8 @@ module DecisionAgent
         # Simplified decision table parsing
         # Full implementation would use the existing DecisionTable parser
         {
-          type: 'decision_table',
-          hit_policy: table_xml['hitPolicy'] || 'UNIQUE',
+          type: "decision_table",
+          hit_policy: table_xml["hitPolicy"] || "UNIQUE",
           inputs: [],
           rules: []
         }

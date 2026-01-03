@@ -85,9 +85,7 @@ module DecisionAgent
         table_node = node.at_xpath(".//dmn:decisionTable", NAMESPACES) ||
                      node.at_xpath(".//*[local-name()='decisionTable']")
 
-        if table_node
-          decision.decision_table = parse_decision_table(table_node)
-        end
+        decision.decision_table = parse_decision_table(table_node) if table_node
 
         decision.freeze
         decision

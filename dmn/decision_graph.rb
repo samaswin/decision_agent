@@ -33,7 +33,7 @@ module DecisionAgent
         visited = Set.new
         temp_mark = Set.new
 
-        @decisions.keys.each do |decision_id|
+        @decisions.each_key do |decision_id|
           visit(decision_id, visited, temp_mark, sorted) unless visited.include?(decision_id)
         end
 
@@ -50,10 +50,8 @@ module DecisionAgent
 
           # Build evaluation context with results from dependent decisions
           eval_context = context.to_h.dup
-          if @dependencies[decision_id]
-            @dependencies[decision_id].each do |dep_id|
-              eval_context[dep_id] = results[dep_id]
-            end
+          @dependencies[decision_id]&.each do |dep_id|
+            eval_context[dep_id] = results[dep_id]
           end
 
           # Evaluate the decision
@@ -76,10 +74,8 @@ module DecisionAgent
           eval_context = context.to_h.dup
 
           # Add results from already evaluated dependencies
-          if @dependencies[dep_id]
-            @dependencies[dep_id].each do |required_id|
-              eval_context[required_id] = results[required_id] if results[required_id]
-            end
+          @dependencies[dep_id]&.each do |required_id|
+            eval_context[required_id] = results[required_id] if results[required_id]
           end
 
           results[dep_id] = evaluate_decision(decision, eval_context)
@@ -88,30 +84,28 @@ module DecisionAgent
         # Evaluate the target decision
         decision = @decisions[decision_id]
         eval_context = context.to_h.dup
-        if @dependencies[decision_id]
-          @dependencies[decision_id].each do |dep_id|
-            eval_context[dep_id] = results[dep_id]
-          end
+        @dependencies[decision_id]&.each do |dep_id|
+          eval_context[dep_id] = results[dep_id]
         end
 
         evaluate_decision(decision, eval_context)
       end
 
       # Validate the graph (check for cycles, missing dependencies)
+      # rubocop:disable Naming/PredicateMethod
       def validate!
         # Check for missing decisions
         @dependencies.each do |decision_id, deps|
           deps.each do |dep_id|
-            unless @decisions.key?(dep_id)
-              raise InvalidDmnModelError, "Decision '#{decision_id}' depends on missing decision '#{dep_id}'"
-            end
+            raise InvalidDmnModelError, "Decision '#{decision_id}' depends on missing decision '#{dep_id}'" unless @decisions.key?(dep_id)
           end
         end
+        # rubocop:enable Naming/PredicateMethod
 
         # Check for cycles
         begin
           execution_order
-        rescue => e
+        rescue StandardError => e
           raise InvalidDmnModelError, "Decision graph contains cycles: #{e.message}"
         end
 
@@ -157,19 +151,15 @@ module DecisionAgent
       private
 
       def visit(decision_id, visited, temp_mark, sorted)
-        if temp_mark.include?(decision_id)
-          raise InvalidDmnModelError, "Circular dependency detected at decision '#{decision_id}'"
-        end
+        raise InvalidDmnModelError, "Circular dependency detected at decision '#{decision_id}'" if temp_mark.include?(decision_id)
 
         return if visited.include?(decision_id)
 
         temp_mark.add(decision_id)
 
         # Visit dependencies first
-        if @dependencies[decision_id]
-          @dependencies[decision_id].each do |dep_id|
-            visit(dep_id, visited, temp_mark, sorted)
-          end
+        @dependencies[decision_id]&.each do |dep_id|
+          visit(dep_id, visited, temp_mark, sorted)
         end
 
         temp_mark.delete(decision_id)
@@ -180,11 +170,9 @@ module DecisionAgent
       def get_all_dependencies(decision_id, collected = Set.new)
         return collected if collected.include?(decision_id)
 
-        if @dependencies[decision_id]
-          @dependencies[decision_id].each do |dep_id|
-            get_all_dependencies(dep_id, collected)
-            collected.add(dep_id)
-          end
+        @dependencies[decision_id]&.each do |dep_id|
+          get_all_dependencies(dep_id, collected)
+          collected.add(dep_id)
         end
 
         collected
@@ -198,7 +186,7 @@ module DecisionAgent
         if decision.respond_to?(:decision_table) && decision.decision_table
           # Use adapter to evaluate decision table
           adapter = Adapter.new(decision.decision_table)
-          rules = adapter.to_json_rules
+          adapter.to_json_rules
           # Would use JsonRuleEvaluator here in full implementation
           # For now, return a placeholder
           { decision: "evaluated", source: decision.id }
@@ -218,15 +206,13 @@ module DecisionAgent
         # Add all decisions to the graph
         model.decisions.each do |decision|
           graph.add_decision(decision)
-        end
 
-        # Build dependencies from information requirements
-        model.decisions.each do |decision|
-          if decision.information_requirements
-            decision.information_requirements.each do |req|
-              # Information requirement points to a required decision
-              graph.add_dependency(decision.id, req)
-            end
+          # Build dependencies from information requirements
+          next unless decision.information_requirements
+
+          decision.information_requirements.each do |req|
+            # Information requirement points to a required decision
+            graph.add_dependency(decision.id, req)
           end
         end
 

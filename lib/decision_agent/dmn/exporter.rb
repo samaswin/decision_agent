@@ -36,6 +36,7 @@ module DecisionAgent
         hash[key.to_s] || hash[key.to_sym]
       end
 
+      # rubocop:disable Metrics/MethodLength
       def convert_to_dmn(rules_json, rule_id)
         # Handle both string and symbol keys
         ruleset_name = rules_json["ruleset"] || rules_json[:ruleset] || rule_id
@@ -82,6 +83,7 @@ module DecisionAgent
 
         builder.to_xml
       end
+      # rubocop:enable Metrics/MethodLength
 
       def extract_inputs(rules)
         # Extract all unique field names used in conditions

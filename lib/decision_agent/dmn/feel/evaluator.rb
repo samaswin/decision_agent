@@ -13,6 +13,7 @@ module DecisionAgent
       # Phase 2A: Basic comparisons, ranges, list membership (regex-based)
       # Phase 2B: Arithmetic, logical operators, functions (enhanced parser)
       # Maps FEEL expressions to DecisionAgent ConditionEvaluator
+      # rubocop:disable Metrics/ClassLength
       class Evaluator
         def initialize
           @simple_parser = SimpleParser.new
@@ -27,6 +28,7 @@ module DecisionAgent
         # @param field_name [String] The field name being evaluated
         # @param context [Hash] Evaluation context
         # @return [Boolean] Evaluation result
+        # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
         def evaluate(expression, field_name, context)
           return true if expression == "-" # DMN "don't care" marker
 
@@ -38,11 +40,12 @@ module DecisionAgent
               result = evaluate_ast_node(ast, context)
               # If result is nil and AST is a simple field reference that doesn't exist in context,
               # fall back to Phase 2A approach to return condition structure
-              if result.nil? && ast.is_a?(Hash) && ast[:type] == :field && !context.key?(ast[:name]) && !context.key?(ast[:name].to_s) && !context.key?(ast[:name].to_sym)
-                # Fall through to Phase 2A
-              else
+              unless result.nil? && ast.is_a?(Hash) && ast[:type] == :field &&
+                     !context.key?(ast[:name]) && !context.key?(ast[:name].to_s) &&
+                     !context.key?(ast[:name].to_sym)
                 return result
               end
+            # Fall through to Phase 2A
             rescue Parslet::ParseFailed, FeelParseError, FeelTransformError => e
               # Fall back to Phase 2A approach
               warn "Parslet parse failed: #{e.message}, falling back" if ENV["DEBUG_FEEL"]
@@ -59,13 +62,13 @@ module DecisionAgent
 
           # Parse and translate expression to condition structure
           expr_str = expression.to_s.strip
-          
+
           # Check if expression matches any known pattern that can be successfully parsed
-          is_supported = literal?(expr_str) || 
-                        comparison_expression?(expr_str) || 
-                        list_expression?(expr_str) || 
-                        range_expression?(expr_str)
-          
+          is_supported = literal?(expr_str) ||
+                         comparison_expression?(expr_str) ||
+                         list_expression?(expr_str) ||
+                         range_expression?(expr_str)
+
           # For SimpleParser, check if it can actually parse successfully
           if SimpleParser.can_parse?(expr_str)
             begin
@@ -76,9 +79,10 @@ module DecisionAgent
               is_supported = false
             end
           end
-          
+          # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
+
           condition = parse_expression_to_condition(expression, field_name, context)
-          
+
           # If parse_expression_to_condition returned nil, create default condition structure
           unless condition.is_a?(Hash)
             condition = {
@@ -87,18 +91,16 @@ module DecisionAgent
               "value" => parse_value(expr_str)
             }
           end
-          
+
           @cache[cache_key] = condition
 
           # For completely unsupported expressions (no patterns matched), return condition structure
           # This allows fallback to literal equality for unknown syntax
-          unless is_supported
-            return condition
-          end
+          return condition unless is_supported
 
           # Delegate to existing ConditionEvaluator for supported expressions
           evaluation_result = Dsl::ConditionEvaluator.evaluate(condition, context)
-          
+
           # If evaluation returns false for a simple equality check and the field doesn't exist in context,
           # treat as unsupported expression and return condition structure (fallback behavior)
           if evaluation_result == false && condition["op"] == "eq"
@@ -106,10 +108,10 @@ module DecisionAgent
             field_exists = context.key?(field_key) || context.key?(field_key.to_s) || context.key?(field_key.to_sym)
             return condition unless field_exists
           end
-          
+
           # If evaluation returns nil, return condition structure as fallback
           return condition if evaluation_result.nil?
-          
+
           evaluation_result
         end
 
@@ -219,12 +221,12 @@ module DecisionAgent
 
         def range_expression?(expr)
           # FEEL ranges like "[10..20]", "(10..20)", etc.
-          expr.match?(/[\[\(]\d+(\.\d+)?\.\.\d+(\.\d+)?[\]\)]/)
+          expr.match?(/[\[(]\d+(\.\d+)?\.\.\d+(\.\d+)?[\])]/)
         end
 
         def parse_range(expr)
           # Parse FEEL range syntax: [min..max], (min..max), [min..max), (min..max]
-          range_match = expr.match(/([\[\(])(\d+(?:\.\d+)?)\.\.(\d+(?:\.\d+)?)([\]\)])/)
+          range_match = expr.match(/([\[(])(\d+(?:\.\d+)?)\.\.(\d+(?:\.\d+)?)([\])])/)
           return { operator: "eq", value: expr } unless range_match
 
           inclusive_start = range_match[1] == "["
@@ -248,9 +250,7 @@ module DecisionAgent
           str = str.to_s.strip
 
           # Remove quotes
-          if str.start_with?('"') && str.end_with?('"')
-            return str[1..-2]
-          end
+          return str[1..-2] if str.start_with?('"') && str.end_with?('"')
 
           # Try to parse as number
           if str.match?(/^-?\d+\.\d+$/)
@@ -456,6 +456,7 @@ module DecisionAgent
         end
 
         # Evaluate Parslet AST node (Phase 2B - full FEEL support)
+        # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
         def evaluate_ast_node(node, context)
           return node unless node.is_a?(Hash)
 
@@ -466,6 +467,7 @@ module DecisionAgent
             return node[:number] if node.key?(:number)
             return node[:string] if node.key?(:string)
             return node[:boolean] if node.key?(:boolean)
+
             return node
           end
 
@@ -487,7 +489,7 @@ module DecisionAgent
           when :property_access
             evaluate_property_access(node, context)
           when :comparison
-            evaluate_comparison_node(node, context)
+            evaluate_comparison_node?(node, context)
           when :arithmetic
             evaluate_arithmetic_node(node, context)
           when :logical
@@ -501,15 +503,16 @@ module DecisionAgent
           when :filter
             evaluate_filter(node, context)
           when :between
-            evaluate_between(node, context)
+            evaluate_between?(node, context)
           when :in
-            evaluate_in_node(node, context)
+            evaluate_in_node?(node, context)
           when :instance_of
-            evaluate_instance_of(node, context)
+            evaluate_instance_of?(node, context)
           else
             raise FeelEvaluationError, "Unknown AST node type: #{node[:type]}"
           end
         end
+        # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
 
         # Get field value from context
         def get_field_value(field_name, context)
@@ -583,7 +586,7 @@ module DecisionAgent
         end
 
         # Evaluate comparison node
-        def evaluate_comparison_node(node, context)
+        def evaluate_comparison_node?(node, context)
           left_val = evaluate_ast_node(node[:left], context)
           right_val = evaluate_ast_node(node[:right], context)
 
@@ -712,16 +715,16 @@ module DecisionAgent
         end
 
         # Evaluate between expression
-        def evaluate_between(node, context)
+        def evaluate_between?(node, context)
           value = evaluate_ast_node(node[:value], context)
           min_val = evaluate_ast_node(node[:min], context)
           max_val = evaluate_ast_node(node[:max], context)
 
-          value >= min_val && value <= max_val
+          value.between?(min_val, max_val)
         end
 
         # Evaluate in expression
-        def evaluate_in_node(node, context)
+        def evaluate_in_node?(node, context)
           value = evaluate_ast_node(node[:value], context)
           list_val = evaluate_ast_node(node[:list], context)
 
@@ -736,7 +739,7 @@ module DecisionAgent
         end
 
         # Evaluate instance of expression
-        def evaluate_instance_of(node, context)
+        def evaluate_instance_of?(node, context)
           value = evaluate_ast_node(node[:value], context)
           type_name = node[:type_name]
 
@@ -769,6 +772,7 @@ module DecisionAgent
           start_check && end_check
         end
       end
+      # rubocop:enable Metrics/ClassLength
     end
   end
 end

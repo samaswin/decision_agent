@@ -17,9 +17,7 @@ module DecisionAgent
         # Find and validate decision
         @decision = @model.find_decision(@decision_id)
         raise Dmn::InvalidDmnModelError, "Decision '#{@decision_id}' not found" unless @decision
-        unless @decision.decision_table
-          raise Dmn::InvalidDmnModelError, "Decision '#{@decision_id}' has no decision table"
-        end
+        raise Dmn::InvalidDmnModelError, "Decision '#{@decision_id}' has no decision table" unless @decision.decision_table
 
         # Convert to JSON rules for execution
         adapter = Dmn::Adapter.new(@decision.decision_table)
@@ -62,21 +60,21 @@ module DecisionAgent
           if_clause = rule["if"]
           next unless if_clause
 
-          if Dsl::ConditionEvaluator.evaluate(if_clause, ctx)
-            then_clause = rule["then"]
-            matching << Evaluation.new(
-              decision: then_clause["decision"],
-              weight: then_clause["weight"] || 1.0,
-              reason: then_clause["reason"] || "Rule matched",
-              evaluator_name: @name,
-              metadata: {
-                type: "dmn_rule",
-                rule_id: rule["id"],
-                ruleset: @rules_json["ruleset"],
-                hit_policy: @decision.decision_table.hit_policy
-              }
-            )
-          end
+          next unless Dsl::ConditionEvaluator.evaluate(if_clause, ctx)
+
+          then_clause = rule["then"]
+          matching << Evaluation.new(
+            decision: then_clause["decision"],
+            weight: then_clause["weight"] || 1.0,
+            reason: then_clause["reason"] || "Rule matched",
+            evaluator_name: @name,
+            metadata: {
+              type: "dmn_rule",
+              rule_id: rule["id"],
+              ruleset: @rules_json["ruleset"],
+              hit_policy: @decision.decision_table.hit_policy
+            }
+          )
         end
 
         matching

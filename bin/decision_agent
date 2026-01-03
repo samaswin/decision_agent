@@ -129,26 +129,24 @@ def dmn_import(filepath, ruleset_name: nil)
 end
 
 def dmn_export(ruleset_id, output_path)
-  begin
-    puts "📤 Exporting ruleset: #{ruleset_id}..."
+  puts "📤 Exporting ruleset: #{ruleset_id}..."
 
-    exporter = DecisionAgent::Dmn::Exporter.new
-    dmn_xml = exporter.export(ruleset_id, output_path: output_path)
+  exporter = DecisionAgent::Dmn::Exporter.new
+  dmn_xml = exporter.export(ruleset_id, output_path: output_path)
 
-    puts "✅ Export successful!"
-    puts "   Ruleset: #{ruleset_id}"
-    puts "   Output: #{output_path}"
-    puts "   Size: #{dmn_xml.bytesize} bytes"
-  rescue DecisionAgent::Dmn::InvalidDmnModelError => e
-    puts "❌ Export Error:"
-    puts "   #{e.message}"
-    exit 1
-  rescue StandardError => e
-    puts "❌ Unexpected Error:"
-    puts "   #{e.message}"
-    puts "   #{e.backtrace.first}" if ENV["DEBUG"]
-    exit 1
-  end
+  puts "✅ Export successful!"
+  puts "   Ruleset: #{ruleset_id}"
+  puts "   Output: #{output_path}"
+  puts "   Size: #{dmn_xml.bytesize} bytes"
+rescue DecisionAgent::Dmn::InvalidDmnModelError => e
+  puts "❌ Export Error:"
+  puts "   #{e.message}"
+  exit 1
+rescue StandardError => e
+  puts "❌ Unexpected Error:"
+  puts "   #{e.message}"
+  puts "   #{e.backtrace.first}" if ENV["DEBUG"]
+  exit 1
 end
 
 # Main CLI handler

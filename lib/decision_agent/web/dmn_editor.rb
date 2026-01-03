@@ -65,6 +65,7 @@ module DecisionAgent
       end
 
       # Delete a DMN model
+      # rubocop:disable Naming/PredicateMethod
       def delete_model(model_id)
         @storage_mutex.synchronize do
           @storage.delete(model_id)
@@ -86,14 +87,14 @@ module DecisionAgent
         case type
         when "decision_table"
           decision.instance_variable_set(:@decision_table, Dmn::DecisionTable.new(
-            id: "#{decision_id}_table",
-            hit_policy: "FIRST"
-          ))
+                                                             id: "#{decision_id}_table",
+                                                             hit_policy: "FIRST"
+                                                           ))
         when "decision_tree"
           decision.instance_variable_set(:@decision_tree, Dmn::DecisionTree.new(
-            id: "#{decision_id}_tree",
-            name: name
-          ))
+                                                            id: "#{decision_id}_tree",
+                                                            name: name
+                                                          ))
         when "literal"
           decision.instance_variable_set(:@literal_expression, "")
         end
@@ -114,9 +115,7 @@ module DecisionAgent
 
         decision.instance_variable_set(:@name, name) if name
 
-        if logic && decision.decision_table
-          update_decision_table(decision.decision_table, logic)
-        end
+        update_decision_table(decision.decision_table, logic) if logic && decision.decision_table
 
         store_model(model_id, model)
         serialize_decision(decision)
@@ -138,7 +137,7 @@ module DecisionAgent
         return nil unless model
 
         decision = model.find_decision(decision_id)
-        return nil unless decision && decision.decision_table
+        return nil unless decision&.decision_table
 
         input = Dmn::Input.new(
           id: input_id,
@@ -159,7 +158,7 @@ module DecisionAgent
         return nil unless model
 
         decision = model.find_decision(decision_id)
-        return nil unless decision && decision.decision_table
+        return nil unless decision&.decision_table
 
         output = Dmn::Output.new(
           id: output_id,
@@ -180,7 +179,7 @@ module DecisionAgent
         return nil unless model
 
         decision = model.find_decision(decision_id)
-        return nil unless decision && decision.decision_table
+        return nil unless decision&.decision_table
 
         rule = Dmn::Rule.new(id: rule_id)
         rule.instance_variable_set(:@input_entries, input_entries)
@@ -199,7 +198,7 @@ module DecisionAgent
         return nil unless model
 
         decision = model.find_decision(decision_id)
-        return nil unless decision && decision.decision_table
+        return nil unless decision&.decision_table
 
         rule = decision.decision_table.rules.find { |r| r.id == rule_id }
         return nil unless rule
@@ -218,7 +217,7 @@ module DecisionAgent
         return false unless model
 
         decision = model.find_decision(decision_id)
-        return false unless decision && decision.decision_table
+        return false unless decision&.decision_table
 
         decision.decision_table.rules.reject! { |r| r.id == rule_id }
         store_model(model_id, model)
@@ -279,8 +278,6 @@ module DecisionAgent
           Dmn::Visualizer.tree_to_dot(decision.decision_tree)
         when "mermaid"
           Dmn::Visualizer.tree_to_mermaid(decision.decision_tree)
-        else
-          nil
         end
       end
 
@@ -313,8 +310,6 @@ module DecisionAgent
           Dmn::Visualizer.graph_to_dot(graph)
         when "mermaid"
           Dmn::Visualizer.graph_to_mermaid(graph)
-        else
-          nil
         end
       end
 
@@ -335,7 +330,7 @@ module DecisionAgent
       private
 
       def generate_id
-        "dmn_#{Time.now.to_i}_#{rand(10000)}"
+        "dmn_#{Time.now.to_i}_#{rand(10_000)}"
       end
 
       def store_model(model_id, model)

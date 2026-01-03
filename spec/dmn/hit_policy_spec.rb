@@ -31,9 +31,9 @@ RSpec.describe "DMN Hit Policies" do
   describe "UNIQUE hit policy" do
     it "returns result when exactly one rule matches" do
       create_decision_table("UNIQUE", [
-        { id: "rule1", input: ">= 10", output: '"approved"', description: "High value" },
-        { id: "rule2", input: "< 10", output: '"rejected"', description: "Low value" }
-      ])
+                              { id: "rule1", input: ">= 10", output: '"approved"', description: "High value" },
+                              { id: "rule2", input: "< 10", output: '"rejected"', description: "Low value" }
+                            ])
 
       evaluator = DecisionAgent::Evaluators::DmnEvaluator.new(
         model: model,
@@ -47,9 +47,9 @@ RSpec.describe "DMN Hit Policies" do
 
     it "raises error when no rules match" do
       create_decision_table("UNIQUE", [
-        { id: "rule1", input: ">= 10", output: '"approved"', description: "High value" },
-        { id: "rule2", input: "> 20", output: '"rejected"', description: "Very high value" }
-      ])
+                              { id: "rule1", input: ">= 10", output: '"approved"', description: "High value" },
+                              { id: "rule2", input: "> 20", output: '"rejected"', description: "Very high value" }
+                            ])
 
       evaluator = DecisionAgent::Evaluators::DmnEvaluator.new(
         model: model,
@@ -64,9 +64,9 @@ RSpec.describe "DMN Hit Policies" do
 
     it "raises error when multiple rules match" do
       create_decision_table("UNIQUE", [
-        { id: "rule1", input: ">= 5", output: '"approved"', description: "Rule 1" },
-        { id: "rule2", input: ">= 10", output: '"approved"', description: "Rule 2" }
-      ])
+                              { id: "rule1", input: ">= 5", output: '"approved"', description: "Rule 1" },
+                              { id: "rule2", input: ">= 10", output: '"approved"', description: "Rule 2" }
+                            ])
 
       evaluator = DecisionAgent::Evaluators::DmnEvaluator.new(
         model: model,
@@ -82,9 +82,9 @@ RSpec.describe "DMN Hit Policies" do
   describe "FIRST hit policy" do
     it "returns first matching rule when multiple rules match" do
       create_decision_table("FIRST", [
-        { id: "rule1", input: ">= 5", output: '"first"', description: "First rule" },
-        { id: "rule2", input: ">= 10", output: '"second"', description: "Second rule" }
-      ])
+                              { id: "rule1", input: ">= 5", output: '"first"', description: "First rule" },
+                              { id: "rule2", input: ">= 10", output: '"second"', description: "Second rule" }
+                            ])
 
       evaluator = DecisionAgent::Evaluators::DmnEvaluator.new(
         model: model,
@@ -99,8 +99,8 @@ RSpec.describe "DMN Hit Policies" do
 
     it "returns nil when no rules match" do
       create_decision_table("FIRST", [
-        { id: "rule1", input: ">= 10", output: '"approved"', description: "High value" }
-      ])
+                              { id: "rule1", input: ">= 10", output: '"approved"', description: "High value" }
+                            ])
 
       evaluator = DecisionAgent::Evaluators::DmnEvaluator.new(
         model: model,
@@ -115,9 +115,9 @@ RSpec.describe "DMN Hit Policies" do
   describe "PRIORITY hit policy" do
     it "returns first matching rule (rule order determines priority)" do
       create_decision_table("PRIORITY", [
-        { id: "rule1", input: ">= 5", output: '"high_priority"', description: "High priority rule" },
-        { id: "rule2", input: ">= 10", output: '"low_priority"', description: "Low priority rule" }
-      ])
+                              { id: "rule1", input: ">= 5", output: '"high_priority"', description: "High priority rule" },
+                              { id: "rule2", input: ">= 10", output: '"low_priority"', description: "Low priority rule" }
+                            ])
 
       evaluator = DecisionAgent::Evaluators::DmnEvaluator.new(
         model: model,
@@ -134,9 +134,9 @@ RSpec.describe "DMN Hit Policies" do
   describe "ANY hit policy" do
     it "returns result when all matching rules have same output" do
       create_decision_table("ANY", [
-        { id: "rule1", input: ">= 5", output: '"approved"', description: "Rule 1" },
-        { id: "rule2", input: ">= 10", output: '"approved"', description: "Rule 2" }
-      ])
+                              { id: "rule1", input: ">= 5", output: '"approved"', description: "Rule 1" },
+                              { id: "rule2", input: ">= 10", output: '"approved"', description: "Rule 2" }
+                            ])
 
       evaluator = DecisionAgent::Evaluators::DmnEvaluator.new(
         model: model,
@@ -150,9 +150,9 @@ RSpec.describe "DMN Hit Policies" do
 
     it "raises error when matching rules have different outputs" do
       create_decision_table("ANY", [
-        { id: "rule1", input: ">= 5", output: '"approved"', description: "Rule 1" },
-        { id: "rule2", input: ">= 10", output: '"rejected"', description: "Rule 2" }
-      ])
+                              { id: "rule1", input: ">= 5", output: '"approved"', description: "Rule 1" },
+                              { id: "rule2", input: ">= 10", output: '"rejected"', description: "Rule 2" }
+                            ])
 
       evaluator = DecisionAgent::Evaluators::DmnEvaluator.new(
         model: model,
@@ -168,9 +168,9 @@ RSpec.describe "DMN Hit Policies" do
   describe "COLLECT hit policy" do
     it "returns first match with metadata about all matches" do
       create_decision_table("COLLECT", [
-        { id: "rule1", input: ">= 5", output: '"match1"', description: "Rule 1" },
-        { id: "rule2", input: ">= 10", output: '"match2"', description: "Rule 2" }
-      ])
+                              { id: "rule1", input: ">= 5", output: '"match1"', description: "Rule 1" },
+                              { id: "rule2", input: ">= 10", output: '"match2"', description: "Rule 2" }
+                            ])
 
       evaluator = DecisionAgent::Evaluators::DmnEvaluator.new(
         model: model,
@@ -187,8 +187,8 @@ RSpec.describe "DMN Hit Policies" do
 
     it "returns nil when no rules match" do
       create_decision_table("COLLECT", [
-        { id: "rule1", input: ">= 10", output: '"approved"', description: "High value" }
-      ])
+                              { id: "rule1", input: ">= 10", output: '"approved"', description: "High value" }
+                            ])
 
       evaluator = DecisionAgent::Evaluators::DmnEvaluator.new(
         model: model,
@@ -200,4 +200,3 @@ RSpec.describe "DMN Hit Policies" do
     end
   end
 end
-

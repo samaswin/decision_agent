@@ -230,7 +230,7 @@ module DecisionAgent
         # String literal
         rule(:string_literal) do
           str('"') >>
-            (str('\\') >> any | str('"').absent? >> any).repeat.as(:string) >>
+            ((str("\\") >> any) | (str('"').absent? >> any)).repeat.as(:string) >>
             str('"')
         end
 

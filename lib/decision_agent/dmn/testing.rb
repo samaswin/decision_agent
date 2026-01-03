@@ -43,6 +43,7 @@ module DecisionAgent
       end
 
       # Run a single test scenario
+      # rubocop:disable Metrics/MethodLength
       def run_test(scenario, index = nil)
         decision = @model.find_decision(scenario[:decision_id])
 
@@ -91,9 +92,11 @@ module DecisionAgent
             passed: false
           }
         end
+        # rubocop:enable Metrics/MethodLength
       end
 
       # Generate test coverage report
+      # rubocop:disable Metrics/AbcSize
       def generate_coverage_report
         coverage = {
           total_decisions: @model.decisions.size,
@@ -109,9 +112,7 @@ module DecisionAgent
 
         # Find untested decisions
         @model.decisions.each do |decision|
-          unless coverage[:tested_decisions].include?(decision.id)
-            coverage[:untested_decisions] << decision.id
-          end
+          coverage[:untested_decisions] << decision.id unless coverage[:tested_decisions].include?(decision.id)
 
           # Calculate coverage for each decision
           decision_tests = @test_scenarios.select { |s| s[:decision_id] == decision.id }
@@ -128,10 +129,10 @@ module DecisionAgent
         end
 
         coverage[:coverage_percentage] = if coverage[:total_decisions].positive?
-                                            (coverage[:tested_decisions].size.to_f / coverage[:total_decisions] * 100).round(2)
-                                          else
-                                            0
-                                          end
+                                           (coverage[:tested_decisions].size.to_f / coverage[:total_decisions] * 100).round(2)
+                                         else
+                                           0
+                                         end
 
         coverage
       end
@@ -170,7 +171,7 @@ module DecisionAgent
 
         CSV.open(file_path, "w") do |csv|
           # Write headers
-          headers = ["decision_id"] + input_keys + ["expected_output", "description"]
+          headers = ["decision_id"] + input_keys + %w[expected_output description]
           csv << headers
 
           # Write scenarios
@@ -238,10 +239,10 @@ module DecisionAgent
           tested_rules: tested_rules.size,
           untested_rules: untested_rules,
           coverage_percentage: if table.rules.size.positive?
-                                  (tested_rules.size.to_f / table.rules.size * 100).round(2)
-                                else
-                                  0
-                                end
+                                 (tested_rules.size.to_f / table.rules.size * 100).round(2)
+                               else
+                                 0
+                               end
         }
       end
 
@@ -326,6 +327,7 @@ module DecisionAgent
           model_results: results
         }
       end
+      # rubocop:enable Metrics/AbcSize
     end
   end
 end
