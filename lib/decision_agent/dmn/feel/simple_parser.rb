@@ -156,6 +156,7 @@ module DecisionAgent
 
           tokens
         end
+        # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
         # Parse expression with operator precedence
         def parse_expression(min_precedence = 0)
