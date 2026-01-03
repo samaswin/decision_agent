@@ -1,16 +1,16 @@
 # Code Coverage Report
 
-**Last Updated:** 2025-12-31 10:23:49
+**Last Updated:** 2026-01-03 07:12:44
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| **Total Coverage** | **93.39%** |
-| Total Files | 59 |
-| Total Relevant Lines | 4220 |
-| Lines Covered | 3941 |
-| Lines Missed | 279 |
+| **Total Coverage** | **87.69%** |
+| Total Files | 75 |
+| Total Relevant Lines | 6490 |
+| Lines Covered | 5691 |
+| Lines Missed | 799 |
 
 > **Note:** This report excludes files in the `examples/` directory as they are sample code, not production code.
 
@@ -43,13 +43,29 @@
 | `lib/decision_agent/auth/user.rb` | ✅ 94.87% | 37 | 2 | 39 |
 | `lib/decision_agent/context.rb` | ✅ 100.0% | 32 | 0 | 32 |
 | `lib/decision_agent/decision.rb` | ✅ 96.67% | 29 | 1 | 30 |
-| `lib/decision_agent/dsl/condition_evaluator.rb` | ⚠️ 82.91% | 558 | 115 | 673 |
+| `lib/decision_agent/dmn/adapter.rb` | ⚠️ 81.25% | 39 | 9 | 48 |
+| `lib/decision_agent/dmn/decision_graph.rb` | ⚠️ 72.37% | 110 | 42 | 152 |
+| `lib/decision_agent/dmn/decision_tree.rb` | ✅ 96.39% | 80 | 3 | 83 |
+| `lib/decision_agent/dmn/errors.rb` | ✅ 100.0% | 11 | 0 | 11 |
+| `lib/decision_agent/dmn/exporter.rb` | ⚠️ 80.19% | 85 | 21 | 106 |
+| `lib/decision_agent/dmn/feel/evaluator.rb` | ❌ 57.42% | 209 | 155 | 364 |
+| `lib/decision_agent/dmn/feel/functions.rb` | ✅ 99.55% | 220 | 1 | 221 |
+| `lib/decision_agent/dmn/feel/parser.rb` | ✅ 91.94% | 114 | 10 | 124 |
+| `lib/decision_agent/dmn/feel/simple_parser.rb` | ✅ 97.83% | 135 | 3 | 138 |
+| `lib/decision_agent/dmn/feel/transformer.rb` | ❌ 69.47% | 91 | 40 | 131 |
+| `lib/decision_agent/dmn/feel/types.rb` | ⚠️ 83.7% | 113 | 22 | 135 |
+| `lib/decision_agent/dmn/importer.rb` | ✅ 100.0% | 30 | 0 | 30 |
+| `lib/decision_agent/dmn/model.rb` | ✅ 98.37% | 121 | 2 | 123 |
+| `lib/decision_agent/dmn/parser.rb` | ✅ 95.29% | 81 | 4 | 85 |
+| `lib/decision_agent/dmn/validator.rb` | ⚠️ 87.58% | 141 | 20 | 161 |
+| `lib/decision_agent/dsl/condition_evaluator.rb` | ⚠️ 83.84% | 633 | 122 | 755 |
 | `lib/decision_agent/dsl/rule_parser.rb` | ✅ 100.0% | 15 | 0 | 15 |
 | `lib/decision_agent/dsl/schema_validator.rb` | ✅ 99.29% | 139 | 1 | 140 |
 | `lib/decision_agent/errors.rb` | ✅ 96.72% | 59 | 2 | 61 |
 | `lib/decision_agent/evaluation.rb` | ✅ 96.55% | 28 | 1 | 29 |
 | `lib/decision_agent/evaluation_validator.rb` | ✅ 100.0% | 37 | 0 | 37 |
 | `lib/decision_agent/evaluators/base.rb` | ✅ 100.0% | 8 | 0 | 8 |
+| `lib/decision_agent/evaluators/dmn_evaluator.rb` | ✅ 97.33% | 73 | 2 | 75 |
 | `lib/decision_agent/evaluators/json_rule_evaluator.rb` | ✅ 97.37% | 37 | 1 | 38 |
 | `lib/decision_agent/evaluators/static_evaluator.rb` | ✅ 100.0% | 13 | 0 | 13 |
 | `lib/decision_agent/monitoring/alert_manager.rb` | ✅ 91.11% | 123 | 12 | 135 |
@@ -73,10 +89,10 @@
 | `lib/decision_agent/versioning/activerecord_adapter.rb` | ✅ 90.2% | 46 | 5 | 51 |
 | `lib/decision_agent/versioning/adapter.rb` | ✅ 100.0% | 31 | 0 | 31 |
 | `lib/decision_agent/versioning/file_storage_adapter.rb` | ✅ 90.68% | 146 | 15 | 161 |
-| `lib/decision_agent/versioning/version_manager.rb` | ✅ 100.0% | 40 | 0 | 40 |
+| `lib/decision_agent/versioning/version_manager.rb` | ✅ 95.0% | 38 | 2 | 40 |
 | `lib/decision_agent/web/middleware/auth_middleware.rb` | ✅ 100.0% | 25 | 0 | 25 |
 | `lib/decision_agent/web/middleware/permission_middleware.rb` | ✅ 100.0% | 43 | 0 | 43 |
-| `lib/decision_agent/web/server.rb` | ⚠️ 89.62% | 475 | 55 | 530 |
+| `lib/decision_agent/web/server.rb` | ❌ 68.26% | 499 | 232 | 731 |
 
 ## Coverage Status
 

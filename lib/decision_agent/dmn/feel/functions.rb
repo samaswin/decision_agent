@@ -8,7 +8,7 @@ module DecisionAgent
       # Functions either map to ConditionEvaluator operators or provide custom evaluation
       module Functions
         # Function registry
-        REGISTRY = {}.freeze
+        REGISTRY = {}
 
         # Base class for all functions
         class Base
