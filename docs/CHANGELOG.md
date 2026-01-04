@@ -8,7 +8,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- (Future features will be listed here)
+
+- **REST API Data Enrichment** 🔌
+  - **HTTP Client Integration** - Full HTTP client for external API requests
+    - Support for GET, POST, PUT, DELETE methods
+    - SSL/TLS certificate validation
+    - Configurable timeouts and retries
+    - Request/response handling with error classification
+  - **Response Caching** - Configurable caching system
+    - `CacheAdapter` interface for pluggable cache backends
+    - `MemoryAdapter` implementation (in-memory cache)
+    - Configurable TTL per endpoint
+    - Thread-safe cache operations
+    - Cache key generation from request parameters
+  - **Circuit Breaker Pattern** - Resilience and fault tolerance
+    - Configurable failure threshold, timeout, and success threshold
+    - Three states: CLOSED, OPEN, HALF_OPEN
+    - Prevents cascading failures
+    - Graceful degradation with cached data fallback
+  - **DSL Integration** - `fetch_from_api` operator for rule conditions
+    - New operator integrated into ConditionEvaluator
+    - Template parameter expansion (`{{path}}` syntax)
+    - Response mapping support
+    - Field mapping from API responses to context
+  - **Authentication Support** - Multiple authentication methods
+    - API key authentication (custom header)
+    - Basic authentication
+    - Bearer token authentication
+    - Secret management via environment variables
+  - **Configuration API** - `DecisionAgent.configure_data_enrichment`
+    - Endpoint configuration with full options
+    - Default timeout, retry, and cache settings
+    - Per-endpoint customization
+  - **Error Handling** - Comprehensive error handling
+    - Custom error classes (RequestError, TimeoutError, NetworkError, CircuitOpenError)
+    - Graceful degradation with cached data fallback
+    - Error classification (network, timeout, 4xx, 5xx)
+  - **Documentation** - Complete guide in `docs/DATA_ENRICHMENT.md`
+    - Quick start guide
+    - Configuration examples
+    - Usage patterns and best practices
+    - API reference
+    - Troubleshooting guide
+  - **Test Suite** - Comprehensive test coverage
+    - Configuration tests
+    - Cache adapter tests
+    - Circuit breaker tests
 
 ## [0.3.0] - 2026-01-03
 

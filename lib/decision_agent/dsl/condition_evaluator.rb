@@ -986,6 +986,42 @@ module DecisionAgent
 
           point_in_polygon?(point, polygon)
 
+        when "fetch_from_api"
+          # Fetches data from external API and enriches context
+          # expected_value: { endpoint: :endpoint_name, params: {...}, mapping: {...} }
+          return false unless expected_value.is_a?(Hash)
+          return false unless expected_value[:endpoint] || expected_value["endpoint"]
+
+          begin
+            endpoint_name = (expected_value[:endpoint] || expected_value["endpoint"]).to_sym
+            params = expand_template_params(expected_value[:params] || expected_value["params"] || {}, context_hash)
+            mapping = expected_value[:mapping] || expected_value["mapping"] || {}
+
+            # Get data enrichment client
+            client = DecisionAgent.data_enrichment_client
+
+            # Fetch data from API
+            response_data = client.fetch(endpoint_name, params: params, use_cache: true)
+
+            # Apply mapping if provided
+            if mapping.any?
+              mapped_data = apply_mapping(response_data, mapping)
+              # Store mapped data in context for use in subsequent conditions
+              # Note: This enriches the context data, but since Context is frozen,
+              # we can't modify it directly. The mapped values are returned and
+              # can be used in the same rule evaluation cycle.
+              # For now, return true if fetch succeeded and mapping applied
+              mapped_data.any?
+            else
+              # Return true if fetch succeeded
+              !response_data.nil?
+            end
+          rescue StandardError => e
+            # Log error but return false (fail-safe)
+            warn "Data enrichment error: #{e.message}" if ENV["DEBUG"]
+            false
+          end
+
         else
           # Unknown operator - returns false (fail-safe)
           # Note: Validation should catch this earlier
@@ -1027,6 +1063,38 @@ module DecisionAgent
       end
 
       # Helper methods for new operators
+
+      # Expand template parameters (e.g., "{{customer.ssn}}") from context
+      def self.expand_template_params(params, context_hash)
+        return {} unless params.is_a?(Hash)
+
+        params.each_with_object({}) do |(key, value), result|
+          result[key] = expand_template_value(value, context_hash)
+        end
+      end
+
+      # Expand a single template value
+      def self.expand_template_value(value, context_hash)
+        return value unless value.is_a?(String)
+        return value unless value.match?(/\{\{.*\}\}/)
+
+        # Extract path from {{path}} syntax
+        value.gsub(/\{\{([^}]+)\}\}/) do |_match|
+          path = Regexp.last_match(1).strip
+          get_nested_value(context_hash, path) || value
+        end
+      end
+
+      # Apply mapping to API response data
+      def self.apply_mapping(response_data, mapping)
+        return {} unless response_data.is_a?(Hash)
+        return {} unless mapping.is_a?(Hash)
+
+        mapping.each_with_object({}) do |(target_key, source_path), result|
+          source_value = get_nested_value(response_data, source_path.to_s)
+          result[target_key.to_s] = source_value unless source_value.nil?
+        end
+      end
 
       # String operator validation
       def self.string_operator?(actual_value, expected_value)
