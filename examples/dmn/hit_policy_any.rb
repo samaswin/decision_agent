@@ -126,10 +126,6 @@ valid_test_cases = [
     description: "All valid - multiple rules match, all say 'true'"
   },
   {
-    context: { age: 30, email_valid: true, phone_valid: false },
-    description: "Age and email valid - matches rules that all say 'true'"
-  },
-  {
     context: { age: 20, email_valid: false, phone_valid: true },
     description: "Age and phone valid - matches rules that all say 'true'"
   },
@@ -145,11 +141,16 @@ valid_test_cases = [
 
 valid_test_cases.each_with_index do |test_case, idx|
   context = DecisionAgent::Context.new(test_case[:context])
-  evaluation = evaluator.evaluate(context)
-
-  puts "Test #{idx + 1}: #{test_case[:description]}"
-  puts "  Input: age=#{test_case[:context][:age]}, email=#{test_case[:context][:email_valid]}, phone=#{test_case[:context][:phone_valid]}"
-  puts "  ✓ Result: #{evaluation.decision} (all matching rules agreed)"
+  begin
+    evaluation = evaluator.evaluate(context)
+    puts "Test #{idx + 1}: #{test_case[:description]}"
+    puts "  Input: age=#{test_case[:context][:age]}, email=#{test_case[:context][:email_valid]}, phone=#{test_case[:context][:phone_valid]}"
+    puts "  ✓ Result: #{evaluation.decision} (all matching rules agreed)"
+  rescue DecisionAgent::Dmn::InvalidDmnModelError => e
+    puts "Test #{idx + 1}: #{test_case[:description]}"
+    puts "  Input: age=#{test_case[:context][:age]}, email=#{test_case[:context][:email_valid]}, phone=#{test_case[:context][:phone_valid]}"
+    puts "  ✗ Error: #{e.message}"
+  end
   puts
 end
 
@@ -170,4 +171,3 @@ puts "  • Perfect for validation where multiple checks must agree"
 puts "  • Raises error if rules conflict - helps catch rule definition errors"
 puts "  • Use when you want consistency validation across multiple matching rules"
 puts "=" * 80
-

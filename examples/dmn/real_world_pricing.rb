@@ -175,13 +175,16 @@ scenarios.each_with_index do |scenario, idx|
   context = DecisionAgent::Context.new(scenario[:context])
   evaluation = evaluator.evaluate(context)
 
-  discount_pct = (evaluation.decision * 100).round(0)
-  tier = evaluation.metadata[:outputs][:tier] if evaluation.metadata && evaluation.metadata[:outputs]
-
-  puts "Scenario #{idx + 1}: #{scenario[:description]}"
-  puts "  Input: segment=#{scenario[:context][:customer_segment]}, category=#{scenario[:context][:product_category]}, qty=#{scenario[:context][:quantity]}, promo=#{scenario[:context][:promo_code].empty? ? 'none' : scenario[:context][:promo_code]}"
-  puts "  ✓ Discount: #{discount_pct}%"
-  puts "  ✓ Tier: #{tier}"
+  if evaluation
+    discount_pct = (evaluation.decision.to_f * 100).round(0)
+    puts "Scenario #{idx + 1}: #{scenario[:description]}"
+    puts "  Input: segment=#{scenario[:context][:customer_segment]}, category=#{scenario[:context][:product_category]}, qty=#{scenario[:context][:quantity]}, promo=#{scenario[:context][:promo_code].empty? ? 'none' : scenario[:context][:promo_code]}"
+    puts "  ✓ Discount: #{discount_pct}%"
+  else
+    puts "Scenario #{idx + 1}: #{scenario[:description]}"
+    puts "  Input: segment=#{scenario[:context][:customer_segment]}, category=#{scenario[:context][:product_category]}, qty=#{scenario[:context][:quantity]}, promo=#{scenario[:context][:promo_code].empty? ? 'none' : scenario[:context][:promo_code]}"
+    puts "  ✗ No matching rule found"
+  end
   puts
 end
 
@@ -192,4 +195,3 @@ puts "  • Rules are visible, auditable, and version-controlled"
 puts "  • Complex pricing logic is centralized and maintainable"
 puts "  • Easy to test different pricing scenarios"
 puts "=" * 80
-

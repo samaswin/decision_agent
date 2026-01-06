@@ -13,6 +13,7 @@ require "bundler/setup"
 require "decision_agent"
 require "decision_agent/dmn/importer"
 require "decision_agent/dmn/exporter"
+require "decision_agent/evaluators/dmn_evaluator"
 require "tempfile"
 require "fileutils"
 

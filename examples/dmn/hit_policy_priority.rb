@@ -138,10 +138,16 @@ test_cases.each_with_index do |test_case, idx|
   context = DecisionAgent::Context.new(test_case[:context])
   evaluation = evaluator.evaluate(context)
 
-  discount_pct = (evaluation.decision * 100).round(0)
-  puts "Test #{idx + 1}: #{test_case[:description]}"
-  puts "  Input: tier=#{test_case[:context][:customer_tier]}, amount=$#{test_case[:context][:purchase_amount]}"
-  puts "  ✓ Selected: #{discount_pct}% discount (rule: #{evaluation.metadata[:rule_id]})"
+  if evaluation
+    discount_pct = (evaluation.decision.to_f * 100).round(0)
+    puts "Test #{idx + 1}: #{test_case[:description]}"
+    puts "  Input: tier=#{test_case[:context][:customer_tier]}, amount=$#{test_case[:context][:purchase_amount]}"
+    puts "  ✓ Selected: #{discount_pct}% discount (rule: #{evaluation.metadata[:rule_id]})"
+  else
+    puts "Test #{idx + 1}: #{test_case[:description]}"
+    puts "  Input: tier=#{test_case[:context][:customer_tier]}, amount=$#{test_case[:context][:purchase_amount]}"
+    puts "  ✗ No matching rule found"
+  end
   puts
 end
 
@@ -152,4 +158,3 @@ puts "  • Perfect for tiered systems where higher tiers should take precedence
 puts "  • Multiple rules can match, but only the first (highest priority) is used"
 puts "  • Rule order is critical - most specific/highest priority rules should be first"
 puts "=" * 80
-
