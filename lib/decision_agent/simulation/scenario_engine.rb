@@ -167,56 +167,84 @@ module DecisionAgent
         end
       end
 
-      def execute_parallel(scenarios, analysis_agent, options, _mutex)
+      def execute_parallel(scenarios, analysis_agent, options, _mutex, &block)
         thread_count = [options[:thread_count], scenarios.size].min
         queue = Queue.new
         scenarios.each { |s| queue << s }
 
         threads = Array.new(thread_count) do
           Thread.new do
-            loop do
-              scenario = begin
-                queue.pop(true)
-              rescue StandardError
-                nil
-              end
-              break unless scenario
-
-              context = scenario[:context] || scenario["context"] || scenario
-              metadata = scenario[:metadata] || scenario["metadata"] || {}
-              ctx = context.is_a?(Context) ? context : Context.new(context)
-
-              begin
-                decision = analysis_agent.decide(context: ctx)
-                result = {
-                  scenario_id: scenario[:id] || scenario["id"] || generate_scenario_id,
-                  context: ctx.to_h,
-                  decision: decision.decision,
-                  confidence: decision.confidence,
-                  explanations: decision.explanations,
-                  metadata: metadata,
-                  executed_at: Time.now.utc.iso8601
-                }
-              rescue NoEvaluationsError
-                # If no evaluators match, return a result with nil decision
-                result = {
-                  scenario_id: scenario[:id] || scenario["id"] || generate_scenario_id,
-                  context: ctx.to_h,
-                  decision: nil,
-                  confidence: 0.0,
-                  explanations: [],
-                  metadata: metadata,
-                  executed_at: Time.now.utc.iso8601,
-                  error: "No evaluators returned a decision"
-                }
-              end
-
-              yield result
-            end
+            process_scenarios_from_queue(queue, analysis_agent, &block)
           end
         end
 
         threads.each(&:join)
+      end
+
+      def process_scenarios_from_queue(queue, analysis_agent)
+        loop do
+          scenario = dequeue_scenario(queue)
+          break unless scenario
+
+          result = process_scenario(scenario, analysis_agent)
+          yield result
+        end
+      end
+
+      def dequeue_scenario(queue)
+        queue.pop(true)
+      rescue StandardError
+        nil
+      end
+
+      def process_scenario(scenario, analysis_agent)
+        context = extract_scenario_context(scenario)
+        metadata = extract_scenario_metadata(scenario)
+        ctx = context.is_a?(Context) ? context : Context.new(context)
+
+        begin
+          decision = analysis_agent.decide(context: ctx)
+          build_scenario_result(scenario, ctx, decision, metadata)
+        rescue NoEvaluationsError
+          build_error_result(scenario, ctx, metadata)
+        end
+      end
+
+      def extract_scenario_context(scenario)
+        scenario[:context] || scenario["context"] || scenario
+      end
+
+      def extract_scenario_metadata(scenario)
+        scenario[:metadata] || scenario["metadata"] || {}
+      end
+
+      def build_scenario_result(scenario, context, decision, metadata)
+        {
+          scenario_id: extract_scenario_id(scenario),
+          context: context.to_h,
+          decision: decision.decision,
+          confidence: decision.confidence,
+          explanations: decision.explanations,
+          metadata: metadata,
+          executed_at: Time.now.utc.iso8601
+        }
+      end
+
+      def build_error_result(scenario, context, metadata)
+        {
+          scenario_id: extract_scenario_id(scenario),
+          context: context.to_h,
+          decision: nil,
+          confidence: 0.0,
+          explanations: [],
+          metadata: metadata,
+          executed_at: Time.now.utc.iso8601,
+          error: "No evaluators returned a decision"
+        }
+      end
+
+      def extract_scenario_id(scenario)
+        scenario[:id] || scenario["id"] || generate_scenario_id
       end
 
       def build_batch_report(results)

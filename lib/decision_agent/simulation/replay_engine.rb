@@ -225,56 +225,76 @@ module DecisionAgent
       end
 
       def convert_query_results_to_contexts(results)
-        contexts = []
-
-        # Handle ActiveRecord::Result (from select_all)
         if results.respond_to?(:columns) && results.respond_to?(:rows)
-          # ActiveRecord::Result format
-          columns = results.columns.map(&:to_sym)
-          results.rows.each do |row|
-            context = {}
-            columns.each_with_index do |column, index|
-              # Skip common ActiveRecord metadata fields unless they're needed
-              next if %i[id created_at updated_at].include?(column) && row[index].nil?
-
-              value = row[index]
-              # Convert JSON strings to hashes if detected
-              if value.is_a?(String) && (value.start_with?("{") || value.start_with?("["))
-                begin
-                  value = JSON.parse(value, symbolize_names: true)
-                rescue JSON::ParserError
-                  # Keep as string if not valid JSON
-                end
-              end
-              context[column] = value
-            end
-            contexts << context
-          end
+          convert_activerecord_results(results)
         elsif results.is_a?(Array)
-          # Array of hashes or arrays
-          results.each do |row|
-            context = if row.is_a?(Hash)
-                        row.transform_keys(&:to_sym)
-                      else
-                        # Convert array to hash if we have column names
-                        {}
-                      end
-            # Remove common ActiveRecord metadata fields if they're nil or not needed
-            context = context.reject { |k, v| %i[id created_at updated_at].include?(k) && v.nil? }
-            contexts << context unless context.empty?
-          end
+          convert_array_results(results)
         elsif results.respond_to?(:each)
-          # Enumerable result set
-          results.each do |row|
-            context = row.is_a?(Hash) ? row.transform_keys(&:to_sym) : row.to_h
-            context = context.reject { |k, v| %i[id created_at updated_at].include?(k) && v.nil? }
-            contexts << context unless context.empty?
-          end
+          convert_enumerable_results(results)
         else
           raise InvalidHistoricalDataError, "Unexpected query result format: #{results.class}"
         end
+      end
 
-        contexts
+      def convert_activerecord_results(results)
+        columns = results.columns.map(&:to_sym)
+        results.rows.each_with_object([]) do |row, contexts|
+          context = build_context_from_row(row, columns)
+          contexts << context if context.any?
+        end
+      end
+
+      def build_context_from_row(row, columns)
+        columns.each_with_object({}) do |column, context|
+          index = columns.index(column)
+          next if skip_metadata_field?(column, row[index])
+
+          value = parse_json_value(row[index])
+          context[column] = value
+        end
+      end
+
+      def skip_metadata_field?(column, value)
+        %i[id created_at updated_at].include?(column) && value.nil?
+      end
+
+      def parse_json_value(value)
+        return value unless value.is_a?(String)
+        return value unless value.start_with?("{") || value.start_with?("[")
+
+        JSON.parse(value, symbolize_names: true)
+      rescue JSON::ParserError
+        value
+      end
+
+      def convert_array_results(results)
+        results.each_with_object([]) do |row, contexts|
+          context = normalize_row_to_hash(row)
+          cleaned_context = clean_context(context)
+          contexts << cleaned_context if cleaned_context.any?
+        end
+      end
+
+      def convert_enumerable_results(results)
+        results.each_with_object([]) do |row, contexts|
+          context = normalize_row_to_hash(row)
+          cleaned_context = clean_context(context)
+          contexts << cleaned_context if cleaned_context.any?
+        end
+      end
+
+      def normalize_row_to_hash(row)
+        if row.is_a?(Hash)
+          row.transform_keys(&:to_sym)
+        elsif row.respond_to?(:to_h)
+          row.to_h.transform_keys(&:to_sym)
+        else
+          {}
+        end
+      end
+
+      def clean_context(context)
+        context.reject { |k, v| %i[id created_at updated_at].include?(k) && v.nil? }
       end
 
       def build_agent_from_version(version)

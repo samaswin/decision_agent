@@ -74,103 +74,77 @@ module DecisionAgent
       end
 
       def self.templates
+        loan_approval_templates
+          .merge(fraud_detection_templates)
+          .merge(pricing_templates)
+      end
+
+      def self.loan_approval_templates
         {
-          loan_approval_high_risk: {
-            context: {
-              amount: 100_000,
-              credit_score: 550,
-              income: 30_000,
-              employment_status: "unemployed"
-            },
-            metadata: {
-              type: "loan_approval",
-              category: "high_risk",
-              description: "High-risk loan application scenario"
-            }
-          },
+          loan_approval_high_risk: build_loan_scenario(100_000, 550, 30_000, "unemployed", "high_risk"),
+          loan_approval_low_risk: build_loan_scenario(50_000, 800, 100_000, "employed", "low_risk"),
+          loan_approval_medium_risk: build_loan_scenario(75_000, 650, 60_000, "employed", "medium_risk")
+        }
+      end
 
-          loan_approval_low_risk: {
-            context: {
-              amount: 50_000,
-              credit_score: 800,
-              income: 100_000,
-              employment_status: "employed"
-            },
-            metadata: {
-              type: "loan_approval",
-              category: "low_risk",
-              description: "Low-risk loan application scenario"
-            }
+      def self.build_loan_scenario(amount, credit_score, income, employment_status, risk_level)
+        {
+          context: {
+            amount: amount,
+            credit_score: credit_score,
+            income: income,
+            employment_status: employment_status
           },
+          metadata: {
+            type: "loan_approval",
+            category: risk_level,
+            description: "#{risk_level.capitalize.tr('_', ' ')} loan application scenario"
+          }
+        }
+      end
 
-          loan_approval_medium_risk: {
-            context: {
-              amount: 75_000,
-              credit_score: 650,
-              income: 60_000,
-              employment_status: "employed"
-            },
-            metadata: {
-              type: "loan_approval",
-              category: "medium_risk",
-              description: "Medium-risk loan application scenario"
-            }
+      def self.fraud_detection_templates
+        {
+          fraud_detection_suspicious: build_fraud_scenario(10_000, 5, 50, "unusual", "suspicious"),
+          fraud_detection_normal: build_fraud_scenario(100, 365, 3, "usual", "normal")
+        }
+      end
+
+      def self.build_fraud_scenario(amount, account_age, transaction_count, location, category)
+        {
+          context: {
+            transaction_amount: amount,
+            account_age_days: account_age,
+            transaction_count_24h: transaction_count,
+            location: location
           },
+          metadata: {
+            type: "fraud_detection",
+            category: category,
+            description: "#{category.capitalize} transaction scenario"
+          }
+        }
+      end
 
-          fraud_detection_suspicious: {
-            context: {
-              transaction_amount: 10_000,
-              account_age_days: 5,
-              transaction_count_24h: 50,
-              location: "unusual"
-            },
-            metadata: {
-              type: "fraud_detection",
-              category: "suspicious",
-              description: "Suspicious transaction scenario"
-            }
+      def self.pricing_templates
+        {
+          pricing_high_value: build_pricing_scenario("premium", 5_000, 10_000, "high", "high_value"),
+          pricing_standard: build_pricing_scenario("standard", 100, 500, "medium", "standard")
+        }
+      end
+
+      def self.build_pricing_scenario(tier, order_value, loyalty_points, frequency, category)
+        {
+          context: {
+            customer_tier: tier,
+            order_value: order_value,
+            loyalty_points: loyalty_points,
+            purchase_frequency: frequency
           },
-
-          fraud_detection_normal: {
-            context: {
-              transaction_amount: 100,
-              account_age_days: 365,
-              transaction_count_24h: 3,
-              location: "usual"
-            },
-            metadata: {
-              type: "fraud_detection",
-              category: "normal",
-              description: "Normal transaction scenario"
-            }
-          },
-
-          pricing_high_value: {
-            context: {
-              customer_tier: "premium",
-              order_value: 5_000,
-              loyalty_points: 10_000,
-              purchase_frequency: "high"
-            },
-            metadata: {
-              type: "pricing",
-              category: "high_value",
-              description: "High-value customer pricing scenario"
-            }
-          },
-
-          pricing_standard: {
-            context: {
-              customer_tier: "standard",
-              order_value: 100,
-              loyalty_points: 500,
-              purchase_frequency: "medium"
-            },
-            metadata: {
-              type: "pricing",
-              category: "standard",
-              description: "Standard customer pricing scenario"
-            }
+          metadata: {
+            type: "pricing",
+            category: category,
+            description: "#{category.capitalize.tr('_', ' ')} customer pricing scenario"
           }
         }
       end

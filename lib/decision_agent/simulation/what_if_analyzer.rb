@@ -321,46 +321,47 @@ module DecisionAgent
 
       # Generate 1D decision boundary visualization
       def visualize_1d_boundary(base_scenario, param_name, param_config, analysis_agent, options)
+        min, max, steps = extract_1d_params(param_config)
+        points = generate_1d_points(base_scenario, param_name, min, max, steps, analysis_agent)
+        boundaries = identify_1d_boundaries(points)
+        result = build_1d_result(param_name, min, max, points, boundaries)
+
+        format_visualization_output(result, options)
+      end
+
+      def extract_1d_params(param_config)
         min = param_config[:min] || param_config["min"]
         max = param_config[:max] || param_config["max"]
         steps = param_config[:steps] || param_config["steps"] || 100
 
         raise ArgumentError, "Parameter config must include :min and :max" unless min && max
 
+        [min, max, steps]
+      end
+
+      def generate_1d_points(base_scenario, param_name, min, max, steps, analysis_agent)
         step_size = (max - min).to_f / steps
-        points = []
-
-        (0..steps).each do |i|
+        (0..steps).each_with_object([]) do |i, points|
           value = min + (step_size * i)
-          modified_scenario = base_scenario.dup
-          set_nested_value(modified_scenario, param_name, value)
-
-          begin
-            decision = analysis_agent.decide(context: Context.new(modified_scenario))
-            points << {
-              parameter: param_name,
-              value: value,
-              decision: decision.decision,
-              confidence: decision.confidence
-            }
-          rescue DecisionAgent::NoEvaluationsError
-            # Add point with nil decision when no evaluators match
-            # This ensures we have points for all parameter values
-            points << {
-              parameter: param_name,
-              value: value,
-              decision: nil,
-              confidence: 0.0
-            }
-          end
+          point = evaluate_1d_point(base_scenario, param_name, value, analysis_agent)
+          points << point.merge(parameter: param_name, value: value)
         end
+      end
 
-        # Identify boundary points (where decisions change)
-        boundaries = []
-        points.each_cons(2) do |p1, p2|
+      def evaluate_1d_point(base_scenario, param_name, value, analysis_agent)
+        modified_scenario = base_scenario.dup
+        set_nested_value(modified_scenario, param_name, value)
+
+        decision = analysis_agent.decide(context: Context.new(modified_scenario))
+        { decision: decision.decision, confidence: decision.confidence }
+      rescue DecisionAgent::NoEvaluationsError
+        { decision: nil, confidence: 0.0 }
+      end
+
+      def identify_1d_boundaries(points)
+        points.each_cons(2).with_object([]) do |(p1, p2), boundaries|
           next unless p1[:decision] != p2[:decision]
 
-          # Linear interpolation for boundary value
           boundary_value = p1[:value] + ((p2[:value] - p1[:value]) / 2.0)
           boundaries << {
             value: boundary_value,
@@ -370,8 +371,10 @@ module DecisionAgent
             confidence_to: p2[:confidence]
           }
         end
+      end
 
-        result = {
+      def build_1d_result(param_name, min, max, points, boundaries)
+        {
           type: "1d_boundary",
           parameter: param_name,
           range: { min: min, max: max },
@@ -379,13 +382,20 @@ module DecisionAgent
           boundaries: boundaries,
           decision_distribution: points.any? ? points.group_by { |p| p[:decision] }.transform_values(&:count) : {}
         }
-
-        format_visualization_output(result, options)
       end
 
       # Generate 2D decision boundary visualization
       def visualize_2d_boundary(base_scenario, param1_name, param2_name,
                                 param1_config, param2_config, analysis_agent, resolution, options)
+        min1, max1, min2, max2 = extract_2d_params(param1_config, param2_config)
+        grid = generate_2d_grid(base_scenario, param1_name, param2_name, min1, max1, min2, max2, resolution, analysis_agent)
+        boundaries = identify_2d_boundaries(grid, resolution)
+        result = build_2d_result(param1_name, param2_name, min1, max1, min2, max2, resolution, grid, boundaries)
+
+        format_visualization_output(result, options)
+      end
+
+      def extract_2d_params(param1_config, param2_config)
         min1 = param1_config[:min] || param1_config["min"]
         max1 = param1_config[:max] || param1_config["max"]
         min2 = param2_config[:min] || param2_config["min"]
@@ -393,62 +403,43 @@ module DecisionAgent
 
         raise ArgumentError, "Parameter configs must include :min and :max" unless min1 && max1 && min2 && max2
 
+        [min1, max1, min2, max2]
+      end
+
+      def generate_2d_grid(base_scenario, param1_name, param2_name, min1, max1, min2, max2, resolution, analysis_agent)
         step1 = (max1 - min1).to_f / resolution
         step2 = (max2 - min2).to_f / resolution
 
-        grid = []
-        decision_map = {}
-        confidence_map = {}
-
-        (0..resolution).each do |i|
+        (0..resolution).each_with_object([]) do |i, grid|
           value1 = min1 + (step1 * i)
-          row = []
-
-          (0..resolution).each do |j|
-            value2 = min2 + (step2 * j)
-            modified_scenario = base_scenario.dup
-            set_nested_value(modified_scenario, param1_name, value1)
-            set_nested_value(modified_scenario, param2_name, value2)
-
-            begin
-              decision = analysis_agent.decide(context: Context.new(modified_scenario))
-
-              point_data = {
-                param1: value1,
-                param2: value2,
-                decision: decision.decision,
-                confidence: decision.confidence
-              }
-
-              row << point_data
-
-              # Build decision map for visualization
-              decision_map[[i, j]] = decision.decision
-              confidence_map[[i, j]] = decision.confidence
-            rescue DecisionAgent::NoEvaluationsError
-              # Skip points where no evaluators return a decision
-              # This can happen when rules don't match the context
-              # Add a placeholder point with nil decision
-              point_data = {
-                param1: value1,
-                param2: value2,
-                decision: nil,
-                confidence: 0.0
-              }
-              row << point_data
-            end
-          end
-
+          row = generate_2d_row(base_scenario, param1_name, param2_name, value1, min2, step2, resolution, analysis_agent)
           grid << row
         end
+      end
 
-        # Identify boundary regions (where decisions change between adjacent cells)
-        boundaries = identify_2d_boundaries(grid, resolution)
+      def generate_2d_row(base_scenario, param1_name, param2_name, value1, min2, step2, resolution, analysis_agent)
+        (0..resolution).each_with_object([]) do |j, row|
+          value2 = min2 + (step2 * j)
+          point = evaluate_2d_point(base_scenario, param1_name, param2_name, value1, value2, analysis_agent)
+          row << point.merge(param1: value1, param2: value2)
+        end
+      end
 
-        # Calculate decision distribution
+      def evaluate_2d_point(base_scenario, param1_name, param2_name, value1, value2, analysis_agent)
+        modified_scenario = base_scenario.dup
+        set_nested_value(modified_scenario, param1_name, value1)
+        set_nested_value(modified_scenario, param2_name, value2)
+
+        decision = analysis_agent.decide(context: Context.new(modified_scenario))
+        { decision: decision.decision, confidence: decision.confidence }
+      rescue DecisionAgent::NoEvaluationsError
+        { decision: nil, confidence: 0.0 }
+      end
+
+      def build_2d_result(param1_name, param2_name, min1, max1, min2, max2, resolution, grid, boundaries)
         decision_counts = grid.flatten.group_by { |p| p[:decision] }.transform_values(&:count)
 
-        result = {
+        {
           type: "2d_boundary",
           parameter1: param1_name,
           parameter2: param2_name,
@@ -459,16 +450,15 @@ module DecisionAgent
           boundaries: boundaries,
           decision_distribution: decision_counts
         }
-
-        format_visualization_output(result, options)
       end
 
       # Identify boundary lines in 2D grid where decisions change
       def identify_2d_boundaries(grid, resolution)
-        boundaries = []
+        find_vertical_boundaries(grid, resolution) + find_horizontal_boundaries(grid, resolution)
+      end
 
-        # Check horizontal boundaries
-        (0..(resolution - 1)).each do |i|
+      def find_vertical_boundaries(grid, resolution)
+        (0..(resolution - 1)).each_with_object([]) do |i, boundaries|
           (0..resolution).each do |j|
             next unless j < resolution && grid[i][j][:decision] != grid[i][j + 1][:decision]
 
@@ -484,9 +474,10 @@ module DecisionAgent
             }
           end
         end
+      end
 
-        # Check vertical boundaries
-        (0..resolution).each do |i|
+      def find_horizontal_boundaries(grid, resolution)
+        (0..resolution).each_with_object([]) do |i, boundaries|
           (0..(resolution - 1)).each do |j|
             next unless i < resolution && grid[i][j][:decision] != grid[i + 1][j][:decision]
 
@@ -502,8 +493,6 @@ module DecisionAgent
             }
           end
         end
-
-        boundaries
       end
 
       # Format visualization output based on requested format
@@ -595,25 +584,39 @@ module DecisionAgent
       end
 
       def generate_info_html(data)
-        info_parts = []
-
         if data[:type] == "1d_boundary"
-          info_parts << "<strong>Type:</strong> 1D Boundary Visualization"
-          info_parts << "<strong>Parameter:</strong> #{data[:parameter]}"
-          info_parts << "<strong>Range:</strong> #{data[:range][:min]} to #{data[:range][:max]}"
-          info_parts << "<strong>Boundaries Found:</strong> #{data[:boundaries].size}"
-          info_parts << "<strong>Decision Distribution:</strong> #{data[:decision_distribution].map { |k, v| "#{k}: #{v}" }.join(', ')}"
+          generate_1d_info(data)
         elsif data[:type] == "2d_boundary"
-          info_parts << "<strong>Type:</strong> 2D Boundary Visualization"
-          info_parts << "<strong>Parameters:</strong> #{data[:parameter1]} vs #{data[:parameter2]}"
-          info_parts << "<strong>Range 1:</strong> #{data[:range1][:min]} to #{data[:range1][:max]}"
-          info_parts << "<strong>Range 2:</strong> #{data[:range2][:min]} to #{data[:range2][:max]}"
-          info_parts << "<strong>Resolution:</strong> #{data[:resolution]}x#{data[:resolution]}"
-          info_parts << "<strong>Boundaries Found:</strong> #{data[:boundaries].size}"
-          info_parts << "<strong>Decision Distribution:</strong> #{data[:decision_distribution].map { |k, v| "#{k}: #{v}" }.join(', ')}"
+          generate_2d_info(data)
+        else
+          ""
         end
+      end
 
-        info_parts.join("<br>")
+      def generate_1d_info(data)
+        [
+          "<strong>Type:</strong> 1D Boundary Visualization",
+          "<strong>Parameter:</strong> #{data[:parameter]}",
+          "<strong>Range:</strong> #{data[:range][:min]} to #{data[:range][:max]}",
+          "<strong>Boundaries Found:</strong> #{data[:boundaries].size}",
+          "<strong>Decision Distribution:</strong> #{format_decision_distribution(data[:decision_distribution])}"
+        ].join("<br>")
+      end
+
+      def generate_2d_info(data)
+        [
+          "<strong>Type:</strong> 2D Boundary Visualization",
+          "<strong>Parameters:</strong> #{data[:parameter1]} vs #{data[:parameter2]}",
+          "<strong>Range 1:</strong> #{data[:range1][:min]} to #{data[:range1][:max]}",
+          "<strong>Range 2:</strong> #{data[:range2][:min]} to #{data[:range2][:max]}",
+          "<strong>Resolution:</strong> #{data[:resolution]}x#{data[:resolution]}",
+          "<strong>Boundaries Found:</strong> #{data[:boundaries].size}",
+          "<strong>Decision Distribution:</strong> #{format_decision_distribution(data[:decision_distribution])}"
+        ].join("<br>")
+      end
+
+      def format_decision_distribution(distribution)
+        distribution.map { |k, v| "#{k}: #{v}" }.join(", ")
       end
 
       def generate_chart_html(data)
@@ -627,101 +630,149 @@ module DecisionAgent
       end
 
       def generate_1d_chart_svg(data)
+        chart_config = setup_1d_chart(data)
+        svg = "<svg width='#{chart_config[:width]}' height='#{chart_config[:height]}'>"
+
+        svg << draw_1d_regions(data, chart_config)
+        svg << draw_1d_boundaries(data, chart_config)
+        svg << draw_1d_axes(data, chart_config)
+
+        svg << "</svg>"
+      end
+
+      def setup_1d_chart(data)
         width = 800
         height = 400
         margin = { top: 40, right: 40, bottom: 60, left: 60 }
         chart_width = width - margin[:left] - margin[:right]
         chart_height = height - margin[:top] - margin[:bottom]
 
-        # Get unique decisions and assign colors
         decisions = data[:points].map { |p| p[:decision] }.uniq
         colors = ["#58a6ff", "#3fb950", "#d29922", "#da3633", "#bc8cff", "#ff79c6", "#bd93f9"]
         decision_colors = decisions.each_with_index.to_h { |d, i| [d, colors[i % colors.size]] }
 
-        # Scale functions
         min_val = data[:range][:min]
         max_val = data[:range][:max]
         x_scale = chart_width.to_f / (max_val - min_val)
 
-        svg = "<svg width='#{width}' height='#{height}'>"
+        {
+          width: width,
+          height: height,
+          margin: margin,
+          chart_width: chart_width,
+          chart_height: chart_height,
+          decision_colors: decision_colors,
+          min_val: min_val,
+          max_val: max_val,
+          x_scale: x_scale
+        }
+      end
 
-        # Draw background regions for each decision
+      def draw_1d_regions(data, config)
+        svg = ""
         current_decision = nil
         region_start = nil
 
-        data[:points].each_with_index do |point, _idx|
+        data[:points].each do |point|
           next unless point[:decision] != current_decision
 
-          # Close previous region
           if current_decision && region_start
-            region_end = margin[:left] + ((point[:value] - min_val) * x_scale)
-            color = decision_colors[current_decision]
-            svg << "<rect x='#{region_start}' y='#{margin[:top]}' " \
-                   "width='#{region_end - region_start}' height='#{chart_height}' " \
-                   "fill='#{color}' opacity='0.3'/>"
+            region_end = config[:margin][:left] + ((point[:value] - config[:min_val]) * config[:x_scale])
+            color = config[:decision_colors][current_decision]
+            svg << build_region_rect(region_start, region_end, config, color)
           end
 
-          # Start new region
           current_decision = point[:decision]
-          region_start = margin[:left] + ((point[:value] - min_val) * x_scale)
+          region_start = config[:margin][:left] + ((point[:value] - config[:min_val]) * config[:x_scale])
         end
 
-        # Close last region
         if current_decision && region_start
-          region_end = margin[:left] + chart_width
-          color = decision_colors[current_decision]
-          svg << "<rect x='#{region_start}' y='#{margin[:top]}' " \
-                 "width='#{region_end - region_start}' height='#{chart_height}' " \
-                 "fill='#{color}' opacity='0.3'/>"
+          region_end = config[:margin][:left] + config[:chart_width]
+          color = config[:decision_colors][current_decision]
+          svg << build_region_rect(region_start, region_end, config, color)
         end
 
-        # Draw boundary lines
-        data[:boundaries].each do |boundary|
-          x = margin[:left] + ((boundary[:value] - min_val) * x_scale)
-          svg << "<line x1='#{x}' y1='#{margin[:top]}' x2='#{x}' " \
-                 "y2='#{margin[:top] + chart_height}' stroke='#000' " \
-                 "stroke-width='2' stroke-dasharray='5,5'/>"
-        end
-
-        # Draw axes
-        svg << "<line x1='#{margin[:left]}' y1='#{margin[:top] + chart_height}' " \
-               "x2='#{margin[:left] + chart_width}' y2='#{margin[:top] + chart_height}' " \
-               "stroke='#333' stroke-width='2'/>"
-        svg << "<line x1='#{margin[:left]}' y1='#{margin[:top]}' " \
-               "x2='#{margin[:left]}' y2='#{margin[:top] + chart_height}' " \
-               "stroke='#333' stroke-width='2'/>"
-
-        # Axis labels
-        svg << "<text x='#{margin[:left] + (chart_width / 2)}' y='#{height - 10}' " \
-               "text-anchor='middle' font-size='14' fill='#333'>#{data[:parameter]}</text>"
-
-        # Tick marks and labels
-        (0..4).each do |i|
-          value = min_val + ((max_val - min_val) * i / 4.0)
-          x = margin[:left] + ((value - min_val) * x_scale)
-          svg << "<line x1='#{x}' y1='#{margin[:top] + chart_height}' " \
-                 "x2='#{x}' y2='#{margin[:top] + chart_height + 5}' " \
-                 "stroke='#333' stroke-width='1'/>"
-          svg << "<text x='#{x}' y='#{height - 20}' text-anchor='middle' font-size='12' fill='#666'>#{value.round(2)}</text>"
-        end
-
-        svg << "</svg>"
         svg
       end
 
+      def build_region_rect(region_start, region_end, config, color)
+        "<rect x='#{region_start}' y='#{config[:margin][:top]}' " \
+          "width='#{region_end - region_start}' height='#{config[:chart_height]}' " \
+          "fill='#{color}' opacity='0.3'/>"
+      end
+
+      def draw_1d_boundaries(data, config)
+        data[:boundaries].each_with_object("") do |boundary, svg|
+          x = config[:margin][:left] + ((boundary[:value] - config[:min_val]) * config[:x_scale])
+          svg << "<line x1='#{x}' y1='#{config[:margin][:top]}' x2='#{x}' " \
+                 "y2='#{config[:margin][:top] + config[:chart_height]}' stroke='#000' " \
+                 "stroke-width='2' stroke-dasharray='5,5'/>"
+        end
+      end
+
+      def draw_1d_axes(data, config)
+        svg = draw_1d_axis_lines(config)
+        svg << draw_1d_axis_label(data, config)
+        svg << draw_1d_tick_marks(config)
+      end
+
+      def draw_1d_axis_lines(config)
+        margin = config[:margin]
+        chart_width = config[:chart_width]
+        chart_height = config[:chart_height]
+
+        "<line x1='#{margin[:left]}' y1='#{margin[:top] + chart_height}' " \
+          "x2='#{margin[:left] + chart_width}' y2='#{margin[:top] + chart_height}' " \
+          "stroke='#333' stroke-width='2'/>" \
+          "<line x1='#{margin[:left]}' y1='#{margin[:top]}' " \
+          "x2='#{margin[:left]}' y2='#{margin[:top] + chart_height}' " \
+          "stroke='#333' stroke-width='2'/>"
+      end
+
+      def draw_1d_axis_label(data, config)
+        margin = config[:margin]
+        chart_width = config[:chart_width]
+
+        "<text x='#{margin[:left] + (chart_width / 2)}' y='#{config[:height] - 10}' " \
+          "text-anchor='middle' font-size='14' fill='#333'>#{data[:parameter]}</text>"
+      end
+
+      def draw_1d_tick_marks(config)
+        margin = config[:margin]
+        chart_height = config[:chart_height]
+
+        (0..4).each_with_object("") do |i, svg|
+          value = config[:min_val] + ((config[:max_val] - config[:min_val]) * i / 4.0)
+          x = margin[:left] + ((value - config[:min_val]) * config[:x_scale])
+          svg << "<line x1='#{x}' y1='#{margin[:top] + chart_height}' " \
+                 "x2='#{x}' y2='#{margin[:top] + chart_height + 5}' " \
+                 "stroke='#333' stroke-width='1'/>"
+          svg << "<text x='#{x}' y='#{config[:height] - 20}' text-anchor='middle' font-size='12' fill='#666'>#{value.round(2)}</text>"
+        end
+      end
+
       def generate_2d_chart_svg(data)
+        chart_config = setup_2d_chart(data)
+        svg = "<svg width='#{chart_config[:width]}' height='#{chart_config[:height]}'>"
+
+        svg << draw_2d_grid(data, chart_config)
+        svg << draw_2d_boundaries(data, chart_config)
+        svg << draw_2d_axes(data, chart_config)
+
+        svg << "</svg>"
+      end
+
+      def setup_2d_chart(data)
         width = 600
         height = 600
         margin = { top: 40, right: 40, bottom: 60, left: 60 }
         chart_width = width - margin[:left] - margin[:right]
         chart_height = height - margin[:top] - margin[:bottom]
 
-        # Get unique decisions and assign colors
         decisions = data[:grid].flatten.map { |p| p[:decision] }.uniq
         colors = ["#58a6ff", "#3fb950", "#d29922", "#da3633", "#bc8cff", "#ff79c6", "#bd93f9"]
         decision_colors = decisions.each_with_index.to_h { |d, i| [d, colors[i % colors.size]] }
 
-        # Scale functions
         min1 = data[:range1][:min]
         max1 = data[:range1][:max]
         min2 = data[:range2][:min]
@@ -729,72 +780,113 @@ module DecisionAgent
 
         x_scale = chart_width.to_f / (max1 - min1)
         y_scale = chart_height.to_f / (max2 - min2)
-
         cell_width = chart_width.to_f / data[:resolution]
         cell_height = chart_height.to_f / data[:resolution]
 
-        svg = "<svg width='#{width}' height='#{height}'>"
+        {
+          width: width,
+          height: height,
+          margin: margin,
+          chart_width: chart_width,
+          chart_height: chart_height,
+          decision_colors: decision_colors,
+          min1: min1,
+          max1: max1,
+          min2: min2,
+          max2: max2,
+          x_scale: x_scale,
+          y_scale: y_scale,
+          cell_width: cell_width,
+          cell_height: cell_height
+        }
+      end
 
-        # Draw grid cells
-        data[:grid].each_with_index do |row, i|
+      def draw_2d_grid(data, config)
+        data[:grid].each_with_index.with_object("") do |(row, i), svg|
           row.each_with_index do |point, j|
-            x = margin[:left] + (j * cell_width)
-            y = margin[:top] + (i * cell_height)
-            color = decision_colors[point[:decision]]
-            svg << "<rect x='#{x}' y='#{y}' width='#{cell_width.ceil}' " \
-                   "height='#{cell_height.ceil}' fill='#{color}' opacity='0.6' " \
+            x = config[:margin][:left] + (j * config[:cell_width])
+            y = config[:margin][:top] + (i * config[:cell_height])
+            color = config[:decision_colors][point[:decision]]
+            svg << "<rect x='#{x}' y='#{y}' width='#{config[:cell_width].ceil}' " \
+                   "height='#{config[:cell_height].ceil}' fill='#{color}' opacity='0.6' " \
                    "stroke='#ddd' stroke-width='0.5'/>"
           end
         end
+      end
 
-        # Draw boundary lines (simplified - just highlight cells at boundaries)
-        data[:boundaries].sample([data[:boundaries].size, 500].min).each do |boundary|
+      def draw_2d_boundaries(data, config)
+        sampled_boundaries = data[:boundaries].sample([data[:boundaries].size, 500].min)
+        sampled_boundaries.each_with_object("") do |boundary, svg|
           if boundary[:type] == "vertical"
-            x = margin[:left] + (boundary[:col] * cell_width) + cell_width
-            y1 = margin[:top] + (boundary[:row] * cell_height)
-            y2 = y1 + cell_height
+            x = config[:margin][:left] + (boundary[:col] * config[:cell_width]) + config[:cell_width]
+            y1 = config[:margin][:top] + (boundary[:row] * config[:cell_height])
+            y2 = y1 + config[:cell_height]
             svg << "<line x1='#{x}' y1='#{y1}' x2='#{x}' y2='#{y2}' stroke='#000' stroke-width='2'/>"
           elsif boundary[:type] == "horizontal"
-            x1 = margin[:left] + (boundary[:col] * cell_width)
-            x2 = x1 + cell_width
-            y = margin[:top] + (boundary[:row] * cell_height) + cell_height
+            x1 = config[:margin][:left] + (boundary[:col] * config[:cell_width])
+            x2 = x1 + config[:cell_width]
+            y = config[:margin][:top] + (boundary[:row] * config[:cell_height]) + config[:cell_height]
             svg << "<line x1='#{x1}' y1='#{y}' x2='#{x2}' y2='#{y}' stroke='#000' stroke-width='2'/>"
           end
         end
+      end
 
-        # Draw axes
-        svg << "<line x1='#{margin[:left]}' y1='#{margin[:top] + chart_height}' " \
-               "x2='#{margin[:left] + chart_width}' y2='#{margin[:top] + chart_height}' " \
-               "stroke='#333' stroke-width='2'/>"
-        svg << "<line x1='#{margin[:left]}' y1='#{margin[:top]}' " \
-               "x2='#{margin[:left]}' y2='#{margin[:top] + chart_height}' " \
-               "stroke='#333' stroke-width='2'/>"
+      def draw_2d_axes(data, config)
+        svg = draw_2d_axis_lines(config)
+        svg << draw_2d_axis_labels(data, config)
+        svg << draw_2d_tick_marks(config)
+      end
 
-        # Axis labels
-        svg << "<text x='#{margin[:left] + (chart_width / 2)}' y='#{height - 10}' " \
-               "text-anchor='middle' font-size='14' fill='#333'>#{data[:parameter1]}</text>"
-        svg << "<text x='15' y='#{margin[:top] + (chart_height / 2)}' " \
-               "text-anchor='middle' font-size='14' fill='#333' " \
-               "transform='rotate(-90, 15, #{margin[:top] + (chart_height / 2)})'>" \
-               "#{data[:parameter2]}</text>"
+      def draw_2d_axis_lines(config)
+        margin = config[:margin]
+        chart_width = config[:chart_width]
+        chart_height = config[:chart_height]
 
-        # Tick marks
-        (0..4).each do |i|
-          value1 = min1 + ((max1 - min1) * i / 4.0)
-          x = margin[:left] + ((value1 - min1) * x_scale)
-          svg << "<line x1='#{x}' y1='#{margin[:top] + chart_height}' " \
-                 "x2='#{x}' y2='#{margin[:top] + chart_height + 5}' " \
-                 "stroke='#333' stroke-width='1'/>"
-          svg << "<text x='#{x}' y='#{height - 20}' text-anchor='middle' font-size='10' fill='#666'>#{value1.round(2)}</text>"
+        "<line x1='#{margin[:left]}' y1='#{margin[:top] + chart_height}' " \
+          "x2='#{margin[:left] + chart_width}' y2='#{margin[:top] + chart_height}' " \
+          "stroke='#333' stroke-width='2'/>" \
+          "<line x1='#{margin[:left]}' y1='#{margin[:top]}' " \
+          "x2='#{margin[:left]}' y2='#{margin[:top] + chart_height}' " \
+          "stroke='#333' stroke-width='2'/>"
+      end
 
-          value2 = max2 - ((max2 - min2) * i / 4.0)
-          y = margin[:top] + ((value2 - min2) * y_scale)
-          svg << "<line x1='#{margin[:left]}' y1='#{y}' x2='#{margin[:left] - 5}' y2='#{y}' stroke='#333' stroke-width='1'/>"
-          svg << "<text x='#{margin[:left] - 10}' y='#{y + 4}' text-anchor='end' font-size='10' fill='#666'>#{value2.round(2)}</text>"
+      def draw_2d_axis_labels(data, config)
+        margin = config[:margin]
+        chart_width = config[:chart_width]
+        chart_height = config[:chart_height]
+
+        "<text x='#{margin[:left] + (chart_width / 2)}' y='#{config[:height] - 10}' " \
+          "text-anchor='middle' font-size='14' fill='#333'>#{data[:parameter1]}</text>" \
+          "<text x='15' y='#{margin[:top] + (chart_height / 2)}' " \
+          "text-anchor='middle' font-size='14' fill='#333' " \
+          "transform='rotate(-90, 15, #{margin[:top] + (chart_height / 2)})'>" \
+          "#{data[:parameter2]}</text>"
+      end
+
+      def draw_2d_tick_marks(config)
+        margin = config[:margin]
+        chart_height = config[:chart_height]
+
+        (0..4).each_with_object("") do |index, svg|
+          svg << draw_2d_x_tick(index, config, margin, chart_height)
+          svg << draw_2d_y_tick(index, config, margin)
         end
+      end
 
-        svg << "</svg>"
-        svg
+      def draw_2d_x_tick(index, config, margin, chart_height)
+        value1 = config[:min1] + ((config[:max1] - config[:min1]) * index / 4.0)
+        x = margin[:left] + ((value1 - config[:min1]) * config[:x_scale])
+        "<line x1='#{x}' y1='#{margin[:top] + chart_height}' " \
+          "x2='#{x}' y2='#{margin[:top] + chart_height + 5}' " \
+          "stroke='#333' stroke-width='1'/>" \
+          "<text x='#{x}' y='#{config[:height] - 20}' text-anchor='middle' font-size='10' fill='#666'>#{value1.round(2)}</text>"
+      end
+
+      def draw_2d_y_tick(index, config, margin)
+        value2 = config[:max2] - ((config[:max2] - config[:min2]) * index / 4.0)
+        y = margin[:top] + ((value2 - config[:min2]) * config[:y_scale])
+        "<line x1='#{margin[:left]}' y1='#{y}' x2='#{margin[:left] - 5}' y2='#{y}' stroke='#333' stroke-width='1'/>" \
+          "<text x='#{margin[:left] - 10}' y='#{y + 4}' text-anchor='end' font-size='10' fill='#666'>#{value2.round(2)}</text>"
       end
 
       def generate_legend_html(data)

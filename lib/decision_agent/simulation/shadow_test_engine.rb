@@ -24,51 +24,53 @@ module DecisionAgent
           record_results: false
         }.merge(options)
 
-        ctx = context.is_a?(Context) ? context : Context.new(context)
+        ctx = normalize_context(context)
+        production_decision = execute_production_decision(ctx)
+        shadow_decision = execute_shadow_decision(ctx, shadow_version)
 
-        # Execute production decision
-        begin
-          production_decision = @production_agent.decide(context: ctx)
-        rescue NoEvaluationsError
-          production_decision = nil
-        end
-
-        # Build shadow agent and execute
-        shadow_agent = build_shadow_agent(shadow_version)
-        begin
-          shadow_decision = shadow_agent.decide(context: ctx)
-        rescue NoEvaluationsError
-          shadow_decision = nil
-        end
-
-        # Compare results
-        prod_decision = production_decision&.decision
-        prod_confidence = production_decision&.confidence || 0.0
-        shadow_dec = shadow_decision&.decision
-        shadow_conf = shadow_decision&.confidence || 0.0
-
-        result = {
-          context: ctx.to_h,
-          production_decision: prod_decision,
-          production_confidence: prod_confidence,
-          shadow_decision: shadow_dec,
-          shadow_confidence: shadow_conf,
-          matches: prod_decision == shadow_dec,
-          confidence_delta: shadow_conf - prod_confidence,
-          timestamp: Time.now.utc.iso8601
-        }
-
-        if options[:track_differences] && !result[:matches]
-          result[:differences] = {
-            decision_mismatch: true,
-            production_explanations: production_decision&.explanations || [],
-            shadow_explanations: shadow_decision&.explanations || []
-          }
-        end
-
+        result = build_comparison_result(ctx, production_decision, shadow_decision)
+        add_differences(result, production_decision, shadow_decision) if options[:track_differences] && !result[:matches]
         record_result(result, shadow_version) if options[:record_results]
 
         result
+      end
+
+      def normalize_context(context)
+        context.is_a?(Context) ? context : Context.new(context)
+      end
+
+      def execute_production_decision(context)
+        @production_agent.decide(context: context)
+      rescue NoEvaluationsError
+        nil
+      end
+
+      def execute_shadow_decision(context, shadow_version)
+        shadow_agent = build_shadow_agent(shadow_version)
+        shadow_agent.decide(context: context)
+      rescue NoEvaluationsError
+        nil
+      end
+
+      def build_comparison_result(context, production_decision, shadow_decision)
+        {
+          context: context.to_h,
+          production_decision: production_decision&.decision,
+          production_confidence: production_decision&.confidence || 0.0,
+          shadow_decision: shadow_decision&.decision,
+          shadow_confidence: shadow_decision&.confidence || 0.0,
+          matches: production_decision&.decision == shadow_decision&.decision,
+          confidence_delta: (shadow_decision&.confidence || 0.0) - (production_decision&.confidence || 0.0),
+          timestamp: Time.now.utc.iso8601
+        }
+      end
+
+      def add_differences(result, production_decision, shadow_decision)
+        result[:differences] = {
+          decision_mismatch: true,
+          production_explanations: production_decision&.explanations || [],
+          shadow_explanations: shadow_decision&.explanations || []
+        }
       end
 
       # Batch shadow test multiple contexts
@@ -191,65 +193,46 @@ module DecisionAgent
         end
       end
 
-      def execute_parallel(contexts, shadow_agent, options, _mutex)
+      def execute_parallel(contexts, shadow_agent, options, _mutex, &block)
         thread_count = [options[:thread_count], contexts.size].min
         queue = Queue.new
         contexts.each { |c| queue << c }
 
         threads = Array.new(thread_count) do
           Thread.new do
-            loop do
-              context = begin
-                queue.pop(true)
-              rescue StandardError
-                nil
-              end
-              break unless context
-
-              ctx = context.is_a?(Context) ? context : Context.new(context)
-
-              begin
-                production_decision = @production_agent.decide(context: ctx)
-              rescue NoEvaluationsError
-                production_decision = nil
-              end
-
-              begin
-                shadow_decision = shadow_agent.decide(context: ctx)
-              rescue NoEvaluationsError
-                shadow_decision = nil
-              end
-
-              prod_decision = production_decision&.decision
-              prod_confidence = production_decision&.confidence || 0.0
-              shadow_dec = shadow_decision&.decision
-              shadow_conf = shadow_decision&.confidence || 0.0
-
-              result = {
-                context: ctx.to_h,
-                production_decision: prod_decision,
-                production_confidence: prod_confidence,
-                shadow_decision: shadow_dec,
-                shadow_confidence: shadow_conf,
-                matches: prod_decision == shadow_dec,
-                confidence_delta: shadow_conf - prod_confidence,
-                timestamp: Time.now.utc.iso8601
-              }
-
-              if options[:track_differences] && !result[:matches]
-                result[:differences] = {
-                  decision_mismatch: true,
-                  production_explanations: production_decision&.explanations || [],
-                  shadow_explanations: shadow_decision&.explanations || []
-                }
-              end
-
-              yield result
-            end
+            process_contexts_from_queue(queue, shadow_agent, options, &block)
           end
         end
 
         threads.each(&:join)
+      end
+
+      def process_contexts_from_queue(queue, shadow_agent, options)
+        loop do
+          context = dequeue_context(queue)
+          break unless context
+
+          ctx = normalize_context(context)
+          production_decision = execute_production_decision(ctx)
+          shadow_decision = execute_shadow_decision_in_parallel(ctx, shadow_agent)
+
+          result = build_comparison_result(ctx, production_decision, shadow_decision)
+          add_differences(result, production_decision, shadow_decision) if options[:track_differences] && !result[:matches]
+
+          yield result
+        end
+      end
+
+      def dequeue_context(queue)
+        queue.pop(true)
+      rescue StandardError
+        nil
+      end
+
+      def execute_shadow_decision_in_parallel(context, shadow_agent)
+        shadow_agent.decide(context: context)
+      rescue NoEvaluationsError
+        nil
       end
 
       def record_result(_result, shadow_version)

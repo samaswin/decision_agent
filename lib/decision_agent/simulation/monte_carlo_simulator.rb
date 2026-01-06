@@ -172,35 +172,63 @@ module DecisionAgent
       def validate_distribution_type!(field, type, config)
         case type.to_sym
         when :normal
-          raise ArgumentError, "Normal distribution for #{field} requires :mean and :stddev" unless
-            (config[:mean] || config["mean"]) && (config[:stddev] || config["stddev"])
+          validate_normal_distribution(field, config)
         when :uniform
-          raise ArgumentError, "Uniform distribution for #{field} requires :min and :max" unless
-            (config[:min] || config["min"]) && (config[:max] || config["max"])
+          validate_uniform_distribution(field, config)
         when :lognormal
-          raise ArgumentError, "Log-normal distribution for #{field} requires :mean and :stddev" unless
-            (config[:mean] || config["mean"]) && (config[:stddev] || config["stddev"])
+          validate_lognormal_distribution(field, config)
         when :exponential
-          raise ArgumentError, "Exponential distribution for #{field} requires :lambda" unless
-            config[:lambda] || config["lambda"]
+          validate_exponential_distribution(field, config)
         when :discrete
-          values = config[:values] || config["values"]
-          probs = config[:probabilities] || config["probabilities"]
-          raise ArgumentError, "Discrete distribution for #{field} requires :values and :probabilities" unless values && probs
-
-          unless values.size == probs.size
-            raise ArgumentError,
-                  "Discrete distribution for #{field}: values and probabilities must have same length"
-          end
-
-          sum = probs.sum
-          raise ArgumentError, "Discrete distribution for #{field}: probabilities must sum to 1.0 (got #{sum})" unless (sum - 1.0).abs < 0.001
+          validate_discrete_distribution(field, config)
         when :triangular
-          raise ArgumentError, "Triangular distribution for #{field} requires :min, :mode, and :max" unless
-            (config[:min] || config["min"]) && (config[:mode] || config["mode"]) && (config[:max] || config["max"])
+          validate_triangular_distribution(field, config)
         else
           raise ArgumentError, "Unknown distribution type: #{type} for field #{field}"
         end
+      end
+
+      def validate_normal_distribution(field, config)
+        return if (config[:mean] || config["mean"]) && (config[:stddev] || config["stddev"])
+
+        raise ArgumentError, "Normal distribution for #{field} requires :mean and :stddev"
+      end
+
+      def validate_uniform_distribution(field, config)
+        return if (config[:min] || config["min"]) && (config[:max] || config["max"])
+
+        raise ArgumentError, "Uniform distribution for #{field} requires :min and :max"
+      end
+
+      def validate_lognormal_distribution(field, config)
+        return if (config[:mean] || config["mean"]) && (config[:stddev] || config["stddev"])
+
+        raise ArgumentError, "Log-normal distribution for #{field} requires :mean and :stddev"
+      end
+
+      def validate_exponential_distribution(field, config)
+        return if config[:lambda] || config["lambda"]
+
+        raise ArgumentError, "Exponential distribution for #{field} requires :lambda"
+      end
+
+      def validate_discrete_distribution(field, config)
+        values = config[:values] || config["values"]
+        probs = config[:probabilities] || config["probabilities"]
+        raise ArgumentError, "Discrete distribution for #{field} requires :values and :probabilities" unless values && probs
+
+        raise ArgumentError, "Discrete distribution for #{field}: values and probabilities must have same length" unless values.size == probs.size
+
+        sum = probs.sum
+        return if (sum - 1.0).abs < 0.001
+
+        raise ArgumentError, "Discrete distribution for #{field}: probabilities must sum to 1.0 (got #{sum})"
+      end
+
+      def validate_triangular_distribution(field, config)
+        return if (config[:min] || config["min"]) && (config[:mode] || config["mode"]) && (config[:max] || config["max"])
+
+        raise ArgumentError, "Triangular distribution for #{field} requires :min, :mode, and :max"
       end
 
       def build_agent_from_version(version)
@@ -347,41 +375,52 @@ module DecisionAgent
 
         case type
         when :normal
-          mean = config[:mean] || config["mean"]
-          stddev = config[:stddev] || config["stddev"]
-          # Box-Muller transform for normal distribution
-          u1 = rand
-          u2 = rand
-          z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math::PI * u2)
-          mean + (z0 * stddev)
+          sample_normal(config)
         when :uniform
-          min = config[:min] || config["min"]
-          max = config[:max] || config["max"]
-          min + (rand * (max - min))
+          sample_uniform(config)
         when :lognormal
-          mean = config[:mean] || config["mean"]
-          stddev = config[:stddev] || config["stddev"]
-          # Sample from normal, then exponentiate
-          u1 = rand
-          u2 = rand
-          z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math::PI * u2)
-          normal_sample = mean + (z0 * stddev)
-          Math.exp(normal_sample)
+          sample_lognormal(config)
         when :exponential
-          lambda = config[:lambda] || config["lambda"]
-          -Math.log(rand) / lambda
+          sample_exponential(config)
         when :discrete
-          values = config[:values] || config["values"]
-          probabilities = config[:probabilities] || config["probabilities"]
-          sample_discrete(values, probabilities)
+          sample_discrete(config[:values] || config["values"], config[:probabilities] || config["probabilities"])
         when :triangular
-          min = config[:min] || config["min"]
-          mode = config[:mode] || config["mode"]
-          max = config[:max] || config["max"]
-          sample_triangular(min, mode, max)
+          sample_triangular(config[:min] || config["min"], config[:mode] || config["mode"], config[:max] || config["max"])
         else
           raise ArgumentError, "Unknown distribution type: #{type}"
         end
+      end
+
+      def sample_normal(config)
+        mean = config[:mean] || config["mean"]
+        stddev = config[:stddev] || config["stddev"]
+        # Box-Muller transform for normal distribution
+        u1 = rand
+        u2 = rand
+        z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math::PI * u2)
+        mean + (z0 * stddev)
+      end
+
+      def sample_uniform(config)
+        min = config[:min] || config["min"]
+        max = config[:max] || config["max"]
+        min + (rand * (max - min))
+      end
+
+      def sample_lognormal(config)
+        mean = config[:mean] || config["mean"]
+        stddev = config[:stddev] || config["stddev"]
+        # Sample from normal, then exponentiate
+        u1 = rand
+        u2 = rand
+        z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math::PI * u2)
+        normal_sample = mean + (z0 * stddev)
+        Math.exp(normal_sample)
+      end
+
+      def sample_exponential(config)
+        lambda = config[:lambda] || config["lambda"]
+        -Math.log(rand) / lambda
       end
 
       def sample_discrete(values, probabilities)
@@ -408,22 +447,40 @@ module DecisionAgent
       end
 
       def calculate_statistics(results, confidence_level, requested_iterations: nil)
-        # Use requested iterations if provided, otherwise use results size
-        # The iterations count should reflect the number of iterations requested/attempted
         iterations_count = requested_iterations || results.size
+        return empty_statistics(iterations_count, confidence_level) if results.empty?
 
+        decision_stats = calculate_decision_statistics(results)
+        confidence_stats = calculate_confidence_statistics(results, confidence_level)
+        decision_specific_stats = calculate_decision_specific_statistics(results, decision_stats)
+
+        {
+          iterations: iterations_count,
+          decision_counts: decision_stats[:counts],
+          decision_probabilities: decision_stats[:probabilities],
+          decision_stats: decision_specific_stats,
+          average_confidence: confidence_stats[:average],
+          confidence_stddev: confidence_stats[:stddev],
+          confidence_intervals: {
+            confidence: confidence_stats[:interval],
+            level: confidence_level
+          },
+          results: results
+        }
+      end
+
+      def calculate_decision_statistics(results)
         total = results.size
-        return empty_statistics(iterations_count, confidence_level) if total.zero?
-
-        # Decision probabilities
         decision_counts = results.group_by { |r| r[:decision] }.transform_values(&:count)
         decision_probabilities = decision_counts.transform_values { |count| count.to_f / total }
 
-        # Confidence statistics
+        { counts: decision_counts, probabilities: decision_probabilities }
+      end
+
+      def calculate_confidence_statistics(results, confidence_level)
         confidences = results.map { |r| r[:confidence] }.compact
         avg_confidence = confidences.any? ? confidences.sum / confidences.size : 0.0
 
-        # Calculate standard deviation and confidence intervals for confidence scores
         if confidences.size > 1
           variance = confidences.map { |c| (c - avg_confidence)**2 }.sum / confidences.size
           stddev_confidence = Math.sqrt(variance)
@@ -433,41 +490,28 @@ module DecisionAgent
           confidence_interval = { lower: avg_confidence, upper: avg_confidence }
         end
 
-        # Decision-specific statistics
-        decision_stats = {}
-        decision_counts.each_key do |decision|
+        { average: avg_confidence, stddev: stddev_confidence, interval: confidence_interval }
+      end
+
+      def calculate_decision_specific_statistics(results, decision_stats)
+        decision_stats[:counts].each_with_object({}) do |(decision, _count), stats|
           decision_results = results.select { |r| r[:decision] == decision }
           decision_confidences = decision_results.map { |r| r[:confidence] }.compact
 
           next unless decision_confidences.any?
 
           decision_avg_confidence = decision_confidences.sum / decision_confidences.size
-          decision_stats[decision] = {
-            count: decision_counts[decision],
-            probability: decision_probabilities[decision],
+          stats[decision] = {
+            count: decision_stats[:counts][decision],
+            probability: decision_stats[:probabilities][decision],
             average_confidence: decision_avg_confidence
           }
 
           next unless decision_confidences.size > 1
 
           decision_variance = decision_confidences.map { |c| (c - decision_avg_confidence)**2 }.sum / decision_confidences.size
-          decision_stddev = Math.sqrt(decision_variance)
-          decision_stats[decision][:confidence_stddev] = decision_stddev
+          stats[decision][:confidence_stddev] = Math.sqrt(decision_variance)
         end
-
-        {
-          iterations: iterations_count,
-          decision_counts: decision_counts,
-          decision_probabilities: decision_probabilities,
-          decision_stats: decision_stats,
-          average_confidence: avg_confidence,
-          confidence_stddev: stddev_confidence,
-          confidence_intervals: {
-            confidence: confidence_interval,
-            level: confidence_level
-          },
-          results: results
-        }
       end
 
       def calculate_confidence_interval(values, level)
