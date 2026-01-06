@@ -256,13 +256,19 @@ module DecisionAgent
           results = []
           iterations.times do
             context = sample_context(distributions, base_context)
-            decision = agent.decide(context: Context.new(context))
-            results << {
-              context: context,
-              decision: decision.decision,
-              confidence: decision.confidence,
-              explanations: decision.explanations
-            }
+            begin
+              decision = agent.decide(context: Context.new(context))
+              results << {
+                context: context,
+                decision: decision.decision,
+                confidence: decision.confidence,
+                explanations: decision.explanations
+              }
+            rescue NoEvaluationsError
+              # Skip iterations where no evaluators return a decision
+              # This can happen when rules don't match the sampled context
+              next
+            end
           end
           results
         end

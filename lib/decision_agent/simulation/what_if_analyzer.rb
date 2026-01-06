@@ -338,13 +338,19 @@ module DecisionAgent
           modified_scenario = base_scenario.dup
           set_nested_value(modified_scenario, param_name, value)
 
-          decision = analysis_agent.decide(context: Context.new(modified_scenario))
-          points << {
-            parameter: param_name,
-            value: value,
-            decision: decision.decision,
-            confidence: decision.confidence
-          }
+          begin
+            decision = analysis_agent.decide(context: Context.new(modified_scenario))
+            points << {
+              parameter: param_name,
+              value: value,
+              decision: decision.decision,
+              confidence: decision.confidence
+            }
+          rescue DecisionAgent::NoEvaluationsError
+            # Skip points where no evaluators return a decision
+            # This can happen when rules don't match the context
+            next
+          end
         end
 
         # Identify boundary points (where decisions change)
@@ -402,20 +408,33 @@ module DecisionAgent
             set_nested_value(modified_scenario, param1_name, value1)
             set_nested_value(modified_scenario, param2_name, value2)
 
-            decision = analysis_agent.decide(context: Context.new(modified_scenario))
-            
-            point_data = {
-              param1: value1,
-              param2: value2,
-              decision: decision.decision,
-              confidence: decision.confidence
-            }
-            
-            row << point_data
-            
-            # Build decision map for visualization
-            decision_map[[i, j]] = decision.decision
-            confidence_map[[i, j]] = decision.confidence
+            begin
+              decision = analysis_agent.decide(context: Context.new(modified_scenario))
+              
+              point_data = {
+                param1: value1,
+                param2: value2,
+                decision: decision.decision,
+                confidence: decision.confidence
+              }
+              
+              row << point_data
+              
+              # Build decision map for visualization
+              decision_map[[i, j]] = decision.decision
+              confidence_map[[i, j]] = decision.confidence
+            rescue DecisionAgent::NoEvaluationsError
+              # Skip points where no evaluators return a decision
+              # This can happen when rules don't match the context
+              # Add a placeholder point with nil decision
+              point_data = {
+                param1: value1,
+                param2: value2,
+                decision: nil,
+                confidence: 0.0
+              }
+              row << point_data
+            end
           end
           
           grid << row
