@@ -51,6 +51,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Decision distribution changes (before/after)
     - Confidence impact metrics (average delta, max shift, positive/negative shifts)
     - Rule execution frequency changes
+    - **Performance impact estimation** - Automatic performance metrics for rule changes
+      - Latency metrics (average, min, max, delta in ms and percentage)
+      - Throughput metrics (decisions per second, delta percentage)
+      - Rule complexity metrics (average evaluations per decision, delta)
+      - Impact level categorization (improvement, neutral, minor_degradation, moderate_degradation, significant_degradation)
+      - Human-readable performance summary
     - Risk score calculation (0.0 to 1.0) with risk level categorization (low, medium, high, critical)
     - Parallel execution support
   - **Shadow Testing** - ShadowTestEngine for production comparison without affecting outcomes

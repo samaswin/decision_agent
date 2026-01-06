@@ -162,21 +162,60 @@ module DecisionAgent
       def execute_single_comparison(context, baseline_agent, proposed_agent)
         ctx = context.is_a?(Context) ? context : Context.new(context)
 
-        baseline_decision = baseline_agent.decide(context: ctx)
-        proposed_decision = proposed_agent.decide(context: ctx)
+        # Measure baseline performance
+        baseline_start = Time.now
+        begin
+          baseline_decision = baseline_agent.decide(context: ctx)
+          baseline_duration_ms = (Time.now - baseline_start) * 1000
+          baseline_evaluations_count = baseline_decision.evaluations&.size || 0
+        rescue NoEvaluationsError
+          baseline_decision = nil
+          baseline_duration_ms = (Time.now - baseline_start) * 1000
+          baseline_evaluations_count = 0
+        end
 
-        decision_changed = baseline_decision.decision != proposed_decision.decision
-        confidence_delta = proposed_decision.confidence - baseline_decision.confidence
+        # Measure proposed performance
+        proposed_start = Time.now
+        begin
+          proposed_decision = proposed_agent.decide(context: ctx)
+          proposed_duration_ms = (Time.now - proposed_start) * 1000
+          proposed_evaluations_count = proposed_decision.evaluations&.size || 0
+        rescue NoEvaluationsError
+          proposed_decision = nil
+          proposed_duration_ms = (Time.now - proposed_start) * 1000
+          proposed_evaluations_count = 0
+        end
+
+        # Handle cases where one or both decisions failed
+        if baseline_decision.nil? && proposed_decision.nil?
+          decision_changed = false
+          confidence_delta = 0
+        elsif baseline_decision.nil?
+          decision_changed = true
+          confidence_delta = proposed_decision.confidence
+        elsif proposed_decision.nil?
+          decision_changed = true
+          confidence_delta = -baseline_decision.confidence
+        else
+          decision_changed = baseline_decision.decision != proposed_decision.decision
+          confidence_delta = proposed_decision.confidence - baseline_decision.confidence
+        end
 
         {
           context: ctx.to_h,
-          baseline_decision: baseline_decision.decision,
-          baseline_confidence: baseline_decision.confidence,
-          proposed_decision: proposed_decision.decision,
-          proposed_confidence: proposed_decision.confidence,
+          baseline_decision: baseline_decision&.decision,
+          baseline_confidence: baseline_decision&.confidence || 0,
+          baseline_duration_ms: baseline_duration_ms,
+          baseline_evaluations_count: baseline_evaluations_count,
+          proposed_decision: proposed_decision&.decision,
+          proposed_confidence: proposed_decision&.confidence || 0,
+          proposed_duration_ms: proposed_duration_ms,
+          proposed_evaluations_count: proposed_evaluations_count,
           decision_changed: decision_changed,
           confidence_delta: confidence_delta,
-          confidence_shift_magnitude: confidence_delta.abs
+          confidence_shift_magnitude: confidence_delta.abs,
+          performance_delta_ms: proposed_duration_ms - baseline_duration_ms,
+          performance_delta_percent: baseline_duration_ms > 0 ? ((proposed_duration_ms - baseline_duration_ms) / baseline_duration_ms * 100) : 0
         }
       end
 
@@ -197,6 +236,9 @@ module DecisionAgent
         baseline_frequency = calculate_rule_frequency(results, :baseline_decision)
         proposed_frequency = calculate_rule_frequency(results, :proposed_decision)
 
+        # Performance impact estimation
+        performance_impact = calculate_performance_impact(results)
+
         report = {
           total_contexts: total,
           decision_changes: decision_changes,
@@ -215,6 +257,7 @@ module DecisionAgent
             baseline: baseline_frequency,
             proposed: proposed_frequency
           },
+          performance_impact: performance_impact,
           results: results
         }
 
@@ -251,6 +294,127 @@ module DecisionAgent
           "high"
         else
           "critical"
+        end
+      end
+
+      # Calculate performance impact metrics
+      # @param results [Array<Hash>] Comparison results with performance data
+      # @return [Hash] Performance impact metrics
+      def calculate_performance_impact(results)
+        return {} if results.empty?
+
+        baseline_durations = results.map { |r| r[:baseline_duration_ms] }.compact
+        proposed_durations = results.map { |r| r[:proposed_duration_ms] }.compact
+        performance_deltas = results.map { |r| r[:performance_delta_ms] }.compact
+        performance_delta_percents = results.map { |r| r[:performance_delta_percent] }.compact
+
+        baseline_evaluations = results.map { |r| r[:baseline_evaluations_count] }.compact
+        proposed_evaluations = results.map { |r| r[:proposed_evaluations_count] }.compact
+
+        # Calculate latency statistics
+        baseline_avg_latency = baseline_durations.any? ? baseline_durations.sum / baseline_durations.size : 0
+        proposed_avg_latency = proposed_durations.any? ? proposed_durations.sum / proposed_durations.size : 0
+        baseline_min_latency = baseline_durations.min || 0
+        baseline_max_latency = baseline_durations.max || 0
+        proposed_min_latency = proposed_durations.min || 0
+        proposed_max_latency = proposed_durations.max || 0
+
+        # Calculate throughput (decisions per second)
+        baseline_throughput = baseline_avg_latency > 0 ? (1000.0 / baseline_avg_latency) : 0
+        proposed_throughput = proposed_avg_latency > 0 ? (1000.0 / proposed_avg_latency) : 0
+
+        # Calculate performance delta
+        avg_performance_delta_ms = performance_deltas.any? ? performance_deltas.sum / performance_deltas.size : 0
+        avg_performance_delta_percent = performance_delta_percents.any? ? performance_delta_percents.sum / performance_delta_percents.size : 0
+        throughput_delta_percent = baseline_throughput > 0 ? ((proposed_throughput - baseline_throughput) / baseline_throughput * 100) : 0
+
+        # Calculate rule complexity impact
+        baseline_avg_evaluations = baseline_evaluations.any? ? baseline_evaluations.sum.to_f / baseline_evaluations.size : 0
+        proposed_avg_evaluations = proposed_evaluations.any? ? proposed_evaluations.sum.to_f / proposed_evaluations.size : 0
+        evaluations_delta = proposed_avg_evaluations - baseline_avg_evaluations
+
+        # Performance impact categorization
+        performance_impact_level = categorize_performance_impact(avg_performance_delta_percent)
+
+        {
+          latency: {
+            baseline: {
+              average_ms: baseline_avg_latency.round(4),
+              min_ms: baseline_min_latency.round(4),
+              max_ms: baseline_max_latency.round(4)
+            },
+            proposed: {
+              average_ms: proposed_avg_latency.round(4),
+              min_ms: proposed_min_latency.round(4),
+              max_ms: proposed_max_latency.round(4)
+            },
+            delta_ms: avg_performance_delta_ms.round(4),
+            delta_percent: avg_performance_delta_percent.round(2)
+          },
+          throughput: {
+            baseline_decisions_per_second: baseline_throughput.round(2),
+            proposed_decisions_per_second: proposed_throughput.round(2),
+            delta_percent: throughput_delta_percent.round(2)
+          },
+          rule_complexity: {
+            baseline_avg_evaluations: baseline_avg_evaluations.round(2),
+            proposed_avg_evaluations: proposed_avg_evaluations.round(2),
+            evaluations_delta: evaluations_delta.round(2)
+          },
+          impact_level: performance_impact_level,
+          summary: build_performance_summary(
+            avg_performance_delta_percent,
+            throughput_delta_percent,
+            evaluations_delta
+          )
+        }
+      end
+
+      # Categorize performance impact level
+      # @param delta_percent [Float] Performance delta percentage
+      # @return [String] Impact level: "improvement", "neutral", "minor_degradation", "moderate_degradation", "significant_degradation"
+      def categorize_performance_impact(delta_percent)
+        case delta_percent
+        when -Float::INFINITY...-5.0
+          "improvement"
+        when -5.0...5.0
+          "neutral"
+        when 5.0...15.0
+          "minor_degradation"
+        when 15.0...30.0
+          "moderate_degradation"
+        else
+          "significant_degradation"
+        end
+      end
+
+      # Build human-readable performance summary
+      # @param latency_delta_percent [Float] Latency delta percentage
+      # @param throughput_delta_percent [Float] Throughput delta percentage
+      # @param evaluations_delta [Float] Evaluations delta
+      # @return [String] Summary text
+      def build_performance_summary(latency_delta_percent, throughput_delta_percent, evaluations_delta)
+        parts = []
+
+        if latency_delta_percent.abs > 5.0
+          direction = latency_delta_percent > 0 ? "slower" : "faster"
+          parts << "Average latency is #{latency_delta_percent.abs.round(2)}% #{direction}"
+        end
+
+        if throughput_delta_percent.abs > 5.0
+          direction = throughput_delta_percent > 0 ? "higher" : "lower"
+          parts << "Throughput is #{throughput_delta_percent.abs.round(2)}% #{direction}"
+        end
+
+        if evaluations_delta.abs > 0.5
+          direction = evaluations_delta > 0 ? "more" : "fewer"
+          parts << "Average #{direction} #{evaluations_delta.abs.round(2)} rule evaluations per decision"
+        end
+
+        if parts.empty?
+          "Performance impact is minimal (<5% change)"
+        else
+          parts.join(". ") + "."
         end
       end
     end

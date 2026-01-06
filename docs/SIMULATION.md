@@ -402,6 +402,7 @@ The impact analysis report includes:
 - **Decision Distribution** - Before/after decision distributions
 - **Confidence Impact** - Average delta, max shift, positive/negative shifts
 - **Rule Execution Frequency** - How often rules fire (approximate)
+- **Performance Impact** - Latency, throughput, and rule complexity metrics
 - **Risk Score** - Calculated risk score (0.0 to 1.0)
 - **Risk Level** - Categorized risk (low, medium, high, critical)
 
@@ -421,8 +422,111 @@ results = impact_analyzer.analyze(
 results[:decision_distribution][:baseline]  # Original distribution
 results[:decision_distribution][:proposed]  # New distribution
 results[:confidence_impact][:average_delta] # Average confidence change
+results[:performance_impact]                # Performance metrics (see below)
 results[:risk_score]                        # Risk score (0.0-1.0)
 results[:risk_level]                        # "low", "medium", "high", or "critical"
+```
+
+### Performance Impact Estimation
+
+The impact analyzer automatically measures and reports performance differences between baseline and proposed rule versions:
+
+```ruby
+results = impact_analyzer.analyze(
+  baseline_version: baseline_version_id,
+  proposed_version: proposed_version_id,
+  test_data: test_contexts
+)
+
+perf = results[:performance_impact]
+
+# Latency metrics
+puts "Baseline avg latency: #{perf[:latency][:baseline][:average_ms]}ms"
+puts "Proposed avg latency: #{perf[:latency][:proposed][:average_ms]}ms"
+puts "Latency delta: #{perf[:latency][:delta_ms]}ms (#{perf[:latency][:delta_percent]}%)"
+
+# Throughput metrics
+puts "Baseline throughput: #{perf[:throughput][:baseline_decisions_per_second]} decisions/sec"
+puts "Proposed throughput: #{perf[:throughput][:proposed_decisions_per_second]} decisions/sec"
+puts "Throughput delta: #{perf[:throughput][:delta_percent]}%"
+
+# Rule complexity
+puts "Baseline avg evaluations: #{perf[:rule_complexity][:baseline_avg_evaluations]}"
+puts "Proposed avg evaluations: #{perf[:rule_complexity][:proposed_avg_evaluations]}"
+puts "Evaluations delta: #{perf[:rule_complexity][:evaluations_delta]}"
+
+# Impact summary
+puts "Impact level: #{perf[:impact_level]}"  # improvement, neutral, minor_degradation, etc.
+puts "Summary: #{perf[:summary]}"
+```
+
+#### Performance Impact Metrics
+
+The performance impact report includes:
+
+**Latency Metrics:**
+- `baseline.average_ms` - Average decision latency for baseline version
+- `baseline.min_ms` - Minimum latency observed
+- `baseline.max_ms` - Maximum latency observed
+- `proposed.average_ms` - Average decision latency for proposed version
+- `proposed.min_ms` - Minimum latency observed
+- `proposed.max_ms` - Maximum latency observed
+- `delta_ms` - Absolute latency difference (proposed - baseline)
+- `delta_percent` - Percentage change in latency
+
+**Throughput Metrics:**
+- `baseline_decisions_per_second` - Estimated throughput for baseline
+- `proposed_decisions_per_second` - Estimated throughput for proposed
+- `delta_percent` - Percentage change in throughput
+
+**Rule Complexity Metrics:**
+- `baseline_avg_evaluations` - Average number of rule evaluations per decision (baseline)
+- `proposed_avg_evaluations` - Average number of rule evaluations per decision (proposed)
+- `evaluations_delta` - Change in average evaluations
+
+**Impact Level:**
+- `improvement` - Performance improved by >5%
+- `neutral` - Performance change <5%
+- `minor_degradation` - Performance degraded by 5-15%
+- `moderate_degradation` - Performance degraded by 15-30%
+- `significant_degradation` - Performance degraded by >30%
+
+**Summary:**
+- Human-readable summary of performance changes
+
+#### Use Cases
+
+Performance impact estimation helps you:
+
+- **Identify performance regressions** before deploying rule changes
+- **Optimize rule complexity** by comparing evaluation counts
+- **Plan capacity** by understanding throughput changes
+- **Set performance budgets** for rule changes
+- **Communicate impact** to stakeholders with clear metrics
+
+#### Example Output
+
+```ruby
+{
+  latency: {
+    baseline: { average_ms: 0.125, min_ms: 0.098, max_ms: 0.234 },
+    proposed: { average_ms: 0.142, min_ms: 0.105, max_ms: 0.267 },
+    delta_ms: 0.017,
+    delta_percent: 13.6
+  },
+  throughput: {
+    baseline_decisions_per_second: 8000.0,
+    proposed_decisions_per_second: 7042.25,
+    delta_percent: -11.97
+  },
+  rule_complexity: {
+    baseline_avg_evaluations: 1.2,
+    proposed_avg_evaluations: 1.8,
+    evaluations_delta: 0.6
+  },
+  impact_level: "minor_degradation",
+  summary: "Average latency is 13.6% slower. Throughput is 11.97% lower. Average 0.6 more rule evaluations per decision."
+}
 ```
 
 ### Risk Score Calculation

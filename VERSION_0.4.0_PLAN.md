@@ -205,7 +205,7 @@ end
 - ✅ Decision distribution changes
 - ✅ Confidence score shifts
 - ✅ Rule execution frequency changes
-- ❌ Performance impact estimation
+- ✅ Performance impact estimation
 - ✅ Risk assessment (regression detection)
 
 #### 2.6 Shadow Testing
