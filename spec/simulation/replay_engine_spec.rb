@@ -279,25 +279,23 @@ RSpec.describe DecisionAgent::Simulation::ReplayEngine do
         temp_db_path = temp_db.path
         temp_db.unlink
 
-        # Setup separate connection using a named class to avoid "Anonymous class is not allowed" error
-        connection_class_name = "TestReplayConnection_#{object_id}_#{Time.now.to_f.to_s.gsub(/[^0-9]/, '')}"
-        connection_class = Class.new(ActiveRecord::Base) do
-          self.abstract_class = true
-        end
-        # Set the class name properly
-        DecisionAgent::ReplayConnections.const_set(connection_class_name, connection_class) if defined?(DecisionAgent::ReplayConnections)
-        connection_class.establish_connection(
+        # Use ActiveRecord directly to set up the test database
+        # The replay engine will create its own connection class
+        test_connection = ActiveRecord::Base.establish_connection(
           adapter: "sqlite3",
           database: temp_db_path
         )
 
-        # Create table and insert data
-        connection_class.connection.execute(
+        # Create table and insert data using the test connection
+        test_connection.connection.execute(
           "CREATE TABLE test_contexts (amount REAL, status TEXT)"
         )
-        connection_class.connection.execute(
+        test_connection.connection.execute(
           "INSERT INTO test_contexts (amount, status) VALUES (1500, 'test')"
         )
+
+        # Close the test connection so the replay engine can create its own
+        test_connection.connection.close
 
         db_config = {
           database: {
@@ -314,7 +312,6 @@ RSpec.describe DecisionAgent::Simulation::ReplayEngine do
         expect(results[:results][0][:context][:amount]).to eq(1500.0)
 
         # Cleanup
-        connection_class.connection.close
         File.delete(temp_db_path) if File.exist?(temp_db_path)
       end
     end

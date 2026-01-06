@@ -195,6 +195,10 @@ module DecisionAgent
         else
           raise InvalidHistoricalDataError, "Connection config must be a Hash or String"
         end
+      rescue LoadError => e
+        raise InvalidHistoricalDataError, "Failed to establish database connection: #{e.message}"
+      rescue ActiveRecord::ActiveRecordError => e
+        raise InvalidHistoricalDataError, "Database connection failed: #{e.message}"
       end
 
       def execute_database_query(connection, query: nil, table: nil, where: nil)

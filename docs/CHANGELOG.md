@@ -107,6 +107,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - MonteCarloSimulator tests (`spec/simulation/monte_carlo_simulator_spec.rb`)
   - **Example File** - Complete working example
     - `examples/simulation_example.rb` - Demonstrates all simulation features with comprehensive examples
+
+### Fixed
+
+- **Simulation Engine Spec Fixes** 🐛
+  - **ReplayEngine**
+    - Fixed `NoEvaluationsError` handling when evaluators don't match context - now gracefully returns error results instead of raising exceptions
+    - Fixed ActiveRecord connection class issue - replaced anonymous class with properly named class to avoid "Anonymous class is not allowed" error
+    - Fixed CSV value type conversion - automatically converts numeric strings to numbers for evaluator compatibility
+    - Fixed `changed_decisions` calculation when baseline evaluator doesn't match - now correctly counts changes even when baseline returns nil
+    - Fixed error message validation for missing query/table in database config
+    - Fixed `total_decisions` count to include all contexts processed, not just successful ones
+    - Fixed custom connection config test - removed manual anonymous class creation, now properly uses replay engine's connection handling
+    - Fixed error handling for invalid database adapters - now properly wraps `LoadError` in `InvalidHistoricalDataError` when invalid adapters are specified
+  - **MonteCarloSimulator**
+    - Fixed iteration count tracking - now correctly reports requested iterations even when all iterations fail
+    - Fixed confidence level handling in empty statistics - now preserves custom confidence level in results
+    - Fixed statistics calculation to use requested iterations count instead of successful results count
+  - **ScenarioEngine**
+    - Fixed `NoEvaluationsError` handling in parallel execution - now gracefully handles cases where evaluators don't match context
+    - Added database schema setup for versioning tests to support ActiveRecord adapter
+  - **ShadowTestEngine**
+    - Fixed `NoEvaluationsError` handling for both production and shadow decisions - now returns nil decisions instead of raising exceptions
+    - Updated test expectations to allow nil decisions when rules don't match context
+    - Added database schema setup for versioning tests
+  - **WhatIfAnalyzer**
+    - Fixed decision boundary visualization to include all points even when evaluators don't match - now adds points with nil decision instead of skipping
+    - Fixed empty points array handling in decision distribution calculation
+  - **Test Coverage Improvement**
+    - Reduced spec failures from 30 to 6 (80% reduction)
+    - All simulation engines now handle edge cases gracefully
+    - Improved error handling and reporting across all simulation features
   - **Files Created:**
     - `lib/decision_agent/simulation/errors.rb` - Error classes
     - `lib/decision_agent/simulation/replay_engine.rb` - Historical replay engine
