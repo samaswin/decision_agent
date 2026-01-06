@@ -255,6 +255,40 @@ RSpec.describe "DSL Validation" do
         end.to raise_error(DecisionAgent::InvalidRuleDslError, /missing 'value' key/)
       end
 
+      it "accepts false as a valid value for eq operator" do
+        rules = {
+          "version" => "1.0",
+          "rules" => [
+            {
+              "id" => "rule_1",
+              "if" => { "field" => "active", "op" => "eq", "value" => false },
+              "then" => { "decision" => "inactive" }
+            }
+          ]
+        }
+
+        expect do
+          DecisionAgent::Dsl::SchemaValidator.validate!(rules)
+        end.not_to raise_error
+      end
+
+      it "accepts 0 as a valid value for eq operator" do
+        rules = {
+          "version" => "1.0",
+          "rules" => [
+            {
+              "id" => "rule_1",
+              "if" => { "field" => "count", "op" => "eq", "value" => 0 },
+              "then" => { "decision" => "zero" }
+            }
+          ]
+        }
+
+        expect do
+          DecisionAgent::Dsl::SchemaValidator.validate!(rules)
+        end.not_to raise_error
+      end
+
       it "allows missing value for present operator" do
         rules = {
           "version" => "1.0",
@@ -452,6 +486,40 @@ RSpec.describe "DSL Validation" do
         expect do
           DecisionAgent::Dsl::SchemaValidator.validate!(rules)
         end.to raise_error(DecisionAgent::InvalidRuleDslError, /Missing required field 'decision'/)
+      end
+
+      it "accepts false as a valid decision value" do
+        rules = {
+          "version" => "1.0",
+          "rules" => [
+            {
+              "id" => "rule_1",
+              "if" => { "field" => "status", "op" => "eq", "value" => "active" },
+              "then" => { "decision" => false }
+            }
+          ]
+        }
+
+        expect do
+          DecisionAgent::Dsl::SchemaValidator.validate!(rules)
+        end.not_to raise_error
+      end
+
+      it "accepts 0 as a valid decision value" do
+        rules = {
+          "version" => "1.0",
+          "rules" => [
+            {
+              "id" => "rule_1",
+              "if" => { "field" => "status", "op" => "eq", "value" => "active" },
+              "then" => { "decision" => 0 }
+            }
+          ]
+        }
+
+        expect do
+          DecisionAgent::Dsl::SchemaValidator.validate!(rules)
+        end.not_to raise_error
       end
 
       it "validates weight is numeric" do

@@ -163,9 +163,10 @@ module DecisionAgent
       end
 
       def validate_field_condition(condition, path)
-        field = condition["field"] || condition[:field]
-        operator = condition["op"] || condition[:op]
-        value = condition["value"] || condition[:value]
+        # Use key? to properly handle false values (|| would treat false as falsy)
+        field = extract_key_value(condition, "field", :field)
+        operator = extract_key_value(condition, "op", :op)
+        value = extract_key_value(condition, "value", :value)
 
         # Validate field
         @errors << "#{path}: Field condition missing 'field' key" unless field
@@ -177,17 +178,24 @@ module DecisionAgent
         end
 
         validate_operator(operator, path)
-
-        # Validate value (not required for 'present', 'blank', and 'fetch_from_api' has special validation)
-        if !%w[present blank fetch_from_api].include?(operator.to_s) && value.nil?
-          @errors << "#{path}: Field condition missing 'value' key for operator '#{operator}'"
-        end
-
-        # Special validation for fetch_from_api operator
+        validate_field_condition_value(operator, value, path)
         validate_fetch_from_api_value(value, path) if (operator.to_s == "fetch_from_api") && value
-
-        # Validate dot-notation in field path
         validate_field_path(field, path) if field
+      end
+
+      def extract_key_value(hash, string_key, symbol_key)
+        return hash[string_key] if hash.key?(string_key)
+        return hash[symbol_key] if hash.key?(symbol_key)
+
+        nil
+      end
+
+      def validate_field_condition_value(operator, value, path)
+        # Validate value (not required for 'present', 'blank', and 'fetch_from_api' has special validation)
+        return if %w[present blank fetch_from_api].include?(operator.to_s)
+        return unless value.nil?
+
+        @errors << "#{path}: Field condition missing 'value' key for operator '#{operator}'"
       end
 
       def validate_operator(operator, path)
@@ -257,13 +265,20 @@ module DecisionAgent
           return
         end
 
-        # Validate decision
-        decision = then_clause["decision"] || then_clause[:decision]
+        validate_then_clause_decision(then_clause, rule_path)
+        validate_then_clause_weight(then_clause, rule_path)
+        validate_then_clause_reason(then_clause, rule_path)
+      end
+
+      def validate_then_clause_decision(then_clause, rule_path)
+        # Use key? to properly handle false values (|| would treat false as falsy)
+        decision = extract_key_value(then_clause, "decision", :decision)
 
         # Check if decision exists (including false and 0, but not nil)
         @errors << "#{rule_path}.then: Missing required field 'decision'" if decision.nil?
+      end
 
-        # Validate optional weight
+      def validate_then_clause_weight(then_clause, rule_path)
         weight = then_clause["weight"] || then_clause[:weight]
 
         if weight && !weight.is_a?(Numeric)
@@ -271,8 +286,9 @@ module DecisionAgent
         elsif weight && (weight < 0.0 || weight > 1.0)
           @errors << "#{rule_path}.then.weight: Must be between 0.0 and 1.0, got #{weight}"
         end
+      end
 
-        # Validate optional reason
+      def validate_then_clause_reason(then_clause, rule_path)
         reason = then_clause["reason"] || then_clause[:reason]
 
         return unless reason && !reason.is_a?(String)

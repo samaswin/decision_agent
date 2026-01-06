@@ -105,14 +105,10 @@ module DecisionAgent
         version = rule_version_class.find_by(id: version_id)
 
         # Version not found
-        unless version
-          raise DecisionAgent::NotFoundError, "Version not found: #{version_id}"
-        end
+        raise DecisionAgent::NotFoundError, "Version not found: #{version_id}" unless version
 
         # Prevent deletion of active versions
-        if version.status == "active"
-          raise DecisionAgent::ValidationError, "Cannot delete active version. Please activate another version first."
-        end
+        raise DecisionAgent::ValidationError, "Cannot delete active version. Please activate another version first." if version.status == "active"
 
         # Delete the version
         version.destroy
