@@ -101,6 +101,22 @@ module DecisionAgent
         serialize_version(version)
       end
 
+      def delete_version(version_id:)
+        version = rule_version_class.find_by(id: version_id)
+
+        # Version not found
+        raise DecisionAgent::NotFoundError, "Version not found: #{version_id}" unless version
+
+        # Prevent deletion of active versions
+        raise DecisionAgent::ValidationError, "Cannot delete active version. Please activate another version first." if version.status == "active"
+
+        # Delete the version
+        version.destroy
+        true
+      rescue ActiveRecord::RecordNotFound
+        raise DecisionAgent::NotFoundError, "Version not found: #{version_id}"
+      end
+
       private
 
       def rule_version_class

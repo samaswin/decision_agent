@@ -253,15 +253,37 @@ module DecisionAgent
           max_val = parse_value(range_match[3])
           inclusive_end = range_match[4] == "]"
 
-          # For Phase 2A, we only support fully inclusive ranges
-          # Map to 'between' operator
+          # For Phase 2A, we support fully inclusive ranges with 'between' operator
           if inclusive_start && inclusive_end
             { operator: "between", value: [min_val, max_val] }
           else
-            # Fall back to complex condition (Phase 2B)
-            raise FeelParseError,
-                  "Half-open ranges not yet supported: #{expr}. " \
-                  "Use [min..max] for inclusive ranges."
+            # For half-open ranges, convert to inclusive by adjusting bounds
+            # [min..max) becomes [min..max-1] (if max is integer) or use compound conditions
+            # For simplicity, we'll convert to inclusive ranges with adjusted bounds
+            # This is a pragmatic approach for Phase 2A
+            adjusted_min = if inclusive_start
+                             min_val
+                           elsif min_val.is_a?(Integer)
+                             min_val + 1
+                           else
+                             min_val + 0.0001
+                           end
+            adjusted_max = if inclusive_end
+                             max_val
+                           elsif max_val.is_a?(Integer)
+                             max_val - 1
+                           else
+                             max_val - 0.0001
+                           end
+
+            # Ensure adjusted range is valid
+            if adjusted_min <= adjusted_max
+              { operator: "between", value: [adjusted_min, adjusted_max] }
+            else
+              # Invalid range, fall back to error
+              raise FeelParseError,
+                    "Invalid half-open range: #{expr}. Range would be empty after adjustment."
+            end
           end
         end
 

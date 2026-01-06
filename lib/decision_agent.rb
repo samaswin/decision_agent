@@ -62,12 +62,22 @@ require_relative "decision_agent/auth/rbac_config"
 require_relative "decision_agent/auth/permission_checker"
 require_relative "decision_agent/auth/access_audit_logger"
 
+require_relative "decision_agent/data_enrichment/config"
+require_relative "decision_agent/data_enrichment/client"
+require_relative "decision_agent/data_enrichment/cache_adapter"
+require_relative "decision_agent/data_enrichment/cache/memory_adapter"
+require_relative "decision_agent/data_enrichment/circuit_breaker"
+require_relative "decision_agent/data_enrichment/errors"
+
 module DecisionAgent
   # Global RBAC configuration
   @rbac_config = Auth::RbacConfig.new
+  # Global data enrichment configuration
+  @data_enrichment_config = DataEnrichment::Config.new
+  @data_enrichment_client = nil
 
   class << self
-    attr_reader :rbac_config
+    attr_reader :rbac_config, :data_enrichment_config
 
     # Configure RBAC adapter
     # @param adapter_type [Symbol] :default, :devise_cancan, :pundit, or :custom
@@ -95,5 +105,31 @@ module DecisionAgent
 
     # Set a custom permission checker
     attr_writer :permission_checker
+
+    # Configure data enrichment endpoints
+    # @yield [DataEnrichment::Config] Configuration block
+    # @example
+    #   DecisionAgent.configure_data_enrichment do |config|
+    #     config.add_endpoint(:credit_bureau,
+    #       url: "https://api.creditbureau.com/v1/score",
+    #       method: :post,
+    #       auth: { type: :api_key, header: "X-API-Key" },
+    #       cache: { ttl: 3600, adapter: :memory }
+    #     )
+    #   end
+    def configure_data_enrichment
+      yield @data_enrichment_config if block_given?
+      # Reset client to use new configuration
+      @data_enrichment_client = nil
+      @data_enrichment_config
+    end
+
+    # Get the data enrichment client
+    def data_enrichment_client
+      @data_enrichment_client ||= DataEnrichment::Client.new(config: @data_enrichment_config)
+    end
+
+    # Set a custom data enrichment client
+    attr_writer :data_enrichment_client
   end
 end

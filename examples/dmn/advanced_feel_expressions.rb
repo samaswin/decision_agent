@@ -163,8 +163,11 @@ test_cases.each_with_index do |test_case, idx|
 
   puts "Test #{idx + 1}: #{test_case[:description]}"
   puts "  Input: age=#{test_case[:context][:age]}, health=#{test_case[:context][:health_score]}, coverage=#{test_case[:context][:coverage_level]}"
-  puts "  ✓ Premium: $#{evaluation.decision}"
-  puts "  ✓ Category: #{evaluation.metadata[:outputs][:category]}" if evaluation.metadata && evaluation.metadata[:outputs]
+  if evaluation
+    puts "  ✓ Premium: $#{evaluation.decision}"
+  else
+    puts "  ✗ No matching rule found"
+  end
   puts
 end
 
@@ -188,4 +191,3 @@ puts
 puts "String Literals:"
 puts "  \"basic\"   - String value (quotes required in DMN XML)"
 puts "=" * 80
-

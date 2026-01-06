@@ -26,15 +26,20 @@ module DecisionAgent
         attr_reader :regex_cache, :path_cache, :date_cache, :geospatial_cache, :param_cache
       end
 
-      def self.evaluate(condition, context)
+      def self.evaluate(condition, context, enriched_context_hash: nil)
         return false unless condition.is_a?(Hash)
 
+        # Use enriched context hash if provided, otherwise create mutable copy
+        # This ensures all conditions in the same evaluation share the same enriched hash
+        enriched = enriched_context_hash
+        enriched ||= context.to_h.dup
+
         if condition.key?("all")
-          evaluate_all(condition["all"], context)
+          evaluate_all(condition["all"], context, enriched_context_hash: enriched)
         elsif condition.key?("any")
-          evaluate_any(condition["any"], context)
+          evaluate_any(condition["any"], context, enriched_context_hash: enriched)
         elsif condition.key?("field")
-          evaluate_field_condition(condition, context)
+          evaluate_field_condition(condition, context, enriched_context_hash: enriched)
         else
           false
         end
@@ -42,23 +47,33 @@ module DecisionAgent
 
       # Evaluates 'all' condition - returns true only if ALL sub-conditions are true
       # Empty array returns true (vacuous truth)
-      def self.evaluate_all(conditions, context)
+      def self.evaluate_all(conditions, context, enriched_context_hash: nil)
         return true if conditions.is_a?(Array) && conditions.empty?
         return false unless conditions.is_a?(Array)
 
-        conditions.all? { |cond| evaluate(cond, context) }
+        # Use enriched context hash if provided, otherwise create mutable copy
+        # All conditions share the same enriched hash so data enrichment persists
+        enriched = enriched_context_hash
+        enriched ||= context.to_h.dup
+
+        conditions.all? { |cond| evaluate(cond, context, enriched_context_hash: enriched) }
       end
 
       # Evaluates 'any' condition - returns true if AT LEAST ONE sub-condition is true
       # Empty array returns false (no options to match)
-      def self.evaluate_any(conditions, context)
+      def self.evaluate_any(conditions, context, enriched_context_hash: nil)
         return false unless conditions.is_a?(Array)
 
-        conditions.any? { |cond| evaluate(cond, context) }
+        # Use enriched context hash if provided, otherwise create mutable copy
+        # All conditions share the same enriched hash so data enrichment persists
+        enriched = enriched_context_hash
+        enriched ||= context.to_h.dup
+
+        conditions.any? { |cond| evaluate(cond, context, enriched_context_hash: enriched) }
       end
 
       # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
-      def self.evaluate_field_condition(condition, context)
+      def self.evaluate_field_condition(condition, context, enriched_context_hash: nil)
         field = condition["field"]
         op = condition["op"]
         expected_value = condition["value"]
@@ -66,7 +81,9 @@ module DecisionAgent
         # Special handling for "don't care" conditions (from DMN "-" entries)
         return true if field == "__always_match__" && op == "eq" && expected_value == true
 
-        context_hash = context.to_h
+        # Use enriched context hash if provided, otherwise create mutable copy
+        # This ensures all conditions in the same evaluation share the same enriched hash
+        context_hash = enriched_context_hash || context.to_h.dup
         actual_value = get_nested_value(context_hash, field)
 
         case op
@@ -986,6 +1003,42 @@ module DecisionAgent
 
           point_in_polygon?(point, polygon)
 
+        when "fetch_from_api"
+          # Fetches data from external API and enriches context
+          # expected_value: { endpoint: :endpoint_name, params: {...}, mapping: {...} }
+          return false unless expected_value.is_a?(Hash)
+          return false unless expected_value[:endpoint] || expected_value["endpoint"]
+
+          begin
+            endpoint_name = (expected_value[:endpoint] || expected_value["endpoint"]).to_sym
+            params = expand_template_params(expected_value[:params] || expected_value["params"] || {}, context_hash)
+            mapping = expected_value[:mapping] || expected_value["mapping"] || {}
+
+            # Get data enrichment client
+            client = DecisionAgent.data_enrichment_client
+
+            # Fetch data from API
+            response_data = client.fetch(endpoint_name, params: params, use_cache: true)
+
+            # Apply mapping if provided and merge into context_hash
+            if mapping.any?
+              mapped_data = apply_mapping(response_data, mapping)
+              # Merge mapped data into context_hash for subsequent conditions
+              mapped_data.each do |key, value|
+                context_hash[key] = value
+              end
+              # Return true if fetch succeeded and mapping applied
+              mapped_data.any?
+            else
+              # Return true if fetch succeeded
+              !response_data.nil?
+            end
+          rescue StandardError => e
+            # Log error but return false (fail-safe)
+            warn "Data enrichment error: #{e.message}" if ENV["DEBUG"]
+            false
+          end
+
         else
           # Unknown operator - returns false (fail-safe)
           # Note: Validation should catch this earlier
@@ -1027,6 +1080,40 @@ module DecisionAgent
       end
 
       # Helper methods for new operators
+
+      # Expand template parameters (e.g., "{{customer.ssn}}") from context
+      def self.expand_template_params(params, context_hash)
+        return {} unless params.is_a?(Hash)
+
+        params.transform_values do |value|
+          expand_template_value(value, context_hash)
+        end
+      end
+
+      # Expand a single template value
+      def self.expand_template_value(value, context_hash)
+        return value unless value.is_a?(String)
+        return value unless value.match?(/\{\{.*\}\}/)
+
+        # Extract path from {{path}} syntax
+        value.gsub(/\{\{([^}]+)\}\}/) do |_match|
+          path = Regexp.last_match(1).strip
+          get_nested_value(context_hash, path) || value
+        end
+      end
+
+      # Apply mapping to API response data
+      # Mapping format: { source_key: "target_key" }
+      # Example: { score: "credit_score" } means map response[:score] to context["credit_score"]
+      def self.apply_mapping(response_data, mapping)
+        return {} unless response_data.is_a?(Hash)
+        return {} unless mapping.is_a?(Hash)
+
+        mapping.each_with_object({}) do |(source_key, target_key), result|
+          source_value = get_nested_value(response_data, source_key.to_s)
+          result[target_key.to_s] = source_value unless source_value.nil?
+        end
+      end
 
       # String operator validation
       def self.string_operator?(actual_value, expected_value)

@@ -130,12 +130,16 @@ test_cases.each_with_index do |test_case, idx|
 
   puts "Test #{idx + 1}: #{test_case[:description]}"
   puts "  Input: budget=$#{test_case[:context][:budget]}, category=#{test_case[:context][:category]}"
-  puts "  Primary Decision: #{evaluation.decision}"
-  
-  if evaluation.metadata && evaluation.metadata[:collect_count]
-    puts "  Total Matches: #{evaluation.metadata[:collect_count]}"
-    puts "  All Recommendations: #{evaluation.metadata[:collect_decisions].join(', ')}"
-    puts "  Matched Rule IDs: #{evaluation.metadata[:collect_rule_ids].join(', ')}"
+  if evaluation
+    puts "  Primary Decision: #{evaluation.decision}"
+
+    if evaluation.metadata && evaluation.metadata[:collect_count]
+      puts "  Total Matches: #{evaluation.metadata[:collect_count]}"
+      puts "  All Recommendations: #{evaluation.metadata[:collect_decisions].join(', ')}"
+      puts "  Matched Rule IDs: #{evaluation.metadata[:collect_rule_ids].join(', ')}"
+    end
+  else
+    puts "  ✗ No matching rule found"
   end
   puts
 end
@@ -147,4 +151,3 @@ puts "  • Primary decision is the first match, but all matches are in metadata
 puts "  • Perfect for recommendations, multi-select scenarios, or when you need all options"
 puts "  • Use metadata[:collect_count], [:collect_decisions], [:collect_rule_ids] to access all matches"
 puts "=" * 80
-

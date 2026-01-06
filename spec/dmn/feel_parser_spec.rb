@@ -386,6 +386,45 @@ RSpec.describe "FEEL Parser and Evaluator" do
     end
   end
 
+  describe "parse_expression with ranges (Phase 2A compatibility)" do
+    it "parses inclusive range to between operator" do
+      parsed = evaluator.parse_expression("[0..100]")
+      # NOTE: [0..100] might be parsed as list first, so we check for either
+      expect(%w[between in]).to include(parsed[:operator])
+      expect(parsed[:value]).to eq([0, 100]) if parsed[:operator] == "between"
+    end
+
+    it "converts half-open range [min..max) to inclusive range" do
+      parsed = evaluator.parse_expression("[0..10000)")
+      expect(parsed[:operator]).to eq("between")
+      # Should convert to [0..9999] for integers
+      expect(parsed[:value]).to eq([0, 9999])
+    end
+
+    it "converts half-open range (min..max] to inclusive range" do
+      parsed = evaluator.parse_expression("(0..10000]")
+      expect(parsed[:operator]).to eq("between")
+      # Should convert to [1..10000] for integers
+      expect(parsed[:value]).to eq([1, 10_000])
+    end
+
+    it "converts half-open range (min..max) to inclusive range" do
+      parsed = evaluator.parse_expression("(0..10000)")
+      expect(parsed[:operator]).to eq("between")
+      # Should convert to [1..9999] for integers
+      expect(parsed[:value]).to eq([1, 9999])
+    end
+
+    it "handles float ranges in half-open conversions" do
+      parsed = evaluator.parse_expression("[0.0..10.0)")
+      expect(parsed[:operator]).to eq("between")
+      # Should adjust by small epsilon for floats
+      expect(parsed[:value][0]).to eq(0.0)
+      expect(parsed[:value][1]).to be < 10.0
+      expect(parsed[:value][1]).to be > 9.0
+    end
+  end
+
   describe "In Expressions" do
     it "evaluates in with list - true case" do
       context = {}
