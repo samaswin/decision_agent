@@ -1,8 +1,18 @@
 require "spec_helper"
+require "fileutils"
 
 RSpec.describe DecisionAgent::Simulation::ImpactAnalyzer do
-  let(:version_manager) { DecisionAgent::Versioning::VersionManager.new }
+  let(:temp_dir) { Dir.mktmpdir("impact_analyzer_spec_") }
+  let(:version_manager) do
+    DecisionAgent::Versioning::VersionManager.new(
+      adapter: DecisionAgent::Versioning::FileStorageAdapter.new(storage_path: temp_dir)
+    )
+  end
   let(:analyzer) { described_class.new(version_manager: version_manager) }
+
+  after do
+    FileUtils.rm_rf(temp_dir)
+  end
 
   describe "#initialize" do
     it "creates an impact analyzer with version manager" do

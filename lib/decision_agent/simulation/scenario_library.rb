@@ -61,8 +61,10 @@ module DecisionAgent
           large_scenario = base_context.dup
           large_scenario[key] = value * 1000
           scenarios << { context: large_scenario, metadata: { type: "edge_case", field: key, value: "large" } }
+        end
 
-          # Generate scenarios with empty strings
+        # Generate scenarios with empty strings for string fields
+        base_context.each do |key, value|
           next unless value.is_a?(String)
 
           empty_scenario = base_context.dup
