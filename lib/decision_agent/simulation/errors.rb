@@ -16,4 +16,3 @@ module DecisionAgent
     class InvalidShadowTestError < SimulationError; end
   end
 end
-

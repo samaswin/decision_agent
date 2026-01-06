@@ -1077,10 +1077,10 @@ module DecisionAgent
         # Both are numeric - allow comparison between different numeric types
         # (e.g., Integer and Float are comparable in Ruby)
         return true if val1.is_a?(Numeric) && val2.is_a?(Numeric)
-        
+
         # Both are strings - require exact same type
         return val1.instance_of?(val2.class) if val1.is_a?(String) && val2.is_a?(String)
-        
+
         false
       end
 

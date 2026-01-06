@@ -34,14 +34,12 @@ RSpec.describe DecisionAgent::Simulation::ScenarioEngine do
           t.text :changelog
           t.timestamps
         end
-        add_index :rule_versions, [:rule_id, :version_number], unique: true
-        add_index :rule_versions, [:rule_id, :status]
+        add_index :rule_versions, %i[rule_id version_number], unique: true
+        add_index :rule_versions, %i[rule_id status]
       end
 
       # Define RuleVersion model if not already defined
-      unless defined?(::RuleVersion)
-        Object.const_set(:RuleVersion, Class.new(ActiveRecord::Base))
-      end
+      Object.const_set(:RuleVersion, Class.new(ActiveRecord::Base)) unless defined?(RuleVersion)
     end
   end
 
@@ -155,4 +153,3 @@ RSpec.describe DecisionAgent::Simulation::ScenarioEngine do
     end
   end
 end
-

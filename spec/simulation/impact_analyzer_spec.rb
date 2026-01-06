@@ -260,4 +260,3 @@ RSpec.describe DecisionAgent::Simulation::ImpactAnalyzer do
     end
   end
 end
-

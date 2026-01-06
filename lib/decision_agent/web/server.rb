@@ -61,8 +61,7 @@ module DecisionAgent
       @auth_mutex = Mutex.new
 
       class << self
-        attr_reader :batch_test_storage, :batch_test_storage_mutex
-        attr_reader :simulation_storage, :simulation_storage_mutex
+        attr_reader :batch_test_storage, :batch_test_storage_mutex, :simulation_storage, :simulation_storage_mutex
         attr_writer :authenticator
       end
 
@@ -1208,20 +1207,19 @@ module DecisionAgent
                        historical_data
                      else
                        # Assume it's a file path - load it
-                       if File.exist?(historical_data)
-                         if historical_data.end_with?(".json")
-                           JSON.parse(File.read(historical_data))
-                         elsif historical_data.end_with?(".csv")
-                           # Simple CSV parsing
-                           require "csv"
-                           csv_data = CSV.read(historical_data, headers: true)
-                           csv_data.map(&:to_h)
-                         else
-                           raise ArgumentError, "Unsupported file format"
-                         end
+                       raise ArgumentError, "File not found: #{historical_data}" unless File.exist?(historical_data)
+
+                       if historical_data.end_with?(".json")
+                         JSON.parse(File.read(historical_data))
+                       elsif historical_data.end_with?(".csv")
+                         # Simple CSV parsing
+                         require "csv"
+                         csv_data = CSV.read(historical_data, headers: true)
+                         csv_data.map(&:to_h)
                        else
-                         raise ArgumentError, "File not found: #{historical_data}"
+                         raise ArgumentError, "Unsupported file format"
                        end
+
                      end
 
           # Execute replay
@@ -1273,7 +1271,7 @@ module DecisionAgent
           rule_version = data["rule_version"]
           options = data["options"] || {}
 
-          unless scenarios && scenarios.is_a?(Array)
+          unless scenarios.is_a?(Array)
             status 400
             return { error: "scenarios array is required" }.to_json
           end
@@ -1523,7 +1521,7 @@ module DecisionAgent
           shadow_rules = data["shadow_rules"]
           options = data["options"] || {}
 
-          unless contexts && contexts.is_a?(Array)
+          unless contexts.is_a?(Array)
             status 400
             return { error: "contexts array is required" }.to_json
           end

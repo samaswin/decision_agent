@@ -15,4 +15,3 @@ module DecisionAgent
     # Main entry point for simulation features
   end
 end
-

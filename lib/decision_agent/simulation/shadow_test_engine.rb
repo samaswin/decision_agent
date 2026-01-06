@@ -46,7 +46,7 @@ module DecisionAgent
         prod_confidence = production_decision&.confidence || 0.0
         shadow_dec = shadow_decision&.decision
         shadow_conf = shadow_decision&.confidence || 0.0
-        
+
         result = {
           context: ctx.to_h,
           production_decision: prod_decision,
@@ -66,9 +66,7 @@ module DecisionAgent
           }
         end
 
-        if options[:record_results]
-          record_result(result, shadow_version)
-        end
+        record_result(result, shadow_version) if options[:record_results]
 
         result
       end
@@ -127,7 +125,7 @@ module DecisionAgent
       # Get shadow test summary statistics
       # @param shadow_version [String, Integer, Hash] Shadow version ID
       # @return [Hash] Summary statistics
-      def get_summary(shadow_version)
+      def get_summary(_shadow_version)
         # In a real implementation, this would query stored results
         # For now, return empty summary
         {
@@ -156,6 +154,7 @@ module DecisionAgent
         when String, Integer
           version_data = @version_manager.get_version(version_id: version)
           raise InvalidShadowTestError, "Shadow version not found: #{version}" unless version_data
+
           version_data
         when Hash
           version
@@ -192,7 +191,7 @@ module DecisionAgent
         end
       end
 
-      def execute_parallel(contexts, shadow_agent, options, mutex)
+      def execute_parallel(contexts, shadow_agent, options, _mutex)
         thread_count = [options[:thread_count], contexts.size].min
         queue = Queue.new
         contexts.each { |c| queue << c }
@@ -208,13 +207,13 @@ module DecisionAgent
               break unless context
 
               ctx = context.is_a?(Context) ? context : Context.new(context)
-              
+
               begin
                 production_decision = @production_agent.decide(context: ctx)
               rescue NoEvaluationsError
                 production_decision = nil
               end
-              
+
               begin
                 shadow_decision = shadow_agent.decide(context: ctx)
               rescue NoEvaluationsError
@@ -253,10 +252,10 @@ module DecisionAgent
         threads.each(&:join)
       end
 
-      def record_result(result, shadow_version)
+      def record_result(_result, shadow_version)
         # In a real implementation, this would store results in a database or file
         # For now, this is a placeholder
-        version_id = shadow_version.is_a?(Hash) ? shadow_version[:id] || shadow_version["id"] : shadow_version
+        shadow_version.is_a?(Hash) ? shadow_version[:id] || shadow_version["id"] : shadow_version
         # Store result for later analysis
       end
 
@@ -270,18 +269,17 @@ module DecisionAgent
           total_tests: total,
           matches: matches,
           mismatches: mismatches,
-          match_rate: total > 0 ? (matches.to_f / total) : 0,
+          match_rate: total.positive? ? (matches.to_f / total) : 0,
           average_confidence_delta: confidence_deltas.any? ? confidence_deltas.sum / confidence_deltas.size : 0,
           max_confidence_delta: confidence_deltas.map(&:abs).max || 0,
           decision_distribution: {
             production: results.group_by { |r| r[:production_decision] }.transform_values(&:count),
             shadow: results.group_by { |r| r[:shadow_decision] }.transform_values(&:count)
           },
-          mismatched_results: results.select { |r| !r[:matches] },
+          mismatched_results: results.reject { |r| r[:matches] },
           results: results
         }
       end
     end
   end
 end
-

@@ -33,9 +33,7 @@ module DecisionAgent
         results = execute_comparison(test_data, baseline_agent, proposed_agent, options)
 
         # Build impact report
-        report = build_impact_report(results, options)
-
-        report
+        build_impact_report(results, options)
       end
 
       # Calculate risk score for a rule change
@@ -56,9 +54,9 @@ module DecisionAgent
 
         # Weighted risk score
         risk_score = (
-          change_rate * 0.4 +
-          confidence_volatility * 0.3 +
-          rejection_risk * 0.3
+          (change_rate * 0.4) +
+          (confidence_volatility * 0.3) +
+          (rejection_risk * 0.3)
         )
 
         [risk_score, 1.0].min # Cap at 1.0
@@ -81,6 +79,7 @@ module DecisionAgent
         when String, Integer
           version_data = @version_manager.get_version(version_id: version)
           raise VersionComparisonError, "Version not found: #{version}" unless version_data
+
           version_data
         when Hash
           version
@@ -135,7 +134,7 @@ module DecisionAgent
         results
       end
 
-      def execute_parallel(test_data, baseline_agent, proposed_agent, options, mutex)
+      def execute_parallel(test_data, baseline_agent, proposed_agent, options, _mutex)
         thread_count = [options[:thread_count], test_data.size].min
         queue = Queue.new
         test_data.each { |c| queue << c }
@@ -215,7 +214,13 @@ module DecisionAgent
           confidence_delta: confidence_delta,
           confidence_shift_magnitude: confidence_delta.abs,
           performance_delta_ms: proposed_duration_ms - baseline_duration_ms,
-          performance_delta_percent: baseline_duration_ms > 0 ? ((proposed_duration_ms - baseline_duration_ms) / baseline_duration_ms * 100) : 0
+          performance_delta_percent: if baseline_duration_ms.positive?
+                                       (
+                                                 (proposed_duration_ms - baseline_duration_ms) / baseline_duration_ms * 100
+                                               )
+                                     else
+                                       0
+                                     end
         }
       end
 
@@ -242,7 +247,7 @@ module DecisionAgent
         report = {
           total_contexts: total,
           decision_changes: decision_changes,
-          change_rate: total > 0 ? (decision_changes.to_f / total) : 0,
+          change_rate: total.positive? ? (decision_changes.to_f / total) : 0,
           decision_distribution: {
             baseline: baseline_distribution,
             proposed: proposed_distribution
@@ -250,8 +255,8 @@ module DecisionAgent
           confidence_impact: {
             average_delta: avg_confidence_delta,
             max_shift: max_confidence_shift,
-            positive_shifts: confidence_deltas.count { |d| d > 0 },
-            negative_shifts: confidence_deltas.count { |d| d < 0 }
+            positive_shifts: confidence_deltas.count(&:positive?),
+            negative_shifts: confidence_deltas.count(&:negative?)
           },
           rule_execution_frequency: {
             baseline: baseline_frequency,
@@ -320,13 +325,13 @@ module DecisionAgent
         proposed_max_latency = proposed_durations.max || 0
 
         # Calculate throughput (decisions per second)
-        baseline_throughput = baseline_avg_latency > 0 ? (1000.0 / baseline_avg_latency) : 0
-        proposed_throughput = proposed_avg_latency > 0 ? (1000.0 / proposed_avg_latency) : 0
+        baseline_throughput = baseline_avg_latency.positive? ? (1000.0 / baseline_avg_latency) : 0
+        proposed_throughput = proposed_avg_latency.positive? ? (1000.0 / proposed_avg_latency) : 0
 
         # Calculate performance delta
         avg_performance_delta_ms = performance_deltas.any? ? performance_deltas.sum / performance_deltas.size : 0
         avg_performance_delta_percent = performance_delta_percents.any? ? performance_delta_percents.sum / performance_delta_percents.size : 0
-        throughput_delta_percent = baseline_throughput > 0 ? ((proposed_throughput - baseline_throughput) / baseline_throughput * 100) : 0
+        throughput_delta_percent = baseline_throughput.positive? ? ((proposed_throughput - baseline_throughput) / baseline_throughput * 100) : 0
 
         # Calculate rule complexity impact
         baseline_avg_evaluations = baseline_evaluations.any? ? baseline_evaluations.sum.to_f / baseline_evaluations.size : 0
@@ -397,27 +402,26 @@ module DecisionAgent
         parts = []
 
         if latency_delta_percent.abs > 5.0
-          direction = latency_delta_percent > 0 ? "slower" : "faster"
+          direction = latency_delta_percent.positive? ? "slower" : "faster"
           parts << "Average latency is #{latency_delta_percent.abs.round(2)}% #{direction}"
         end
 
         if throughput_delta_percent.abs > 5.0
-          direction = throughput_delta_percent > 0 ? "higher" : "lower"
+          direction = throughput_delta_percent.positive? ? "higher" : "lower"
           parts << "Throughput is #{throughput_delta_percent.abs.round(2)}% #{direction}"
         end
 
         if evaluations_delta.abs > 0.5
-          direction = evaluations_delta > 0 ? "more" : "fewer"
+          direction = evaluations_delta.positive? ? "more" : "fewer"
           parts << "Average #{direction} #{evaluations_delta.abs.round(2)} rule evaluations per decision"
         end
 
         if parts.empty?
           "Performance impact is minimal (<5% change)"
         else
-          parts.join(". ") + "."
+          "#{parts.join('. ')}."
         end
       end
     end
   end
 end
-

@@ -78,11 +78,12 @@ module DecisionAgent
         when Array
           data
         when Hash
-          if data.key?(:database) || data.key?("database")
-            load_database(data[:database] || data["database"])
-          else
+          unless data.key?(:database) || data.key?("database")
             raise InvalidHistoricalDataError, "Historical data Hash must contain :database key for database queries"
           end
+
+          load_database(data[:database] || data["database"])
+
         else
           raise InvalidHistoricalDataError, "Historical data must be a file path (String), array of contexts, or database query config (Hash)"
         end
@@ -107,7 +108,7 @@ module DecisionAgent
           context = context.transform_values do |v|
             # Try to convert to number if it looks like a number
             if v.is_a?(String) && v.match?(/^-?\d+(\.\d+)?$/)
-              v.include?('.') ? v.to_f : v.to_i
+              v.include?(".") ? v.to_f : v.to_i
             else
               v
             end
@@ -132,7 +133,7 @@ module DecisionAgent
           raise InvalidHistoricalDataError, "ActiveRecord is required for database queries. Add 'activerecord' to your Gemfile."
         end
 
-        config = config.is_a?(Hash) ? config : {}
+        config = {} unless config.is_a?(Hash)
         connection_config = config[:connection] || config["connection"]
         query = config[:query] || config["query"]
         table = config[:table] || config["table"]
@@ -141,24 +142,19 @@ module DecisionAgent
         raise InvalidHistoricalDataError, "Database config must include :connection" unless connection_config
 
         # Check if query or table is provided
-        unless query || table
-          raise InvalidHistoricalDataError, "Database config must include :query or :table"
-        end
+        raise InvalidHistoricalDataError, "Database config must include :query or :table" unless query || table
 
         # Establish connection
         connection = establish_database_connection(connection_config)
 
         # Build and execute query
-        contexts = execute_database_query(connection, query: query, table: table, where: where_clause)
-
-        contexts
+        execute_database_query(connection, query: query, table: table, where: where_clause)
       rescue ActiveRecord::ActiveRecordError => e
         raise InvalidHistoricalDataError, "Database query failed: #{e.message}"
       rescue StandardError => e
         # Check if it's the missing query/table error
-        if e.message.include?("query or :table")
-          raise InvalidHistoricalDataError, "Database config must include :query or :table"
-        end
+        raise InvalidHistoricalDataError, "Database config must include :query or :table" if e.message.include?("query or :table")
+
         raise InvalidHistoricalDataError, "Failed to load from database: #{e.message}"
       end
 
@@ -168,26 +164,22 @@ module DecisionAgent
         if config.is_a?(String)
           if config == "default" || config.empty?
             # Use default ActiveRecord connection
-            ActiveRecord::Base.connection
-          else
-            # Try to find existing connection by name
-            # For now, fall back to default connection
-            ActiveRecord::Base.connection
           end
+          # Try to find existing connection by name
+          # For now, fall back to default connection
+          ActiveRecord::Base.connection
         elsif config.is_a?(Hash)
           # Create a properly named class to avoid "Anonymous class is not allowed" error
           # Generate a unique class name
           class_name = "DecisionAgentReplayConnection#{object_id}#{Thread.current.object_id}#{Time.now.to_f.to_s.gsub(/[^0-9]/, '')}"
-          
+
           # Create the class in the DecisionAgent module namespace
-          unless defined?(DecisionAgent::ReplayConnections)
-            DecisionAgent.const_set(:ReplayConnections, Module.new)
-          end
-          
+          DecisionAgent.const_set(:ReplayConnections, Module.new) unless defined?(DecisionAgent::ReplayConnections)
+
           connection_class = Class.new(ActiveRecord::Base) do
             self.abstract_class = true
           end
-          
+
           # Set the class name properly to avoid anonymous class error
           DecisionAgent::ReplayConnections.const_set(class_name, connection_class)
           connection_class.establish_connection(config)
@@ -220,7 +212,7 @@ module DecisionAgent
         table_name = connection.quote_table_name(table)
         sql = "SELECT * FROM #{table_name}"
 
-        if where && where.is_a?(Hash) && !where.empty?
+        if where.is_a?(Hash) && !where.empty?
           where_conditions = where.map do |key, value|
             quoted_key = connection.quote_column_name(key.to_s)
             quoted_value = connection.quote(value)
@@ -300,6 +292,7 @@ module DecisionAgent
         when String, Integer
           version_data = @version_manager.get_version(version_id: version)
           raise VersionComparisonError, "Version not found: #{version}" unless version_data
+
           version_data
         when Hash
           version
@@ -378,7 +371,7 @@ module DecisionAgent
         results
       end
 
-      def execute_parallel(contexts, replay_agent, baseline_agent, options, mutex)
+      def execute_parallel(contexts, replay_agent, baseline_agent, options, _mutex)
         thread_count = [options[:thread_count], contexts.size].min
         queue = Queue.new
         contexts.each { |c| queue << c }
@@ -441,7 +434,7 @@ module DecisionAgent
       def build_comparison_report(results, baseline_agent)
         # Filter out results with errors for statistics, but count all for total_decisions
         valid_results = results.reject { |r| r[:error] }
-        total = results.size  # Total contexts processed
+        total = results.size # Total contexts processed
         changed = valid_results.count { |r| r[:changed] }
         unchanged = valid_results.size - changed
 
@@ -450,14 +443,14 @@ module DecisionAgent
 
         decision_distribution = valid_results.group_by { |r| r[:replay_decision] }.transform_values(&:count)
         baseline_distribution = valid_results.select { |r| r[:baseline_decision] }
-                                      .group_by { |r| r[:baseline_decision] }
-                                      .transform_values(&:count)
+                                             .group_by { |r| r[:baseline_decision] }
+                                             .transform_values(&:count)
 
         {
           total_decisions: total,
           changed_decisions: changed,
           unchanged_decisions: unchanged,
-          change_rate: valid_results.size > 0 ? (changed.to_f / valid_results.size) : 0,
+          change_rate: valid_results.size.positive? ? (changed.to_f / valid_results.size) : 0,
           average_confidence_delta: avg_confidence_delta,
           decision_distribution: decision_distribution,
           baseline_distribution: baseline_distribution,
@@ -469,4 +462,3 @@ module DecisionAgent
     end
   end
 end
-

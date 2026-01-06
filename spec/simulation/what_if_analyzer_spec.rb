@@ -111,7 +111,7 @@ RSpec.describe DecisionAgent::Simulation::WhatIfAnalyzer do
         variations: variations
       )
 
-      results[:field_sensitivity].each do |_field, data|
+      results[:field_sensitivity].each_value do |data|
         expect(data[:impact]).to be >= 0
         expect(data[:impact]).to be <= 1.0
         expect(data[:results]).to be_an(Array)
@@ -135,7 +135,7 @@ RSpec.describe DecisionAgent::Simulation::WhatIfAnalyzer do
           parameters: parameters
         )
 
-        expect(result[:type]).to eq('1d_boundary')
+        expect(result[:type]).to eq("1d_boundary")
         expect(result[:parameter]).to eq(:amount)
         expect(result[:range]).to eq({ min: 0, max: 2000 })
         expect(result[:points]).to be_an(Array)
@@ -163,25 +163,25 @@ RSpec.describe DecisionAgent::Simulation::WhatIfAnalyzer do
         result = analyzer.visualize_decision_boundaries(
           base_scenario: base_scenario,
           parameters: parameters,
-          options: { output_format: 'html' }
+          options: { output_format: "html" }
         )
 
         expect(result).to be_a(String)
-        expect(result).to include('<!DOCTYPE html>')
-        expect(result).to include('Decision Boundary Visualization')
-        expect(result).to include('<svg')
+        expect(result).to include("<!DOCTYPE html>")
+        expect(result).to include("Decision Boundary Visualization")
+        expect(result).to include("<svg")
       end
 
       it "generates JSON output when requested" do
         result = analyzer.visualize_decision_boundaries(
           base_scenario: base_scenario,
           parameters: parameters,
-          options: { output_format: 'json' }
+          options: { output_format: "json" }
         )
 
         expect(result).to be_a(String)
         parsed = JSON.parse(result)
-        expect(parsed['type']).to eq('1d_boundary')
+        expect(parsed["type"]).to eq("1d_boundary")
       end
     end
 
@@ -207,7 +207,7 @@ RSpec.describe DecisionAgent::Simulation::WhatIfAnalyzer do
                 if: { all: [
                   { field: "amount", op: "lte", value: 1000 },
                   { field: "credit_score", op: "lt", value: 700 }
-                ]},
+                ] },
                 then: { decision: "reject", weight: 0.9, reason: "Low criteria" }
               },
               {
@@ -236,7 +236,7 @@ RSpec.describe DecisionAgent::Simulation::WhatIfAnalyzer do
           options: { resolution: 20 }
         )
 
-        expect(result[:type]).to eq('2d_boundary')
+        expect(result[:type]).to eq("2d_boundary")
         expect(result[:parameter1]).to eq(:amount)
         expect(result[:parameter2]).to eq(:credit_score)
         expect(result[:range1]).to eq({ min: 0, max: 2000 })
@@ -263,28 +263,28 @@ RSpec.describe DecisionAgent::Simulation::WhatIfAnalyzer do
         result = analyzer_2d.visualize_decision_boundaries(
           base_scenario: base_scenario,
           parameters: parameters_2d,
-          options: { output_format: 'html', resolution: 10 }
+          options: { output_format: "html", resolution: 10 }
         )
 
         expect(result).to be_a(String)
-        expect(result).to include('<!DOCTYPE html>')
-        expect(result).to include('2D Boundary Visualization')
-        expect(result).to include('<svg')
+        expect(result).to include("<!DOCTYPE html>")
+        expect(result).to include("2D Boundary Visualization")
+        expect(result).to include("<svg")
       end
     end
 
     context "with validation" do
       it "raises error for zero parameters" do
-        expect {
+        expect do
           analyzer.visualize_decision_boundaries(
             base_scenario: base_scenario,
             parameters: {}
           )
-        }.to raise_error(ArgumentError, /Must specify 1 or 2 parameters/)
+        end.to raise_error(ArgumentError, /Must specify 1 or 2 parameters/)
       end
 
       it "raises error for more than 2 parameters" do
-        expect {
+        expect do
           analyzer.visualize_decision_boundaries(
             base_scenario: base_scenario,
             parameters: {
@@ -293,20 +293,19 @@ RSpec.describe DecisionAgent::Simulation::WhatIfAnalyzer do
               param3: { min: 0, max: 100 }
             }
           )
-        }.to raise_error(ArgumentError, /Must specify 1 or 2 parameters/)
+        end.to raise_error(ArgumentError, /Must specify 1 or 2 parameters/)
       end
 
       it "raises error when min/max not provided" do
-        expect {
+        expect do
           analyzer.visualize_decision_boundaries(
             base_scenario: base_scenario,
             parameters: {
               amount: { steps: 50 }
             }
           )
-        }.to raise_error(ArgumentError, /must include :min and :max/)
+        end.to raise_error(ArgumentError, /must include :min and :max/)
       end
     end
   end
 end
-

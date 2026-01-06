@@ -89,4 +89,3 @@ RSpec.describe DecisionAgent::Simulation::ScenarioLibrary do
     end
   end
 end
-

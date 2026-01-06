@@ -38,9 +38,7 @@ module DecisionAgent
           average_confidence: calculate_average_confidence(results)
         }
 
-        if options[:sensitivity_analysis]
-          report[:sensitivity] = perform_sensitivity_analysis(scenarios, analysis_agent)
-        end
+        report[:sensitivity] = perform_sensitivity_analysis(scenarios, analysis_agent) if options[:sensitivity_analysis]
 
         report
       end
@@ -101,7 +99,7 @@ module DecisionAgent
       # @return [Hash] Decision boundary data or visualization output
       def visualize_decision_boundaries(base_scenario:, parameters:, rule_version: nil, options: {})
         options = {
-          output_format: 'data',
+          output_format: "data",
           resolution: nil
         }.merge(options)
 
@@ -110,7 +108,7 @@ module DecisionAgent
 
         # Validate parameters
         param_keys = parameters.keys
-        raise ArgumentError, "Must specify 1 or 2 parameters for visualization" if param_keys.size < 1 || param_keys.size > 2
+        raise ArgumentError, "Must specify 1 or 2 parameters for visualization" if param_keys.empty? || param_keys.size > 2
 
         # Set default resolution
         resolution = options[:resolution] || (param_keys.size == 1 ? 100 : 30)
@@ -118,9 +116,9 @@ module DecisionAgent
         if param_keys.size == 1
           visualize_1d_boundary(base_scenario, param_keys.first, parameters[param_keys.first], analysis_agent, options)
         else
-          visualize_2d_boundary(base_scenario, param_keys[0], param_keys[1], 
-                               parameters[param_keys[0]], parameters[param_keys[1]], 
-                               analysis_agent, resolution, options)
+          visualize_2d_boundary(base_scenario, param_keys[0], param_keys[1],
+                                parameters[param_keys[0]], parameters[param_keys[1]],
+                                analysis_agent, resolution, options)
         end
       end
 
@@ -141,6 +139,7 @@ module DecisionAgent
         when String, Integer
           version_data = @version_manager.get_version(version_id: version)
           raise VersionComparisonError, "Version not found: #{version}" unless version_data
+
           version_data
         when Hash
           version
@@ -201,7 +200,7 @@ module DecisionAgent
         results
       end
 
-      def execute_parallel(scenarios, analysis_agent, options, mutex)
+      def execute_parallel(scenarios, analysis_agent, options, _mutex)
         thread_count = [options[:thread_count], scenarios.size].min
         queue = Queue.new
         scenarios.each { |s| queue << s }
@@ -264,9 +263,7 @@ module DecisionAgent
 
         all_keys.each do |key|
           values = scenarios.map { |s| get_nested_value(s, key) }.compact
-          if values.all? { |v| v.is_a?(Numeric) }
-            numeric_keys << key
-          end
+          numeric_keys << key if values.all? { |v| v.is_a?(Numeric) }
         end
 
         numeric_keys
@@ -308,6 +305,7 @@ module DecisionAgent
         keys = key.to_s.split(".")
         keys.reduce(hash) do |h, k|
           return nil unless h.is_a?(Hash)
+
           h[k.to_sym] || h[k.to_s]
         end
       end
@@ -317,16 +315,15 @@ module DecisionAgent
         last_key = keys.pop
         target = keys.reduce(hash) do |h, k|
           h[k.to_sym] ||= {}
-          h[k.to_sym]
         end
         target[last_key.to_sym] = value
       end
 
       # Generate 1D decision boundary visualization
       def visualize_1d_boundary(base_scenario, param_name, param_config, analysis_agent, options)
-        min = param_config[:min] || param_config['min']
-        max = param_config[:max] || param_config['max']
-        steps = param_config[:steps] || param_config['steps'] || 100
+        min = param_config[:min] || param_config["min"]
+        max = param_config[:max] || param_config["max"]
+        steps = param_config[:steps] || param_config["steps"] || 100
 
         raise ArgumentError, "Parameter config must include :min and :max" unless min && max
 
@@ -361,21 +358,21 @@ module DecisionAgent
         # Identify boundary points (where decisions change)
         boundaries = []
         points.each_cons(2) do |p1, p2|
-          if p1[:decision] != p2[:decision]
-            # Linear interpolation for boundary value
-            boundary_value = p1[:value] + ((p2[:value] - p1[:value]) / 2.0)
-            boundaries << {
-              value: boundary_value,
-              decision_from: p1[:decision],
-              decision_to: p2[:decision],
-              confidence_from: p1[:confidence],
-              confidence_to: p2[:confidence]
-            }
-          end
+          next unless p1[:decision] != p2[:decision]
+
+          # Linear interpolation for boundary value
+          boundary_value = p1[:value] + ((p2[:value] - p1[:value]) / 2.0)
+          boundaries << {
+            value: boundary_value,
+            decision_from: p1[:decision],
+            decision_to: p2[:decision],
+            confidence_from: p1[:confidence],
+            confidence_to: p2[:confidence]
+          }
         end
 
         result = {
-          type: '1d_boundary',
+          type: "1d_boundary",
           parameter: param_name,
           range: { min: min, max: max },
           points: points,
@@ -387,12 +384,12 @@ module DecisionAgent
       end
 
       # Generate 2D decision boundary visualization
-      def visualize_2d_boundary(base_scenario, param1_name, param2_name, 
+      def visualize_2d_boundary(base_scenario, param1_name, param2_name,
                                 param1_config, param2_config, analysis_agent, resolution, options)
-        min1 = param1_config[:min] || param1_config['min']
-        max1 = param1_config[:max] || param1_config['max']
-        min2 = param2_config[:min] || param2_config['min']
-        max2 = param2_config[:max] || param2_config['max']
+        min1 = param1_config[:min] || param1_config["min"]
+        max1 = param1_config[:max] || param1_config["max"]
+        min2 = param2_config[:min] || param2_config["min"]
+        max2 = param2_config[:max] || param2_config["max"]
 
         raise ArgumentError, "Parameter configs must include :min and :max" unless min1 && max1 && min2 && max2
 
@@ -406,7 +403,7 @@ module DecisionAgent
         (0..resolution).each do |i|
           value1 = min1 + (step1 * i)
           row = []
-          
+
           (0..resolution).each do |j|
             value2 = min2 + (step2 * j)
             modified_scenario = base_scenario.dup
@@ -415,16 +412,16 @@ module DecisionAgent
 
             begin
               decision = analysis_agent.decide(context: Context.new(modified_scenario))
-              
+
               point_data = {
                 param1: value1,
                 param2: value2,
                 decision: decision.decision,
                 confidence: decision.confidence
               }
-              
+
               row << point_data
-              
+
               # Build decision map for visualization
               decision_map[[i, j]] = decision.decision
               confidence_map[[i, j]] = decision.confidence
@@ -441,7 +438,7 @@ module DecisionAgent
               row << point_data
             end
           end
-          
+
           grid << row
         end
 
@@ -452,7 +449,7 @@ module DecisionAgent
         decision_counts = grid.flatten.group_by { |p| p[:decision] }.transform_values(&:count)
 
         result = {
-          type: '2d_boundary',
+          type: "2d_boundary",
           parameter1: param1_name,
           parameter2: param2_name,
           range1: { min: min1, max: max1 },
@@ -473,36 +470,36 @@ module DecisionAgent
         # Check horizontal boundaries
         (0..(resolution - 1)).each do |i|
           (0..resolution).each do |j|
-            if j < resolution && grid[i][j][:decision] != grid[i][j + 1][:decision]
-              boundaries << {
-                type: 'vertical',
-                row: i,
-                col: j,
-                decision_left: grid[i][j][:decision],
-                decision_right: grid[i][j + 1][:decision],
-                param1: grid[i][j][:param1],
-                param2_left: grid[i][j][:param2],
-                param2_right: grid[i][j + 1][:param2]
-              }
-            end
+            next unless j < resolution && grid[i][j][:decision] != grid[i][j + 1][:decision]
+
+            boundaries << {
+              type: "vertical",
+              row: i,
+              col: j,
+              decision_left: grid[i][j][:decision],
+              decision_right: grid[i][j + 1][:decision],
+              param1: grid[i][j][:param1],
+              param2_left: grid[i][j][:param2],
+              param2_right: grid[i][j + 1][:param2]
+            }
           end
         end
 
         # Check vertical boundaries
         (0..resolution).each do |i|
           (0..(resolution - 1)).each do |j|
-            if i < resolution && grid[i][j][:decision] != grid[i + 1][j][:decision]
-              boundaries << {
-                type: 'horizontal',
-                row: i,
-                col: j,
-                decision_top: grid[i][j][:decision],
-                decision_bottom: grid[i + 1][j][:decision],
-                param1_top: grid[i][j][:param1],
-                param1_bottom: grid[i + 1][j][:param1],
-                param2: grid[i][j][:param2]
-              }
-            end
+            next unless i < resolution && grid[i][j][:decision] != grid[i + 1][j][:decision]
+
+            boundaries << {
+              type: "horizontal",
+              row: i,
+              col: j,
+              decision_top: grid[i][j][:decision],
+              decision_bottom: grid[i + 1][j][:decision],
+              param1_top: grid[i][j][:param1],
+              param1_bottom: grid[i + 1][j][:param1],
+              param2: grid[i][j][:param2]
+            }
           end
         end
 
@@ -512,12 +509,12 @@ module DecisionAgent
       # Format visualization output based on requested format
       def format_visualization_output(data, options)
         case options[:output_format]
-        when 'html'
+        when "html"
           generate_html_visualization(data)
-        when 'json'
-          require 'json'
+        when "json"
+          require "json"
           data.to_json
-        when 'data'
+        when "data"
           data
         else
           data
@@ -526,7 +523,7 @@ module DecisionAgent
 
       # Generate HTML visualization with SVG/Canvas plotting
       def generate_html_visualization(data)
-        html = <<~HTML
+        <<~HTML
           <!DOCTYPE html>
           <html>
           <head>
@@ -595,20 +592,18 @@ module DecisionAgent
           </body>
           </html>
         HTML
-
-        html
       end
 
       def generate_info_html(data)
         info_parts = []
-        
-        if data[:type] == '1d_boundary'
+
+        if data[:type] == "1d_boundary"
           info_parts << "<strong>Type:</strong> 1D Boundary Visualization"
           info_parts << "<strong>Parameter:</strong> #{data[:parameter]}"
           info_parts << "<strong>Range:</strong> #{data[:range][:min]} to #{data[:range][:max]}"
           info_parts << "<strong>Boundaries Found:</strong> #{data[:boundaries].size}"
           info_parts << "<strong>Decision Distribution:</strong> #{data[:decision_distribution].map { |k, v| "#{k}: #{v}" }.join(', ')}"
-        elsif data[:type] == '2d_boundary'
+        elsif data[:type] == "2d_boundary"
           info_parts << "<strong>Type:</strong> 2D Boundary Visualization"
           info_parts << "<strong>Parameters:</strong> #{data[:parameter1]} vs #{data[:parameter2]}"
           info_parts << "<strong>Range 1:</strong> #{data[:range1][:min]} to #{data[:range1][:max]}"
@@ -617,17 +612,17 @@ module DecisionAgent
           info_parts << "<strong>Boundaries Found:</strong> #{data[:boundaries].size}"
           info_parts << "<strong>Decision Distribution:</strong> #{data[:decision_distribution].map { |k, v| "#{k}: #{v}" }.join(', ')}"
         end
-        
-        info_parts.join('<br>')
+
+        info_parts.join("<br>")
       end
 
       def generate_chart_html(data)
-        if data[:type] == '1d_boundary'
+        if data[:type] == "1d_boundary"
           generate_1d_chart_svg(data)
-        elsif data[:type] == '2d_boundary'
+        elsif data[:type] == "2d_boundary"
           generate_2d_chart_svg(data)
         else
-          '<p>Unsupported visualization type</p>'
+          "<p>Unsupported visualization type</p>"
         end
       end
 
@@ -640,8 +635,8 @@ module DecisionAgent
 
         # Get unique decisions and assign colors
         decisions = data[:points].map { |p| p[:decision] }.uniq
-        colors = ['#58a6ff', '#3fb950', '#d29922', '#da3633', '#bc8cff', '#ff79c6', '#bd93f9']
-        decision_colors = decisions.each_with_index.map { |d, i| [d, colors[i % colors.size]] }.to_h
+        colors = ["#58a6ff", "#3fb950", "#d29922", "#da3633", "#bc8cff", "#ff79c6", "#bd93f9"]
+        decision_colors = decisions.each_with_index.to_h { |d, i| [d, colors[i % colors.size]] }
 
         # Scale functions
         min_val = data[:range][:min]
@@ -649,51 +644,64 @@ module DecisionAgent
         x_scale = chart_width.to_f / (max_val - min_val)
 
         svg = "<svg width='#{width}' height='#{height}'>"
-        
+
         # Draw background regions for each decision
         current_decision = nil
         region_start = nil
-        
-        data[:points].each_with_index do |point, idx|
-          if point[:decision] != current_decision
-            # Close previous region
-            if current_decision && region_start
-              region_end = margin[:left] + ((point[:value] - min_val) * x_scale)
-              color = decision_colors[current_decision]
-              svg << "<rect x='#{region_start}' y='#{margin[:top]}' width='#{region_end - region_start}' height='#{chart_height}' fill='#{color}' opacity='0.3'/>"
-            end
-            
-            # Start new region
-            current_decision = point[:decision]
-            region_start = margin[:left] + ((point[:value] - min_val) * x_scale)
+
+        data[:points].each_with_index do |point, _idx|
+          next unless point[:decision] != current_decision
+
+          # Close previous region
+          if current_decision && region_start
+            region_end = margin[:left] + ((point[:value] - min_val) * x_scale)
+            color = decision_colors[current_decision]
+            svg << "<rect x='#{region_start}' y='#{margin[:top]}' " \
+                   "width='#{region_end - region_start}' height='#{chart_height}' " \
+                   "fill='#{color}' opacity='0.3'/>"
           end
+
+          # Start new region
+          current_decision = point[:decision]
+          region_start = margin[:left] + ((point[:value] - min_val) * x_scale)
         end
-        
+
         # Close last region
         if current_decision && region_start
           region_end = margin[:left] + chart_width
           color = decision_colors[current_decision]
-          svg << "<rect x='#{region_start}' y='#{margin[:top]}' width='#{region_end - region_start}' height='#{chart_height}' fill='#{color}' opacity='0.3'/>"
+          svg << "<rect x='#{region_start}' y='#{margin[:top]}' " \
+                 "width='#{region_end - region_start}' height='#{chart_height}' " \
+                 "fill='#{color}' opacity='0.3'/>"
         end
 
         # Draw boundary lines
         data[:boundaries].each do |boundary|
           x = margin[:left] + ((boundary[:value] - min_val) * x_scale)
-          svg << "<line x1='#{x}' y1='#{margin[:top]}' x2='#{x}' y2='#{margin[:top] + chart_height}' stroke='#000' stroke-width='2' stroke-dasharray='5,5'/>"
+          svg << "<line x1='#{x}' y1='#{margin[:top]}' x2='#{x}' " \
+                 "y2='#{margin[:top] + chart_height}' stroke='#000' " \
+                 "stroke-width='2' stroke-dasharray='5,5'/>"
         end
 
         # Draw axes
-        svg << "<line x1='#{margin[:left]}' y1='#{margin[:top] + chart_height}' x2='#{margin[:left] + chart_width}' y2='#{margin[:top] + chart_height}' stroke='#333' stroke-width='2'/>"
-        svg << "<line x1='#{margin[:left]}' y1='#{margin[:top]}' x2='#{margin[:left]}' y2='#{margin[:top] + chart_height}' stroke='#333' stroke-width='2'/>"
+        svg << "<line x1='#{margin[:left]}' y1='#{margin[:top] + chart_height}' " \
+               "x2='#{margin[:left] + chart_width}' y2='#{margin[:top] + chart_height}' " \
+               "stroke='#333' stroke-width='2'/>"
+        svg << "<line x1='#{margin[:left]}' y1='#{margin[:top]}' " \
+               "x2='#{margin[:left]}' y2='#{margin[:top] + chart_height}' " \
+               "stroke='#333' stroke-width='2'/>"
 
         # Axis labels
-        svg << "<text x='#{margin[:left] + chart_width / 2}' y='#{height - 10}' text-anchor='middle' font-size='14' fill='#333'>#{data[:parameter]}</text>"
-        
+        svg << "<text x='#{margin[:left] + (chart_width / 2)}' y='#{height - 10}' " \
+               "text-anchor='middle' font-size='14' fill='#333'>#{data[:parameter]}</text>"
+
         # Tick marks and labels
         (0..4).each do |i|
-          value = min_val + (max_val - min_val) * i / 4.0
+          value = min_val + ((max_val - min_val) * i / 4.0)
           x = margin[:left] + ((value - min_val) * x_scale)
-          svg << "<line x1='#{x}' y1='#{margin[:top] + chart_height}' x2='#{x}' y2='#{margin[:top] + chart_height + 5}' stroke='#333' stroke-width='1'/>"
+          svg << "<line x1='#{x}' y1='#{margin[:top] + chart_height}' " \
+                 "x2='#{x}' y2='#{margin[:top] + chart_height + 5}' " \
+                 "stroke='#333' stroke-width='1'/>"
           svg << "<text x='#{x}' y='#{height - 20}' text-anchor='middle' font-size='12' fill='#666'>#{value.round(2)}</text>"
         end
 
@@ -710,15 +718,15 @@ module DecisionAgent
 
         # Get unique decisions and assign colors
         decisions = data[:grid].flatten.map { |p| p[:decision] }.uniq
-        colors = ['#58a6ff', '#3fb950', '#d29922', '#da3633', '#bc8cff', '#ff79c6', '#bd93f9']
-        decision_colors = decisions.each_with_index.map { |d, i| [d, colors[i % colors.size]] }.to_h
+        colors = ["#58a6ff", "#3fb950", "#d29922", "#da3633", "#bc8cff", "#ff79c6", "#bd93f9"]
+        decision_colors = decisions.each_with_index.to_h { |d, i| [d, colors[i % colors.size]] }
 
         # Scale functions
         min1 = data[:range1][:min]
         max1 = data[:range1][:max]
         min2 = data[:range2][:min]
         max2 = data[:range2][:max]
-        
+
         x_scale = chart_width.to_f / (max1 - min1)
         y_scale = chart_height.to_f / (max2 - min2)
 
@@ -733,18 +741,20 @@ module DecisionAgent
             x = margin[:left] + (j * cell_width)
             y = margin[:top] + (i * cell_height)
             color = decision_colors[point[:decision]]
-            svg << "<rect x='#{x}' y='#{y}' width='#{cell_width.ceil}' height='#{cell_height.ceil}' fill='#{color}' opacity='0.6' stroke='#ddd' stroke-width='0.5'/>"
+            svg << "<rect x='#{x}' y='#{y}' width='#{cell_width.ceil}' " \
+                   "height='#{cell_height.ceil}' fill='#{color}' opacity='0.6' " \
+                   "stroke='#ddd' stroke-width='0.5'/>"
           end
         end
 
         # Draw boundary lines (simplified - just highlight cells at boundaries)
         data[:boundaries].sample([data[:boundaries].size, 500].min).each do |boundary|
-          if boundary[:type] == 'vertical'
+          if boundary[:type] == "vertical"
             x = margin[:left] + (boundary[:col] * cell_width) + cell_width
             y1 = margin[:top] + (boundary[:row] * cell_height)
             y2 = y1 + cell_height
             svg << "<line x1='#{x}' y1='#{y1}' x2='#{x}' y2='#{y2}' stroke='#000' stroke-width='2'/>"
-          elsif boundary[:type] == 'horizontal'
+          elsif boundary[:type] == "horizontal"
             x1 = margin[:left] + (boundary[:col] * cell_width)
             x2 = x1 + cell_width
             y = margin[:top] + (boundary[:row] * cell_height) + cell_height
@@ -753,23 +763,31 @@ module DecisionAgent
         end
 
         # Draw axes
-        svg << "<line x1='#{margin[:left]}' y1='#{margin[:top] + chart_height}' x2='#{margin[:left] + chart_width}' y2='#{margin[:top] + chart_height}' stroke='#333' stroke-width='2'/>"
-        svg << "<line x1='#{margin[:left]}' y1='#{margin[:top]}' x2='#{margin[:left]}' y2='#{margin[:top] + chart_height}' stroke='#333' stroke-width='2'/>"
+        svg << "<line x1='#{margin[:left]}' y1='#{margin[:top] + chart_height}' " \
+               "x2='#{margin[:left] + chart_width}' y2='#{margin[:top] + chart_height}' " \
+               "stroke='#333' stroke-width='2'/>"
+        svg << "<line x1='#{margin[:left]}' y1='#{margin[:top]}' " \
+               "x2='#{margin[:left]}' y2='#{margin[:top] + chart_height}' " \
+               "stroke='#333' stroke-width='2'/>"
 
         # Axis labels
-        svg << "<text x='#{margin[:left] + chart_width / 2}' y='#{height - 10}' text-anchor='middle' font-size='14' fill='#333'>#{data[:parameter1]}</text>"
-        svg << "<text x='15' y='#{margin[:top] + chart_height / 2}' text-anchor='middle' font-size='14' fill='#333' transform='rotate(-90, 15, #{margin[:top] + chart_height / 2})'>#{data[:parameter2]}</text>"
+        svg << "<text x='#{margin[:left] + (chart_width / 2)}' y='#{height - 10}' " \
+               "text-anchor='middle' font-size='14' fill='#333'>#{data[:parameter1]}</text>"
+        svg << "<text x='15' y='#{margin[:top] + (chart_height / 2)}' " \
+               "text-anchor='middle' font-size='14' fill='#333' " \
+               "transform='rotate(-90, 15, #{margin[:top] + (chart_height / 2)})'>" \
+               "#{data[:parameter2]}</text>"
 
         # Tick marks
         (0..4).each do |i|
-          value1 = min1 + (max1 - min1) * i / 4.0
+          value1 = min1 + ((max1 - min1) * i / 4.0)
           x = margin[:left] + ((value1 - min1) * x_scale)
-          svg << "<line x1='#{x}' y1='#{margin[:top] + chart_height}' x2='#{x}' y2='#{margin[:top] + chart_height + 5}' stroke='#333' stroke-width='1'/>"
+          svg << "<line x1='#{x}' y1='#{margin[:top] + chart_height}' " \
+                 "x2='#{x}' y2='#{margin[:top] + chart_height + 5}' " \
+                 "stroke='#333' stroke-width='1'/>"
           svg << "<text x='#{x}' y='#{height - 20}' text-anchor='middle' font-size='10' fill='#666'>#{value1.round(2)}</text>"
-        end
 
-        (0..4).each do |i|
-          value2 = max2 - (max2 - min2) * i / 4.0
+          value2 = max2 - ((max2 - min2) * i / 4.0)
           y = margin[:top] + ((value2 - min2) * y_scale)
           svg << "<line x1='#{margin[:left]}' y1='#{y}' x2='#{margin[:left] - 5}' y2='#{y}' stroke='#333' stroke-width='1'/>"
           svg << "<text x='#{margin[:left] - 10}' y='#{y + 4}' text-anchor='end' font-size='10' fill='#666'>#{value2.round(2)}</text>"
@@ -780,14 +798,14 @@ module DecisionAgent
       end
 
       def generate_legend_html(data)
-        decisions = if data[:type] == '1d_boundary'
-                    data[:points].map { |p| p[:decision] }.uniq
-                  else
-                    data[:grid].flatten.map { |p| p[:decision] }.uniq
-                  end
+        decisions = if data[:type] == "1d_boundary"
+                      data[:points].map { |p| p[:decision] }.uniq
+                    else
+                      data[:grid].flatten.map { |p| p[:decision] }.uniq
+                    end
 
-        colors = ['#58a6ff', '#3fb950', '#d29922', '#da3633', '#bc8cff', '#ff79c6', '#bd93f9']
-        
+        colors = ["#58a6ff", "#3fb950", "#d29922", "#da3633", "#bc8cff", "#ff79c6", "#bd93f9"]
+
         decisions.map.with_index do |decision, i|
           color = colors[i % colors.size]
           "<div class='legend-item'><div class='legend-color' style='background: #{color};'></div><span>#{decision}</span></div>"

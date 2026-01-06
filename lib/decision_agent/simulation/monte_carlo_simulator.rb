@@ -3,13 +3,13 @@ require_relative "errors"
 module DecisionAgent
   module Simulation
     # Monte Carlo simulator for probabilistic decision outcomes
-    # 
+    #
     # Allows you to model input variables with probability distributions
     # and run simulations to understand decision outcome probabilities.
     #
     # @example
     #   simulator = MonteCarloSimulator.new(agent: agent)
-    #   
+    #
     #   # Define probabilistic inputs
     #   distributions = {
     #     credit_score: { type: :normal, mean: 650, stddev: 50 },
@@ -187,7 +187,12 @@ module DecisionAgent
           values = config[:values] || config["values"]
           probs = config[:probabilities] || config["probabilities"]
           raise ArgumentError, "Discrete distribution for #{field} requires :values and :probabilities" unless values && probs
-          raise ArgumentError, "Discrete distribution for #{field}: values and probabilities must have same length" unless values.size == probs.size
+
+          unless values.size == probs.size
+            raise ArgumentError,
+                  "Discrete distribution for #{field}: values and probabilities must have same length"
+          end
+
           sum = probs.sum
           raise ArgumentError, "Discrete distribution for #{field}: probabilities must sum to 1.0 (got #{sum})" unless (sum - 1.0).abs < 0.001
         when :triangular
@@ -213,6 +218,7 @@ module DecisionAgent
         when String, Integer
           version_data = @version_manager.get_version(version_id: version)
           raise VersionComparisonError, "Version not found: #{version}" unless version_data
+
           version_data
         when Hash
           version
@@ -297,7 +303,7 @@ module DecisionAgent
                   confidence: decision.confidence,
                   explanations: decision.explanations
                 }
-              rescue StandardError => e
+              rescue StandardError
                 # Log error but continue - some iterations may fail
                 # In production, you might want to handle this differently
                 next
@@ -311,16 +317,16 @@ module DecisionAgent
 
         # Collect all results from threads
         all_results = threads.map(&:value).flatten.compact
-        
+
         # Calculate total attempted iterations
         total_attempted = threads.map do |t|
           results = t.value
           results.instance_variable_get(:@attempted_iterations) if results.respond_to?(:instance_variable_get)
         end.compact.sum
-        
+
         # Store attempted count
         all_results.instance_variable_set(:@attempted_iterations, total_attempted) if all_results.respond_to?(:instance_variable_set)
-        
+
         # Limit to exact iteration count (in case of rounding)
         all_results.first(iterations)
       end
@@ -405,9 +411,9 @@ module DecisionAgent
         # Use requested iterations if provided, otherwise use results size
         # The iterations count should reflect the number of iterations requested/attempted
         iterations_count = requested_iterations || results.size
-        
+
         total = results.size
-        return empty_statistics(iterations_count, confidence_level) if total == 0
+        return empty_statistics(iterations_count, confidence_level) if total.zero?
 
         # Decision probabilities
         decision_counts = results.group_by { |r| r[:decision] }.transform_values(&:count)
@@ -429,24 +435,24 @@ module DecisionAgent
 
         # Decision-specific statistics
         decision_stats = {}
-        decision_counts.keys.each do |decision|
+        decision_counts.each_key do |decision|
           decision_results = results.select { |r| r[:decision] == decision }
           decision_confidences = decision_results.map { |r| r[:confidence] }.compact
 
-          if decision_confidences.any?
-            decision_avg_confidence = decision_confidences.sum / decision_confidences.size
-            decision_stats[decision] = {
-              count: decision_counts[decision],
-              probability: decision_probabilities[decision],
-              average_confidence: decision_avg_confidence
-            }
+          next unless decision_confidences.any?
 
-            if decision_confidences.size > 1
-              decision_variance = decision_confidences.map { |c| (c - decision_avg_confidence)**2 }.sum / decision_confidences.size
-              decision_stddev = Math.sqrt(decision_variance)
-              decision_stats[decision][:confidence_stddev] = decision_stddev
-            end
-          end
+          decision_avg_confidence = decision_confidences.sum / decision_confidences.size
+          decision_stats[decision] = {
+            count: decision_counts[decision],
+            probability: decision_probabilities[decision],
+            average_confidence: decision_avg_confidence
+          }
+
+          next unless decision_confidences.size > 1
+
+          decision_variance = decision_confidences.map { |c| (c - decision_avg_confidence)**2 }.sum / decision_confidences.size
+          decision_stddev = Math.sqrt(decision_variance)
+          decision_stats[decision][:confidence_stddev] = decision_stddev
         end
 
         {
@@ -470,7 +476,7 @@ module DecisionAgent
         sorted = values.sort
         alpha = 1.0 - level
         lower_percentile = (alpha / 2.0) * 100
-        upper_percentile = (1.0 - alpha / 2.0) * 100
+        upper_percentile = (1.0 - (alpha / 2.0)) * 100
 
         lower_idx = (lower_percentile / 100.0 * (sorted.size - 1)).round
         upper_idx = (upper_percentile / 100.0 * (sorted.size - 1)).round
@@ -511,7 +517,11 @@ module DecisionAgent
             min_probability: min_prob,
             max_probability: max_prob,
             range: range,
-            sensitivity: range > 0.1 ? "high" : (range > 0.05 ? "medium" : "low")
+            sensitivity: if range > 0.1
+                           "high"
+                         else
+                           (range > 0.05 ? "medium" : "low")
+                         end
           }
         end
 
@@ -523,11 +533,9 @@ module DecisionAgent
         last_key = keys.pop
         target = keys.reduce(hash) do |h, k|
           h[k.to_sym] ||= {}
-          h[k.to_sym]
         end
         target[last_key.to_sym] = value
       end
     end
   end
 end
-

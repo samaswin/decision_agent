@@ -171,9 +171,7 @@ RSpec.describe DecisionAgent::Simulation::ReplayEngine do
     context "with database queries" do
       before(:all) do
         # Only run database tests if ActiveRecord is available
-        unless defined?(ActiveRecord)
-          skip "ActiveRecord not available"
-        end
+        skip "ActiveRecord not available" unless defined?(ActiveRecord)
       end
 
       before(:each) do
@@ -357,7 +355,7 @@ RSpec.describe DecisionAgent::Simulation::ReplayEngine do
         expect(results[:results][0][:context][:amount]).to eq(1500.0)
 
         # Cleanup
-        File.delete(temp_db_path) if File.exist?(temp_db_path)
+        FileUtils.rm_f(temp_db_path)
       end
     end
 
@@ -386,9 +384,7 @@ RSpec.describe DecisionAgent::Simulation::ReplayEngine do
 
     before(:each) do
       # Only run database tests if ActiveRecord is available
-      unless defined?(ActiveRecord)
-        skip "ActiveRecord not available"
-      end
+      skip "ActiveRecord not available" unless defined?(ActiveRecord)
 
       # Setup in-memory SQLite database for testing
       ActiveRecord::Base.establish_connection(
@@ -476,4 +472,3 @@ RSpec.describe DecisionAgent::Simulation::ReplayEngine do
     end
   end
 end
-

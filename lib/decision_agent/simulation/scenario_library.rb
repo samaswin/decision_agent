@@ -51,7 +51,7 @@ module DecisionAgent
           scenarios << { context: zero_scenario, metadata: { type: "edge_case", field: key, value: "zero" } }
 
           # Negative value (if positive)
-          if value > 0
+          if value.positive?
             neg_scenario = base_context.dup
             neg_scenario[key] = -value
             scenarios << { context: neg_scenario, metadata: { type: "edge_case", field: key, value: "negative" } }
@@ -61,10 +61,8 @@ module DecisionAgent
           large_scenario = base_context.dup
           large_scenario[key] = value * 1000
           scenarios << { context: large_scenario, metadata: { type: "edge_case", field: key, value: "large" } }
-        end
 
-        # Generate scenarios with empty strings
-        base_context.each do |key, value|
+          # Generate scenarios with empty strings
           next unless value.is_a?(String)
 
           empty_scenario = base_context.dup
@@ -74,8 +72,6 @@ module DecisionAgent
 
         scenarios
       end
-
-      private
 
       def self.templates
         {
@@ -180,20 +176,16 @@ module DecisionAgent
       end
 
       def self.merge_overrides(scenario, overrides)
-        if overrides[:context]
-          scenario[:context] = scenario[:context].merge(overrides[:context])
-        end
+        scenario[:context] = scenario[:context].merge(overrides[:context]) if overrides[:context]
 
-        if overrides[:metadata]
-          scenario[:metadata] = (scenario[:metadata] || {}).merge(overrides[:metadata])
-        end
+        scenario[:metadata] = (scenario[:metadata] || {}).merge(overrides[:metadata]) if overrides[:metadata]
 
         overrides.each do |key, value|
           next if %i[context metadata].include?(key)
+
           scenario[key] = value
         end
       end
     end
   end
 end
-

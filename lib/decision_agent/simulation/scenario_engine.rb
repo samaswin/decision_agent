@@ -130,6 +130,7 @@ module DecisionAgent
         when String, Integer
           version_data = @version_manager.get_version(version_id: version)
           raise VersionComparisonError, "Version not found: #{version}" unless version_data
+
           version_data
         when Hash
           version
@@ -166,7 +167,7 @@ module DecisionAgent
         end
       end
 
-      def execute_parallel(scenarios, analysis_agent, options, mutex)
+      def execute_parallel(scenarios, analysis_agent, options, _mutex)
         thread_count = [options[:thread_count], scenarios.size].min
         queue = Queue.new
         scenarios.each { |s| queue << s }
@@ -184,7 +185,7 @@ module DecisionAgent
               context = scenario[:context] || scenario["context"] || scenario
               metadata = scenario[:metadata] || scenario["metadata"] || {}
               ctx = context.is_a?(Context) ? context : Context.new(context)
-              
+
               begin
                 decision = analysis_agent.decide(context: ctx)
                 result = {
@@ -266,4 +267,3 @@ module DecisionAgent
     end
   end
 end
-

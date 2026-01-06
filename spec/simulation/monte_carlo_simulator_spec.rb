@@ -70,7 +70,7 @@ RSpec.describe DecisionAgent::Simulation::MonteCarloSimulator do
         )
 
         expect(results[:decision_stats]).to be_a(Hash)
-        results[:decision_stats].each do |decision, stats|
+        results[:decision_stats].each_value do |stats|
           expect(stats).to include(:count, :probability, :average_confidence)
         end
       end
@@ -91,13 +91,13 @@ RSpec.describe DecisionAgent::Simulation::MonteCarloSimulator do
         results1 = simulator.simulate(
           distributions: distributions,
           iterations: 100,
-          options: { seed: 12345, parallel: false }
+          options: { seed: 12_345, parallel: false }
         )
 
         results2 = simulator.simulate(
           distributions: distributions,
           iterations: 100,
-          options: { seed: 12345, parallel: false }
+          options: { seed: 12_345, parallel: false }
         )
 
         # Decision probabilities should be very similar with same seed
@@ -189,7 +189,7 @@ RSpec.describe DecisionAgent::Simulation::MonteCarloSimulator do
       end
       let(:agent_multi) { DecisionAgent::Agent.new(evaluators: [evaluator_multi]) }
       let(:simulator_multi) { described_class.new(agent: agent_multi, version_manager: version_manager) }
-      
+
       let(:distributions) do
         {
           credit_score: { type: :normal, mean: 650, stddev: 50 },
@@ -206,7 +206,7 @@ RSpec.describe DecisionAgent::Simulation::MonteCarloSimulator do
 
         expect(results[:iterations]).to eq(1000)
         expect(results[:decision_probabilities]).to be_a(Hash)
-        
+
         # Check that contexts include both fields
         sample_context = results[:results].first[:context]
         expect(sample_context).to include(:credit_score, :amount, :name)
@@ -215,40 +215,40 @@ RSpec.describe DecisionAgent::Simulation::MonteCarloSimulator do
 
     context "with validation" do
       it "raises error for invalid distribution type" do
-        expect {
+        expect do
           simulator.simulate(
             distributions: {
               credit_score: { type: :invalid }
             },
             iterations: 100
           )
-        }.to raise_error(ArgumentError, /Unknown distribution type/)
+        end.to raise_error(ArgumentError, /Unknown distribution type/)
       end
 
       it "raises error for normal distribution without mean" do
-        expect {
+        expect do
           simulator.simulate(
             distributions: {
               credit_score: { type: :normal, stddev: 50 }
             },
             iterations: 100
           )
-        }.to raise_error(ArgumentError, /requires :mean and :stddev/)
+        end.to raise_error(ArgumentError, /requires :mean and :stddev/)
       end
 
       it "raises error for uniform distribution without min" do
-        expect {
+        expect do
           simulator.simulate(
             distributions: {
               credit_score: { type: :uniform, max: 800 }
             },
             iterations: 100
           )
-        }.to raise_error(ArgumentError, /requires :min and :max/)
+        end.to raise_error(ArgumentError, /requires :min and :max/)
       end
 
       it "raises error for discrete distribution with mismatched arrays" do
-        expect {
+        expect do
           simulator.simulate(
             distributions: {
               credit_score: {
@@ -259,11 +259,11 @@ RSpec.describe DecisionAgent::Simulation::MonteCarloSimulator do
             },
             iterations: 100
           )
-        }.to raise_error(ArgumentError, /must have same length/)
+        end.to raise_error(ArgumentError, /must have same length/)
       end
 
       it "raises error for discrete distribution with probabilities not summing to 1" do
-        expect {
+        expect do
           simulator.simulate(
             distributions: {
               credit_score: {
@@ -274,7 +274,7 @@ RSpec.describe DecisionAgent::Simulation::MonteCarloSimulator do
             },
             iterations: 100
           )
-        }.to raise_error(ArgumentError, /must sum to 1.0/)
+        end.to raise_error(ArgumentError, /must sum to 1.0/)
       end
     end
 
@@ -364,8 +364,8 @@ RSpec.describe DecisionAgent::Simulation::MonteCarloSimulator do
 
       mean_results = results[:sensitivity_results][:credit_score][:mean]
       expect(mean_results[:impact_analysis]).to be_a(Hash)
-      
-      mean_results[:impact_analysis].each do |decision, impact|
+
+      mean_results[:impact_analysis].each_value do |impact|
         expect(impact).to include(:min_probability, :max_probability, :range, :sensitivity)
       end
     end
@@ -412,7 +412,7 @@ RSpec.describe DecisionAgent::Simulation::MonteCarloSimulator do
     end
     let(:agent_lognormal) { DecisionAgent::Agent.new(evaluators: [evaluator_lognormal]) }
     let(:simulator_lognormal) { described_class.new(agent: agent_lognormal, version_manager: version_manager) }
-    
+
     let(:distributions) do
       {
         amount: { type: :lognormal, mean: 10.0, stddev: 0.5 }
@@ -448,7 +448,7 @@ RSpec.describe DecisionAgent::Simulation::MonteCarloSimulator do
     end
     let(:agent_exp) { DecisionAgent::Agent.new(evaluators: [evaluator_exp]) }
     let(:simulator_exp) { described_class.new(agent: agent_exp, version_manager: version_manager) }
-    
+
     let(:distributions) do
       {
         time_to_event: { type: :exponential, lambda: 0.1 }
@@ -489,7 +489,7 @@ RSpec.describe DecisionAgent::Simulation::MonteCarloSimulator do
     end
     let(:agent_nested) { DecisionAgent::Agent.new(evaluators: [evaluator_nested]) }
     let(:simulator_nested) { described_class.new(agent: agent_nested, version_manager: version_manager) }
-    
+
     let(:distributions) do
       {
         "user.credit_score" => { type: :normal, mean: 650, stddev: 50 }
@@ -537,4 +537,3 @@ RSpec.describe DecisionAgent::Simulation::MonteCarloSimulator do
     end
   end
 end
-
