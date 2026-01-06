@@ -2,6 +2,13 @@ require "csv"
 require "json"
 require_relative "errors"
 
+# Conditionally require ActiveRecord if available
+begin
+  require "active_record"
+rescue LoadError
+  # ActiveRecord not available - database queries will raise an error
+end
+
 module DecisionAgent
   module Simulation
     # Engine for replaying historical decisions and backtesting rule changes
@@ -14,7 +21,9 @@ module DecisionAgent
       end
 
       # Replay historical decisions with a specific rule version
-      # @param historical_data [String, Array<Hash>] Path to CSV/JSON file or array of context hashes
+      # @param historical_data [String, Array<Hash>, Hash] Path to CSV/JSON file, array of context hashes, or database query config
+      #   Database config format: { database: { connection: {...}, query: "SELECT ..." } }
+      #   or { database: { connection: {...}, table: "table_name", where: {...} } }
       # @param rule_version [String, Integer, Hash, nil] Version ID, version hash, or nil to use current agent
       # @param compare_with [String, Integer, Hash, nil] Optional baseline version to compare against
       # @param options [Hash] Execution options
@@ -45,7 +54,7 @@ module DecisionAgent
       end
 
       # Backtest a rule change against historical data
-      # @param historical_data [String, Array<Hash>] Historical context data
+      # @param historical_data [String, Array<Hash>, Hash] Historical context data (file path, array, or database config)
       # @param proposed_version [String, Integer, Hash] Proposed rule version
       # @param baseline_version [String, Integer, Hash, nil] Baseline version (default: active version)
       # @param options [Hash] Execution options
@@ -68,8 +77,14 @@ module DecisionAgent
           load_from_file(data)
         when Array
           data
+        when Hash
+          if data.key?(:database) || data.key?("database")
+            load_database(data[:database] || data["database"])
+          else
+            raise InvalidHistoricalDataError, "Historical data Hash must contain :database key for database queries"
+          end
         else
-          raise InvalidHistoricalDataError, "Historical data must be a file path (String) or array of contexts"
+          raise InvalidHistoricalDataError, "Historical data must be a file path (String), array of contexts, or database query config (Hash)"
         end
       end
 
@@ -100,6 +115,140 @@ module DecisionAgent
         data.is_a?(Array) ? data : [data]
       rescue StandardError => e
         raise InvalidHistoricalDataError, "Failed to load JSON: #{e.message}"
+      end
+
+      def load_database(config)
+        unless defined?(ActiveRecord)
+          raise InvalidHistoricalDataError, "ActiveRecord is required for database queries. Add 'activerecord' to your Gemfile."
+        end
+
+        config = config.is_a?(Hash) ? config : {}
+        connection_config = config[:connection] || config["connection"]
+        query = config[:query] || config["query"]
+        table = config[:table] || config["table"]
+        where_clause = config[:where] || config["where"]
+
+        raise InvalidHistoricalDataError, "Database config must include :connection" unless connection_config
+
+        # Establish connection
+        connection = establish_database_connection(connection_config)
+
+        # Build and execute query
+        contexts = execute_database_query(connection, query: query, table: table, where: where_clause)
+
+        contexts
+      rescue ActiveRecord::ActiveRecordError => e
+        raise InvalidHistoricalDataError, "Database query failed: #{e.message}"
+      rescue StandardError => e
+        raise InvalidHistoricalDataError, "Failed to load from database: #{e.message}"
+      end
+
+      def establish_database_connection(config)
+        # If config is a string, assume it's a connection name/key or "default"
+        # Otherwise, treat it as connection parameters
+        if config.is_a?(String)
+          if config == "default" || config.empty?
+            # Use default ActiveRecord connection
+            ActiveRecord::Base.connection
+          else
+            # Try to find existing connection by name
+            # For now, fall back to default connection
+            ActiveRecord::Base.connection
+          end
+        elsif config.is_a?(Hash)
+          # Create a new connection using a dedicated class
+          connection_class = Class.new(ActiveRecord::Base) do
+            self.abstract_class = true
+          end
+          connection_class.establish_connection(config)
+          connection_class.connection
+        else
+          raise InvalidHistoricalDataError, "Connection config must be a Hash or String"
+        end
+      end
+
+      def execute_database_query(connection, query: nil, table: nil, where: nil)
+        if query
+          # Execute raw SQL query
+          results = connection.select_all(query)
+          convert_query_results_to_contexts(results)
+        elsif table
+          # Build SQL query from table and where clause
+          sql = build_table_query(connection, table, where)
+          results = connection.select_all(sql)
+          convert_query_results_to_contexts(results)
+        else
+          raise InvalidHistoricalDataError, "Database config must include :query or :table"
+        end
+      end
+
+      def build_table_query(connection, table, where)
+        table_name = connection.quote_table_name(table)
+        sql = "SELECT * FROM #{table_name}"
+
+        if where && where.is_a?(Hash) && !where.empty?
+          where_conditions = where.map do |key, value|
+            quoted_key = connection.quote_column_name(key.to_s)
+            quoted_value = connection.quote(value)
+            "#{quoted_key} = #{quoted_value}"
+          end.join(" AND ")
+          sql += " WHERE #{where_conditions}"
+        end
+
+        sql
+      end
+
+      def convert_query_results_to_contexts(results)
+        contexts = []
+
+        # Handle ActiveRecord::Result (from select_all)
+        if results.respond_to?(:columns) && results.respond_to?(:rows)
+          # ActiveRecord::Result format
+          columns = results.columns.map(&:to_sym)
+          results.rows.each do |row|
+            context = {}
+            columns.each_with_index do |column, index|
+              # Skip common ActiveRecord metadata fields unless they're needed
+              next if %i[id created_at updated_at].include?(column) && row[index].nil?
+
+              value = row[index]
+              # Convert JSON strings to hashes if detected
+              if value.is_a?(String) && (value.start_with?("{") || value.start_with?("["))
+                begin
+                  value = JSON.parse(value, symbolize_names: true)
+                rescue JSON::ParserError
+                  # Keep as string if not valid JSON
+                end
+              end
+              context[column] = value
+            end
+            contexts << context
+          end
+        elsif results.is_a?(Array)
+          # Array of hashes or arrays
+          results.each do |row|
+            context = if row.is_a?(Hash)
+                        row.transform_keys(&:to_sym)
+                      else
+                        # Convert array to hash if we have column names
+                        {}
+                      end
+            # Remove common ActiveRecord metadata fields if they're nil or not needed
+            context = context.reject { |k, v| %i[id created_at updated_at].include?(k) && v.nil? }
+            contexts << context unless context.empty?
+          end
+        elsif results.respond_to?(:each)
+          # Enumerable result set
+          results.each do |row|
+            context = row.is_a?(Hash) ? row.transform_keys(&:to_sym) : row.to_h
+            context = context.reject { |k, v| %i[id created_at updated_at].include?(k) && v.nil? }
+            contexts << context unless context.empty?
+          end
+        else
+          raise InvalidHistoricalDataError, "Unexpected query result format: #{results.class}"
+        end
+
+        contexts
       end
 
       def build_agent_from_version(version)

@@ -9,19 +9,21 @@ DecisionAgent provides comprehensive simulation and what-if analysis capabilitie
 - [What-If Analysis](#what-if-analysis)
 - [Impact Analysis](#impact-analysis)
 - [Shadow Testing](#shadow-testing)
+- [Monte Carlo Simulation](#monte-carlo-simulation)
 - [Scenario Engine](#scenario-engine)
 - [Scenario Library](#scenario-library)
 - [Best Practices](#best-practices)
 
 ## Overview
 
-The Simulation module provides five main capabilities:
+The Simulation module provides six main capabilities:
 
 1. **Historical Replay / Backtesting** - Replay historical decisions with different rule versions
 2. **What-If Analysis** - Simulate scenarios and perform sensitivity analysis
 3. **Impact Analysis** - Quantify the impact of rule changes before deployment
 4. **Shadow Testing** - Compare new rules against production without affecting outcomes
-5. **Scenario Engine** - Manage and execute test scenarios
+5. **Monte Carlo Simulation** - Model probabilistic inputs and understand decision outcome probabilities
+6. **Scenario Engine** - Manage and execute test scenarios
 
 ## Historical Replay / Backtesting
 
@@ -84,6 +86,80 @@ credit_score,amount,income
   { "credit_score": 750, "amount": 100000, "income": 100000 }
 ]
 ```
+
+### Loading from Database
+
+ReplayEngine supports loading historical data from databases using ActiveRecord. This requires the `activerecord` gem to be available.
+
+**Using SQL Query:**
+
+```ruby
+# Using default ActiveRecord connection
+db_config = {
+  database: {
+    connection: "default",
+    query: "SELECT credit_score, amount, income FROM historical_decisions WHERE created_at > '2025-01-01'"
+  }
+}
+
+results = replay_engine.replay(historical_data: db_config)
+```
+
+**Using Table Name with WHERE Clause:**
+
+```ruby
+# Query a specific table with filtering
+db_config = {
+  database: {
+    connection: "default",
+    table: "historical_decisions",
+    where: { status: "pending", amount: 100_000 }
+  }
+}
+
+results = replay_engine.replay(historical_data: db_config)
+```
+
+**Using Custom Database Connection:**
+
+```ruby
+# Connect to a different database
+db_config = {
+  database: {
+    connection: {
+      adapter: "postgresql",
+      host: "localhost",
+      database: "production_db",
+      username: "user",
+      password: "password",
+      port: 5432
+    },
+    query: "SELECT * FROM decision_logs WHERE date >= CURRENT_DATE - INTERVAL '30 days'"
+  }
+}
+
+results = replay_engine.replay(historical_data: db_config)
+```
+
+**Supported Database Adapters:**
+
+- SQLite (`adapter: "sqlite3"`)
+- PostgreSQL (`adapter: "postgresql"`)
+- MySQL (`adapter: "mysql2"`)
+- Any ActiveRecord-compatible adapter
+
+**Connection Configuration:**
+
+- **Default Connection**: Use `connection: "default"` to use the existing ActiveRecord::Base connection
+- **Custom Connection**: Provide a Hash with adapter-specific connection parameters
+- **Connection String**: For simple cases, you can pass connection parameters as a Hash
+
+**Notes:**
+
+- Database queries require ActiveRecord to be available (add `activerecord` to your Gemfile)
+- JSON columns in database results are automatically parsed when detected
+- Common ActiveRecord metadata fields (id, created_at, updated_at) are filtered out unless they contain data
+- Large result sets are handled efficiently with streaming support
 
 ### Comparing Versions
 
@@ -193,6 +269,106 @@ results = what_if_analyzer.analyze(
   }
 )
 ```
+
+### Decision Boundary Visualization
+
+Visualize how decisions change across parameter spaces to understand decision boundaries and thresholds:
+
+#### 1D Boundary Visualization
+
+Visualize how a single parameter affects decisions:
+
+```ruby
+# Visualize decision boundaries for credit_score parameter
+boundary_1d = what_if_analyzer.visualize_decision_boundaries(
+  base_scenario: { amount: 100_000 },
+  parameters: {
+    credit_score: { min: 500, max: 800, steps: 100 }
+  }
+)
+
+puts "Parameter: #{boundary_1d[:parameter]}"
+puts "Boundaries found: #{boundary_1d[:boundaries].size}"
+boundary_1d[:boundaries].each do |boundary|
+  puts "  Boundary at #{boundary[:value].round(2)}: #{boundary[:decision_from]} -> #{boundary[:decision_to]}"
+end
+```
+
+#### 2D Boundary Visualization
+
+Visualize how two parameters interact to affect decisions:
+
+```ruby
+# Visualize decision boundaries for credit_score vs amount
+boundary_2d = what_if_analyzer.visualize_decision_boundaries(
+  base_scenario: {},
+  parameters: {
+    credit_score: { min: 500, max: 800 },
+    amount: { min: 50_000, max: 200_000 }
+  },
+  options: { resolution: 30 }
+)
+
+puts "Parameters: #{boundary_2d[:parameter1]} vs #{boundary_2d[:parameter2]}"
+puts "Resolution: #{boundary_2d[:resolution]}x#{boundary_2d[:resolution]}"
+puts "Boundaries found: #{boundary_2d[:boundaries].size}"
+puts "Decision distribution: #{boundary_2d[:decision_distribution]}"
+```
+
+#### HTML Visualization Output
+
+Generate interactive HTML visualizations:
+
+```ruby
+# Generate HTML visualization
+html_output = what_if_analyzer.visualize_decision_boundaries(
+  base_scenario: { amount: 100_000 },
+  parameters: {
+    credit_score: { min: 500, max: 800, steps: 100 }
+  },
+  options: { output_format: 'html' }
+)
+
+# Save to file
+File.write('decision_boundary.html', html_output)
+```
+
+The HTML output includes:
+- Color-coded decision regions
+- Boundary lines showing where decisions change
+- Interactive legend
+- Statistical summary (boundaries found, decision distribution)
+
+#### JSON Output
+
+Get structured data for custom visualization:
+
+```ruby
+json_output = what_if_analyzer.visualize_decision_boundaries(
+  base_scenario: { amount: 100_000 },
+  parameters: {
+    credit_score: { min: 500, max: 800, steps: 100 }
+  },
+  options: { output_format: 'json' }
+)
+
+# Parse and use in your own visualization tools
+data = JSON.parse(json_output)
+```
+
+#### Configuration Options
+
+- `output_format`: `'data'` (default), `'html'`, or `'json'`
+- `resolution`: Number of steps for grid generation (default: 100 for 1D, 30 for 2D)
+- `rule_version`: Optional rule version to use for visualization
+
+#### Use Cases
+
+- **Identify decision thresholds**: Find exact parameter values where decisions change
+- **Understand parameter interactions**: See how two parameters work together
+- **Validate rule logic**: Visually verify that decision boundaries match expectations
+- **Communicate rules**: Share visual representations with stakeholders
+- **Debug rule issues**: Identify unexpected decision boundaries or gaps
 
 ## Impact Analysis
 
@@ -326,6 +502,288 @@ if !result[:matches]
 end
 ```
 
+## Monte Carlo Simulation
+
+Model input variables with probability distributions and run thousands of simulations to understand decision outcome probabilities. This is particularly useful for risk assessment, uncertainty quantification, and understanding how variability in inputs affects decision outcomes.
+
+### Basic Usage
+
+```ruby
+monte_carlo = DecisionAgent::Simulation::MonteCarloSimulator.new(
+  agent: agent,
+  version_manager: version_manager
+)
+
+# Define probabilistic input distributions
+distributions = {
+  credit_score: { type: :normal, mean: 650, stddev: 50 },
+  amount: { type: :uniform, min: 50_000, max: 200_000 }
+}
+
+# Run Monte Carlo simulation
+results = monte_carlo.simulate(
+  distributions: distributions,
+  iterations: 10_000,
+  base_context: { name: "Monte Carlo Test" },
+  options: { seed: 42 } # Use seed for reproducibility
+)
+
+puts "Decision probabilities:"
+results[:decision_probabilities].each do |decision, prob|
+  puts "  #{decision}: #{(prob * 100).round(2)}%"
+end
+puts "Average confidence: #{results[:average_confidence].round(4)}"
+puts "Confidence interval (95%): [#{results[:confidence_intervals][:confidence][:lower].round(4)}, #{results[:confidence_intervals][:confidence][:upper].round(4)}]"
+```
+
+### Supported Probability Distributions
+
+MonteCarloSimulator supports six types of probability distributions:
+
+#### 1. Normal Distribution
+
+For values that follow a bell curve (e.g., credit scores, test scores):
+
+```ruby
+distributions = {
+  credit_score: { type: :normal, mean: 650, stddev: 50 }
+}
+```
+
+#### 2. Uniform Distribution
+
+For values that are equally likely across a range (e.g., random selection):
+
+```ruby
+distributions = {
+  amount: { type: :uniform, min: 50_000, max: 200_000 }
+}
+```
+
+#### 3. Log-Normal Distribution
+
+For values that are always positive and have a long tail (e.g., income, prices):
+
+```ruby
+distributions = {
+  income: { type: :lognormal, mean: 10.0, stddev: 0.5 }
+}
+```
+
+#### 4. Exponential Distribution
+
+For time-to-event or waiting times (e.g., time between events):
+
+```ruby
+distributions = {
+  time_to_event: { type: :exponential, lambda: 0.1 }
+}
+```
+
+#### 5. Discrete Distribution
+
+For categorical or discrete values with known probabilities:
+
+```ruby
+distributions = {
+  risk_level: {
+    type: :discrete,
+    values: ["low", "medium", "high"],
+    probabilities: [0.6, 0.3, 0.1]
+  }
+}
+```
+
+**Note:** Probabilities must sum to 1.0.
+
+#### 6. Triangular Distribution
+
+For values with a most likely value (mode) and bounds (e.g., expert estimates):
+
+```ruby
+distributions = {
+  estimate: { type: :triangular, min: 100, mode: 150, max: 200 }
+}
+```
+
+### Statistical Analysis
+
+The simulation results include comprehensive statistics:
+
+```ruby
+results = monte_carlo.simulate(
+  distributions: distributions,
+  iterations: 10_000
+)
+
+# Decision probabilities
+results[:decision_probabilities]
+# => { "approve" => 0.65, "reject" => 0.35 }
+
+# Decision-specific statistics
+results[:decision_stats].each do |decision, stats|
+  puts "#{decision}:"
+  puts "  Count: #{stats[:count]}"
+  puts "  Probability: #{(stats[:probability] * 100).round(2)}%"
+  puts "  Average confidence: #{stats[:average_confidence].round(4)}"
+  puts "  Confidence stddev: #{stats[:confidence_stddev].round(4)}"
+end
+
+# Overall statistics
+puts "Average confidence: #{results[:average_confidence].round(4)}"
+puts "Confidence stddev: #{results[:confidence_stddev].round(4)}"
+puts "Confidence interval (95%): #{results[:confidence_intervals][:confidence]}"
+```
+
+### Sensitivity Analysis
+
+Analyze how changes to distribution parameters affect decision outcomes:
+
+```ruby
+sensitivity_results = monte_carlo.sensitivity_analysis(
+  base_distributions: {
+    credit_score: { type: :normal, mean: 650, stddev: 50 }
+  },
+  sensitivity_params: {
+    credit_score: {
+      mean: [600, 650, 700],
+      stddev: [40, 50, 60]
+    }
+  },
+  iterations: 5_000,
+  base_context: { name: "Sensitivity Test" }
+)
+
+sensitivity_results[:sensitivity_results][:credit_score].each do |param_name, param_data|
+  puts "Parameter: #{param_name}"
+  puts "  Values tested: #{param_data[:values_tested]}"
+  puts "  Impact analysis:"
+  param_data[:impact_analysis].each do |decision, impact|
+    puts "    #{decision}:"
+    puts "      Min probability: #{(impact[:min_probability] * 100).round(2)}%"
+    puts "      Max probability: #{(impact[:max_probability] * 100).round(2)}%"
+    puts "      Range: #{(impact[:range] * 100).round(2)}%"
+    puts "      Sensitivity: #{impact[:sensitivity]}" # "low", "medium", or "high"
+  end
+end
+```
+
+### Multiple Distributions
+
+You can model multiple probabilistic inputs simultaneously:
+
+```ruby
+distributions = {
+  credit_score: { type: :normal, mean: 650, stddev: 50 },
+  amount: { type: :uniform, min: 50_000, max: 200_000 },
+  income: { type: :lognormal, mean: 10.0, stddev: 0.5 }
+}
+
+results = monte_carlo.simulate(
+  distributions: distributions,
+  iterations: 10_000,
+  base_context: { name: "Multi-variate Test" }
+)
+```
+
+### Nested Field Support
+
+Monte Carlo simulation supports nested field paths:
+
+```ruby
+distributions = {
+  "user.credit_score" => { type: :normal, mean: 650, stddev: 50 }
+}
+
+results = monte_carlo.simulate(
+  distributions: distributions,
+  iterations: 1_000,
+  base_context: { user: { name: "Test User" } }
+)
+
+# Contexts will have nested structure
+sample_context = results[:results].first[:context]
+# => { user: { name: "Test User", credit_score: 642.3 } }
+```
+
+### Parallel Execution
+
+For large simulations, enable parallel execution:
+
+```ruby
+results = monte_carlo.simulate(
+  distributions: distributions,
+  iterations: 100_000,
+  options: {
+    parallel: true,
+    thread_count: 4,
+    seed: 42  # Seed is applied before parallel execution
+  }
+)
+```
+
+**Note:** When using parallel execution with a seed, each thread will have different random states, but the overall distribution will be consistent across runs.
+
+### Reproducibility
+
+Use seeds for reproducible results:
+
+```ruby
+# Same seed produces same results
+results1 = monte_carlo.simulate(
+  distributions: distributions,
+  iterations: 1_000,
+  options: { seed: 12345, parallel: false }
+)
+
+results2 = monte_carlo.simulate(
+  distributions: distributions,
+  iterations: 1_000,
+  options: { seed: 12345, parallel: false }
+)
+
+# Decision probabilities should match
+results1[:decision_probabilities] == results2[:decision_probabilities]
+```
+
+### Use Cases
+
+Monte Carlo simulation is particularly useful for:
+
+1. **Risk Assessment** - Understand the probability of different decision outcomes under uncertainty
+2. **Sensitivity Analysis** - Identify which input parameters have the most impact on decisions
+3. **Confidence Intervals** - Estimate confidence score ranges for decision outcomes
+4. **Scenario Planning** - Model different business scenarios with probabilistic inputs
+5. **Validation** - Validate decision rules against expected probability distributions
+
+### Example: Loan Approval Risk Analysis
+
+```ruby
+# Model credit score uncertainty
+distributions = {
+  credit_score: { type: :normal, mean: 650, stddev: 50 },
+  debt_to_income: { type: :normal, mean: 0.35, stddev: 0.1 },
+  loan_amount: { type: :uniform, min: 50_000, max: 500_000 }
+}
+
+results = monte_carlo.simulate(
+  distributions: distributions,
+  iterations: 50_000,
+  base_context: { applicant_name: "Risk Analysis" }
+)
+
+# Analyze approval probability
+approval_prob = results[:decision_probabilities]["approve"] || 0.0
+puts "Approval probability: #{(approval_prob * 100).round(2)}%"
+
+# Analyze confidence in approvals
+if results[:decision_stats]["approve"]
+  approval_stats = results[:decision_stats]["approve"]
+  puts "Average confidence for approvals: #{approval_stats[:average_confidence].round(4)}"
+  puts "Confidence stddev: #{approval_stats[:confidence_stddev].round(4)}"
+end
+```
+
 ## Scenario Engine
 
 Manage and execute test scenarios with support for version comparison.
@@ -448,10 +906,16 @@ Edge cases include:
 Before deploying rule changes, replay recent production decisions to validate:
 
 ```ruby
-# Replay last 30 days of decisions
-recent_decisions = load_recent_decisions(days: 30)
+# Replay last 30 days of decisions from database
+db_config = {
+  database: {
+    connection: "default",
+    query: "SELECT * FROM decision_logs WHERE created_at >= DATE('now', '-30 days')"
+  }
+}
+
 results = replay_engine.replay(
-  historical_data: recent_decisions,
+  historical_data: db_config,
   rule_version: proposed_version_id,
   compare_with: current_version_id
 )
@@ -461,6 +925,12 @@ if results[:change_rate] > 0.1
   puts "Warning: High change rate (#{results[:change_rate]})"
 end
 ```
+
+**Data Source Options:**
+
+- **Database queries** - Best for production data stored in databases
+- **CSV/JSON files** - Good for exported data or test datasets
+- **Array of contexts** - Useful for programmatically generated test data
 
 ### 2. Perform Impact Analysis Before Deployment
 
@@ -563,6 +1033,7 @@ results = replay_engine.replay(
 - **What-If Analysis**: Supports 100+ scenarios efficiently
 - **Impact Analysis**: Optimized for batch processing
 - **Shadow Testing**: Zero impact on production (read-only comparison)
+- **Monte Carlo Simulation**: Can run 100k+ iterations efficiently with parallel execution
 
 ## Web UI Integration
 

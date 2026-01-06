@@ -199,6 +199,7 @@ Navigate to `/simulation` to access the simulation dashboard, which provides acc
 Access at `/simulation/replay`:
 
 - Upload historical data (CSV or JSON format) with drag-and-drop support
+- Database query support (requires ActiveRecord) - Load historical data directly from databases using SQL queries or table-based queries
 - Select rule versions to test from dropdown menus
 - Compare baseline vs. proposed versions
 - View decision distribution changes and confidence shifts

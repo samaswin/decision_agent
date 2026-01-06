@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Simulation and What-If Analysis** 🧪
   - **Historical Replay / Backtesting** - ReplayEngine for replaying historical decisions
     - Support for CSV and JSON file import
+    - **Database query import** - Load historical data from databases (SQLite, PostgreSQL, MySQL, etc.)
+      - Support for raw SQL queries
+      - Table-based queries with WHERE clause filtering
+      - Default ActiveRecord connection or custom connection configuration
+      - Automatic JSON column parsing
+      - Requires ActiveRecord gem (optional dependency)
     - Replay with different rule versions
     - Compare outcomes between baseline and proposed versions
     - Impact analysis reports (decision changes, confidence shifts)
@@ -24,6 +30,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Decision distribution analysis
     - Average confidence calculation
     - Parallel execution support
+    - **Decision boundary visualization** - Visualize how decisions change across parameter spaces
+      - 1D boundary visualization (single parameter)
+      - 2D boundary visualization (two parameters)
+      - HTML/SVG visualization output with color-coded decision regions
+      - Boundary identification where decisions change
+      - Data, JSON, and HTML output formats
+      - Configurable resolution for grid generation
+  - **Monte Carlo Simulation** - MonteCarloSimulator for probabilistic decision outcomes
+    - Model input variables with probability distributions (normal, uniform, lognormal, exponential, discrete, triangular)
+    - Run thousands of simulations to understand decision outcome probabilities
+    - Statistical analysis including decision probabilities, confidence intervals, and per-decision statistics
+    - Sensitivity analysis on distribution parameters to see impact on outcomes
+    - Parallel execution support for large simulations (10k+ iterations)
+    - Reproducible results with seed support
+    - Support for nested field paths in context
+    - Comprehensive error handling and validation
   - **Impact Analysis** - ImpactAnalyzer for quantifying rule change effects
     - Compare baseline vs proposed rule versions
     - Decision distribution changes (before/after)
@@ -76,6 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - ShadowTestEngine tests (`spec/simulation/shadow_test_engine_spec.rb`)
     - ScenarioEngine tests (`spec/simulation/scenario_engine_spec.rb`)
     - ScenarioLibrary tests (`spec/simulation/scenario_library_spec.rb`)
+    - MonteCarloSimulator tests (`spec/simulation/monte_carlo_simulator_spec.rb`)
   - **Example File** - Complete working example
     - `examples/simulation_example.rb` - Demonstrates all simulation features with comprehensive examples
   - **Files Created:**
@@ -85,6 +108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `lib/decision_agent/simulation/impact_analyzer.rb` - Impact analysis engine
     - `lib/decision_agent/simulation/shadow_test_engine.rb` - Shadow testing engine
     - `lib/decision_agent/simulation/scenario_engine.rb` - Scenario management engine
+    - `lib/decision_agent/simulation/monte_carlo_simulator.rb` - Monte Carlo simulation engine
     - `lib/decision_agent/simulation/scenario_library.rb` - Scenario template library
     - `lib/decision_agent/simulation.rb` - Main simulation module
     - `spec/simulation/` - Comprehensive test suite (6 test files)

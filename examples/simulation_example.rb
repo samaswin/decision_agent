@@ -5,6 +5,7 @@
 # Demonstrates historical replay, what-if analysis, impact analysis, and shadow testing
 
 require_relative "../lib/decision_agent"
+require "fileutils"
 
 # ========================================
 # Setup: Create a sample agent with rules
@@ -180,6 +181,76 @@ sensitivity_results[:field_sensitivity].each do |field, data|
 end
 puts
 
+# Decision boundary visualization
+puts "Decision Boundary Visualization:"
+puts "-" * 80
+
+# 1D boundary visualization - credit_score
+puts "1D Boundary: credit_score parameter"
+boundary_1d = what_if_analyzer.visualize_decision_boundaries(
+  base_scenario: { amount: 100_000 },
+  parameters: {
+    credit_score: { min: 500, max: 800, steps: 100 }
+  }
+)
+
+puts "  Parameter: #{boundary_1d[:parameter]}"
+puts "  Range: #{boundary_1d[:range][:min]} to #{boundary_1d[:range][:max]}"
+puts "  Points analyzed: #{boundary_1d[:points].size}"
+puts "  Boundaries found: #{boundary_1d[:boundaries].size}"
+boundary_1d[:boundaries].each do |boundary|
+  puts "    Boundary at #{boundary[:value].round(2)}: #{boundary[:decision_from]} -> #{boundary[:decision_to]}"
+end
+puts "  Decision distribution: #{boundary_1d[:decision_distribution]}"
+
+# Generate HTML visualization
+html_output = what_if_analyzer.visualize_decision_boundaries(
+  base_scenario: { amount: 100_000 },
+  parameters: {
+    credit_score: { min: 500, max: 800, steps: 100 }
+  },
+  options: { output_format: 'html' }
+)
+
+html_file = File.join(Dir.pwd, 'tmp', 'decision_boundary_1d.html')
+FileUtils.mkdir_p(File.dirname(html_file))
+File.write(html_file, html_output)
+puts "  HTML visualization saved to: #{html_file}"
+puts
+
+# 2D boundary visualization - credit_score vs amount
+puts "2D Boundary: credit_score vs amount parameters"
+boundary_2d = what_if_analyzer.visualize_decision_boundaries(
+  base_scenario: {},
+  parameters: {
+    credit_score: { min: 500, max: 800 },
+    amount: { min: 50_000, max: 200_000 }
+  },
+  options: { resolution: 30 }
+)
+
+puts "  Parameter 1: #{boundary_2d[:parameter1]} (#{boundary_2d[:range1][:min]} to #{boundary_2d[:range1][:max]})"
+puts "  Parameter 2: #{boundary_2d[:parameter2]} (#{boundary_2d[:range2][:min]} to #{boundary_2d[:range2][:max]})"
+puts "  Resolution: #{boundary_2d[:resolution]}x#{boundary_2d[:resolution]}"
+puts "  Grid points: #{boundary_2d[:grid].flatten.size}"
+puts "  Boundaries found: #{boundary_2d[:boundaries].size}"
+puts "  Decision distribution: #{boundary_2d[:decision_distribution]}"
+
+# Generate HTML visualization for 2D
+html_output_2d = what_if_analyzer.visualize_decision_boundaries(
+  base_scenario: {},
+  parameters: {
+    credit_score: { min: 500, max: 800 },
+    amount: { min: 50_000, max: 200_000 }
+  },
+  options: { output_format: 'html', resolution: 30 }
+)
+
+html_file_2d = File.join(Dir.pwd, 'tmp', 'decision_boundary_2d.html')
+File.write(html_file_2d, html_output_2d)
+puts "  HTML visualization saved to: #{html_file_2d}"
+puts
+
 # ========================================
 # Example 3: Impact Analysis
 # ========================================
@@ -300,6 +371,120 @@ puts "Batch execution:"
 puts "  Total scenarios: #{batch_results[:total_scenarios]}"
 puts "  Decision distribution: #{batch_results[:decision_distribution]}"
 puts "  Average confidence: #{batch_results[:average_confidence].round(4)}"
+puts
+
+# ========================================
+# Example 6: Monte Carlo Simulation
+# ========================================
+
+puts "Example 6: Monte Carlo Simulation"
+puts "-" * 80
+
+monte_carlo = DecisionAgent::Simulation::MonteCarloSimulator.new(
+  agent: agent,
+  version_manager: version_manager
+)
+
+# Define probabilistic input distributions
+distributions = {
+  credit_score: { type: :normal, mean: 650, stddev: 50 },
+  amount: { type: :uniform, min: 50_000, max: 200_000 }
+}
+
+# Run Monte Carlo simulation
+puts "Running Monte Carlo simulation with 10,000 iterations..."
+mc_results = monte_carlo.simulate(
+  distributions: distributions,
+  iterations: 10_000,
+  base_context: { name: "Monte Carlo Test" },
+  options: { seed: 42 } # Use seed for reproducibility
+)
+
+puts "Monte Carlo Results:"
+puts "  Iterations: #{mc_results[:iterations]}"
+puts "  Decision probabilities:"
+mc_results[:decision_probabilities].each do |decision, prob|
+  puts "    #{decision}: #{(prob * 100).round(2)}%"
+end
+puts "  Average confidence: #{mc_results[:average_confidence].round(4)}"
+puts "  Confidence stddev: #{mc_results[:confidence_stddev].round(4)}"
+puts "  Confidence interval (95%): [#{mc_results[:confidence_intervals][:confidence][:lower].round(4)}, #{mc_results[:confidence_intervals][:confidence][:upper].round(4)}]"
+puts
+
+# Decision-specific statistics
+puts "Decision Statistics:"
+mc_results[:decision_stats].each do |decision, stats|
+  puts "  #{decision}:"
+  puts "    Count: #{stats[:count]}"
+  puts "    Probability: #{(stats[:probability] * 100).round(2)}%"
+  puts "    Avg confidence: #{stats[:average_confidence].round(4)}"
+  if stats[:confidence_stddev]
+    puts "    Confidence stddev: #{stats[:confidence_stddev].round(4)}"
+  end
+end
+puts
+
+# Example with different distributions
+puts "Monte Carlo with Different Distributions:"
+puts "-" * 80
+
+distributions_v2 = {
+  credit_score: {
+    type: :discrete,
+    values: [550, 600, 650, 700, 750],
+    probabilities: [0.1, 0.2, 0.4, 0.2, 0.1]
+  },
+  amount: {
+    type: :triangular,
+    min: 50_000,
+    mode: 100_000,
+    max: 200_000
+  }
+}
+
+mc_results_v2 = monte_carlo.simulate(
+  distributions: distributions_v2,
+  iterations: 5_000,
+  base_context: { name: "Discrete/Triangular Test" }
+)
+
+puts "  Decision probabilities:"
+mc_results_v2[:decision_probabilities].each do |decision, prob|
+  puts "    #{decision}: #{(prob * 100).round(2)}%"
+end
+puts
+
+# Sensitivity analysis with Monte Carlo
+puts "Monte Carlo Sensitivity Analysis:"
+puts "-" * 80
+
+sensitivity_results = monte_carlo.sensitivity_analysis(
+  base_distributions: {
+    credit_score: { type: :normal, mean: 650, stddev: 50 }
+  },
+  sensitivity_params: {
+    credit_score: {
+      mean: [600, 650, 700],
+      stddev: [40, 50, 60]
+    }
+  },
+  iterations: 2_000,
+  base_context: { name: "Sensitivity Test" }
+)
+
+puts "Sensitivity Analysis Results:"
+sensitivity_results[:sensitivity_results][:credit_score].each do |param_name, param_data|
+  puts "  Parameter: #{param_name}"
+  puts "    Values tested: #{param_data[:values_tested]}"
+  puts "    Impact analysis:"
+  param_data[:impact_analysis].each do |decision, impact|
+    puts "      #{decision}:"
+    puts "        Min probability: #{(impact[:min_probability] * 100).round(2)}%"
+    puts "        Max probability: #{(impact[:max_probability] * 100).round(2)}%"
+    puts "        Range: #{(impact[:range] * 100).round(2)}%"
+    puts "        Sensitivity: #{impact[:sensitivity]}"
+  end
+end
 puts
 
 puts "=" * 80
