@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `Decision#failed_conditions` - Returns array of conditions that failed
     - `Decision#explainability` - Returns complete machine-readable explainability data
     - Short and verbose explanation modes
+  - **Explainability-first structure** - Decision results are now structured as explainability by default
+    - `Decision#to_h` returns explainability fields (`decision`, `because`, `failed_conditions`) as top-level keys
+    - API responses use explainability as the primary structure
+    - Backward compatible - all existing attributes remain accessible
+    - Consistent structure across all decision outputs
   - **Condition-level tracing** - Track every condition evaluation with actual/expected values
     - Automatic condition description generation
     - Support for all operators (eq, neq, gt, lt, gte, lte, in, contains, present, blank, etc.)

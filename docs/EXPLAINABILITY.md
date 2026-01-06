@@ -10,6 +10,34 @@ Every decision includes a complete trace of:
 - **Rule trace** - Which rules were evaluated and which matched
 - **Condition evaluation tree** - Full evaluation details with actual values
 
+## Explainability-First Structure
+
+**Decision results are structured as explainability by default.** This means that when you convert a decision to a hash (via `Decision#to_h`) or receive API responses, the explainability fields (`decision`, `because`, `failed_conditions`) are the primary structure:
+
+```ruby
+result = agent.decide(context: { amount: 1500 })
+
+# Direct access (always available)
+result.decision           # => "approve"
+result.because            # => ["amount > 1000"]
+result.failed_conditions  # => []
+
+# Hash representation (explainability-first)
+result.to_h
+# => {
+#   decision: "approve",
+#   because: ["amount > 1000"],
+#   failed_conditions: [],
+#   confidence: 0.9,
+#   explanations: [...],
+#   evaluations: [...],
+#   audit_payload: {...},
+#   explainability: { ... }
+# }
+```
+
+This structure makes it easy to understand why decisions were made while maintaining backward compatibility with all existing attributes.
+
 ## Quick Start
 
 ```ruby
@@ -116,23 +144,28 @@ result.explainability(verbose: false)
 
 ### Decision#to_h
 
-The `to_h` method now includes explainability data:
+The `to_h` method returns a hash with **explainability as the primary structure**:
 
 ```ruby
 result.to_h
 # => {
-#   decision: "approved",
-#   confidence: 0.9,
-#   explanations: [...],
-#   evaluations: [...],
-#   audit_payload: {...},
-#   explainability: {
-#     decision: "approved",
-#     because: ["risk_score < 0.7", "account_age > 180"],
-#     failed_conditions: []
-#   }
+#   decision: "approve",           # Primary: explainability field
+#   because: [...],                 # Primary: explainability field
+#   failed_conditions: [...],       # Primary: explainability field
+#   confidence: 0.9,                # Additional metadata
+#   explanations: [...],            # Additional metadata
+#   evaluations: [...],             # Additional metadata
+#   audit_payload: {...},           # Additional metadata
+#   explainability: { ... }          # Full explainability data
 # }
 ```
+
+**Structure:**
+- **Primary fields (explainability-first):** `decision`, `because`, `failed_conditions` are top-level keys
+- **Additional metadata:** `confidence`, `explanations`, `evaluations`, `audit_payload` remain accessible
+- **Full explainability:** The `explainability` key contains the complete explainability data structure
+
+This ensures explainability is the primary format for decision results, making it easy to understand why decisions were made.
 
 ## Condition Descriptions
 

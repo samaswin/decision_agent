@@ -101,6 +101,19 @@ test_cases.each do |test_case|
   result.explanations.each do |explanation|
     puts "  #{explanation}"
   end
+  
+  # Show explainability data if available
+  if result.because.any? || result.failed_conditions.any?
+    puts "Explainability:"
+    if result.because.any?
+      puts "  Because:"
+      result.because.each { |cond| puts "    ✓ #{cond}" }
+    end
+    if result.failed_conditions.any?
+      puts "  Failed Conditions:"
+      result.failed_conditions.each { |cond| puts "    ✗ #{cond}" }
+    end
+  end
 end
 
 puts "\n#{'=' * 60}"

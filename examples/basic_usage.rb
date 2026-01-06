@@ -34,6 +34,21 @@ result.explanations.each do |explanation|
   puts "  - #{explanation}"
 end
 puts
+
+# Show explainability data (now part of default structure)
+if result.because.any? || result.failed_conditions.any?
+  puts "Explainability:"
+  if result.because.any?
+    puts "  Because:"
+    result.because.each { |cond| puts "    ✓ #{cond}" }
+  end
+  if result.failed_conditions.any?
+    puts "  Failed Conditions:"
+    result.failed_conditions.each { |cond| puts "    ✗ #{cond}" }
+  end
+  puts
+end
+
 puts "Audit Hash: #{result.audit_payload[:deterministic_hash]}"
 puts
 puts "Full Audit Payload:"

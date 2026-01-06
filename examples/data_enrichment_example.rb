@@ -222,6 +222,15 @@ begin
     puts "Decision: #{decision1.decision}"
     puts "Confidence: #{decision1.confidence}"
     puts "Explanations: #{decision1.explanations.join(', ')}"
+    if decision1.because.any? || decision1.failed_conditions.any?
+      puts "Explainability:"
+      if decision1.because.any?
+        puts "  Because: #{decision1.because.join(', ')}"
+      end
+      if decision1.failed_conditions.any?
+        puts "  Failed Conditions: #{decision1.failed_conditions.join(', ')}"
+      end
+    end
   else
     puts "No decision made"
   end
@@ -249,6 +258,15 @@ begin
     puts "Decision: #{decision2.decision}"
     puts "Confidence: #{decision2.confidence}"
     puts "Explanations: #{decision2.explanations.join(', ')}"
+    if decision2.because.any? || decision2.failed_conditions.any?
+      puts "Explainability:"
+      if decision2.because.any?
+        puts "  Because: #{decision2.because.join(', ')}"
+      end
+      if decision2.failed_conditions.any?
+        puts "  Failed Conditions: #{decision2.failed_conditions.join(', ')}"
+      end
+    end
   else
     puts "No decision made"
   end

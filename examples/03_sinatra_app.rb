@@ -212,20 +212,51 @@ class RuleVersioningApp < Sinatra::Base
       result = evaluator.evaluate(context)
 
       if result
-        {
-          success: true,
-          decision: result.decision,
-          weight: result.weight,
-          reason: result.reason,
-          version: active_version[:version_number],
-          metadata: result.metadata
-        }.to_json
+        # Get explainability data from metadata if available
+        explainability = result.metadata[:explainability] if result.metadata.is_a?(Hash)
+        
+        # Structure response as explainability by default
+        response = if explainability
+          {
+            success: true,
+            decision: explainability[:decision] || result.decision,
+            because: explainability[:because] || [],
+            failed_conditions: explainability[:failed_conditions] || [],
+            confidence: result.weight,
+            reason: result.reason,
+            version: active_version[:version_number],
+            explainability: explainability
+          }
+        else
+          {
+            success: true,
+            decision: result.decision,
+            because: [],
+            failed_conditions: [],
+            confidence: result.weight,
+            reason: result.reason,
+            version: active_version[:version_number],
+            explainability: {
+              decision: result.decision,
+              because: [],
+              failed_conditions: []
+            }
+          }
+        end
+        response.to_json
       else
         {
           success: true,
           decision: nil,
+          because: [],
+          failed_conditions: [],
           message: "No rules matched",
-          version: active_version[:version_number]
+          version: active_version[:version_number],
+          explainability: {
+            decision: nil,
+            because: [],
+            failed_conditions: []
+          }
         }.to_json
       end
     rescue StandardError => e
