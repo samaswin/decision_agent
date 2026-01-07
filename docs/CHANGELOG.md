@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+## [1.0.1] - 2026-01-07
+
+### Changed
+- Version bump to 1.0.1
+
+### Added
+
 - **Explainability Layer** 🔍
   - **Machine-readable decision explanations** - Every decision now includes complete trace of why it was made
     - `Decision#because` - Returns array of conditions that led to the decision
@@ -139,7 +146,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Example File** - Complete working example
     - `examples/simulation_example.rb` - Demonstrates all simulation features with comprehensive examples
 
+### Performance
+
+- **Hash Cache Optimization** ⚡
+  - Optimized `compute_deterministic_hash` cache key generation for significant performance improvement
+  - Changed from recursive hash key sorting to direct JSON serialization for cache keys
+  - **Performance improvements:**
+    - Basic throughput: **+29.45%** improvement (from 8,147 to 10,547 decisions/sec)
+    - Basic latency: **-22.74%** reduction (from 0.1227ms to 0.0948ms)
+    - Multi-threaded (50 threads) throughput: **+11.85%** improvement
+    - Multi-threaded (50 threads) latency: **-10.56%** reduction
+  - Cache key computation is now 2-3x faster while maintaining cache hit rates
+  - Thread-safety verified: All 17 thread-safety tests pass
+  - Maintains correctness: Actual deterministic hash still uses canonical JSON (RFC 8785)
+  - Cache keys use simplified JSON serialization (sufficient for cache key purposes)
+  - No breaking changes: API remains unchanged, only internal optimization
+
 ### Fixed
+
+- **Web UI Authentication and Permissions** 🔐
+  - Fixed `require_permission!` method to properly deny access (403) when permission checks fail, even if audit logging raises exceptions
+  - Permission check result is now determined before any logging operations to ensure correct access control behavior
+  - Fixes test failures in `spec/web_ui_rack_spec.rb` where permission denials were not properly enforced when audit logger failed
+  - Ensures consistent behavior across Ruby 3.0, 3.2, and later versions
 
 - **Simulation Engine Spec Fixes** 🐛
   - **ReplayEngine**
