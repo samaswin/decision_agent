@@ -223,19 +223,55 @@ module DecisionAgent
           result = evaluator.evaluate(DecisionAgent::Context.new(context))
 
           if result
-            {
-              success: true,
-              decision: result.decision,
-              weight: result.weight,
-              reason: result.reason,
-              evaluator_name: result.evaluator_name,
-              metadata: result.metadata
-            }.to_json
+            # Get explainability data from metadata if available
+            explainability = result.metadata[:explainability] if result.metadata.is_a?(Hash)
+
+            # Structure response as explainability by default
+            # This makes explainability the primary format for decision results
+            response = if explainability
+                         {
+                           success: true,
+                           decision: explainability[:decision] || result.decision,
+                           because: explainability[:because] || [],
+                           failed_conditions: explainability[:failed_conditions] || [],
+                           # Include additional metadata for completeness
+                           confidence: result.weight,
+                           reason: result.reason,
+                           evaluator_name: result.evaluator_name,
+                           # Full explainability data (includes rule_traces in verbose mode)
+                           explainability: explainability
+                         }
+                       else
+                         # Fallback if explainability is not available
+                         {
+                           success: true,
+                           decision: result.decision,
+                           because: [],
+                           failed_conditions: [],
+                           confidence: result.weight,
+                           reason: result.reason,
+                           evaluator_name: result.evaluator_name,
+                           explainability: {
+                             decision: result.decision,
+                             because: [],
+                             failed_conditions: []
+                           }
+                         }
+                       end
+
+            response.to_json
           else
             {
               success: true,
               decision: nil,
-              message: "No rules matched the given context"
+              because: [],
+              failed_conditions: [],
+              message: "No rules matched the given context",
+              explainability: {
+                decision: nil,
+                because: [],
+                failed_conditions: []
+              }
             }.to_json
           end
         rescue StandardError => e

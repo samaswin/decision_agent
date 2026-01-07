@@ -87,6 +87,9 @@ result.confidence        # Float (0.0–1.0)
 result.evaluations       # Array<Evaluation>
 result.explanations      # Array<String>
 result.audit_payload     # Hash (frozen)
+result.because           # Array<String> - Conditions that led to decision
+result.failed_conditions # Array<String> - Conditions that failed
+result.explainability    # Hash - Machine-readable explainability data
 ```
 
 ### 2.2 Field Specifications
@@ -98,6 +101,9 @@ result.audit_payload     # Hash (frozen)
 | `evaluations` | Array | Non-empty | All evaluations considered |
 | `explanations` | Array<String> | Non-empty | Human-readable explanations |
 | `audit_payload` | Hash | Frozen, complete | Full audit trail |
+| `because` | Array<String> | Non-empty | Conditions that led to decision |
+| `failed_conditions` | Array<String> | May be empty | Conditions that failed during evaluation |
+| `explainability` | Hash | Frozen | Machine-readable explainability data |
 
 ### 2.3 Audit Payload Specification
 
@@ -154,7 +160,43 @@ Each evaluation in `audit_payload[:evaluations]` contains:
 }
 ```
 
-### 2.7 Confidence Bounds Validation
+### 2.7 Decision#to_h Structure
+
+The `Decision#to_h` method returns a hash with explainability as the primary structure:
+
+```ruby
+result.to_h
+# => {
+#   decision: "approve",
+#   because: ["amount > 1000", "status = active"],
+#   failed_conditions: ["credit_score < 700"],
+#   confidence: 0.85,
+#   explanations: ["High value transaction"],
+#   evaluations: [...],
+#   audit_payload: {...},
+#   explainability: {
+#     decision: "approve",
+#     because: ["amount > 1000", "status = active"],
+#     failed_conditions: ["credit_score < 700"]
+#   }
+# }
+```
+
+**Structure:**
+- **Primary fields (explainability-first):**
+  - `decision` (String) - The decision value
+  - `because` (Array<String>) - Conditions that led to the decision
+  - `failed_conditions` (Array<String>) - Conditions that failed
+- **Additional metadata:**
+  - `confidence` (Float) - Confidence score (0.0–1.0)
+  - `explanations` (Array<String>) - Human-readable explanations
+  - `evaluations` (Array<Hash>) - All evaluations considered
+  - `audit_payload` (Hash) - Complete audit trail
+  - `explainability` (Hash) - Full explainability data structure
+
+**Note:** This structure ensures explainability is the primary format for decision results, making it easy to understand why decisions were made while maintaining backward compatibility with existing attributes.
+
+### 2.8 Confidence Bounds Validation
 
 **Valid Range:** 0.0 ≤ confidence ≤ 1.0
 
@@ -499,6 +541,21 @@ This contract supports compliance with:
 - Show which evaluators contributed
 - Explain conflict resolution
 - Preserve reasoning chains
+- Provide machine-readable explainability data via `explainability` attribute
+- Track conditions that led to the decision via `because` attribute
+- Track conditions that failed via `failed_conditions` attribute
+- Include condition-level traces with actual/expected values
+- Support both short and verbose explanation modes
+
+**Explainability Data Structure:**
+```ruby
+{
+  decision: "approved",
+  because: ["risk_score < 0.7", "account_age > 180"],
+  failed_conditions: ["credit_hold = true"],
+  rule_traces: [...] # In verbose mode
+}
+```
 
 ---
 
