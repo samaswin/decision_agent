@@ -80,15 +80,13 @@ module DecisionAgent
 
         # Special handling for "don't care" conditions (from DMN "-" entries)
         if field == "__always_match__" && op == "eq" && expected_value == true
-          if trace_collector
-            trace_collector.add_trace(Explainability::ConditionTrace.new(
-              field: field,
-              operator: op,
-              expected_value: expected_value,
-              actual_value: true,
-              result: true
-            ))
-          end
+          trace_collector&.add_trace(Explainability::ConditionTrace.new(
+            field: field,
+            operator: op,
+            expected_value: expected_value,
+            actual_value: true,
+            result: true
+          ))
           return true
         end
 
@@ -97,79 +95,79 @@ module DecisionAgent
         context_hash = enriched_context_hash || context.to_h.dup
         actual_value = get_nested_value(context_hash, field)
 
-        result =         result = case op
-        when "eq"
-          # Equality - uses Ruby's == for comparison
-          actual_value == expected_value
+        result = case op
+                 when "eq"
+                   # Equality - uses Ruby's == for comparison
+                   actual_value == expected_value
 
-        when "neq"
-          # Not equal - inverse of ==
-          actual_value != expected_value
+                 when "neq"
+                   # Not equal - inverse of ==
+                   actual_value != expected_value
 
-        when "gt"
-          # Greater than - only for comparable types (numbers, strings)
-          comparable?(actual_value, expected_value) && actual_value > expected_value
+                 when "gt"
+                   # Greater than - only for comparable types (numbers, strings)
+                   comparable?(actual_value, expected_value) && actual_value > expected_value
 
-        when "gte"
-          # Greater than or equal - only for comparable types
-          comparable?(actual_value, expected_value) && actual_value >= expected_value
+                 when "gte"
+                   # Greater than or equal - only for comparable types
+                   comparable?(actual_value, expected_value) && actual_value >= expected_value
 
-        when "lt"
-          # Less than - only for comparable types
-          comparable?(actual_value, expected_value) && actual_value < expected_value
+                 when "lt"
+                   # Less than - only for comparable types
+                   comparable?(actual_value, expected_value) && actual_value < expected_value
 
-        when "lte"
-          # Less than or equal - only for comparable types
-          comparable?(actual_value, expected_value) && actual_value <= expected_value
+                 when "lte"
+                   # Less than or equal - only for comparable types
+                   comparable?(actual_value, expected_value) && actual_value <= expected_value
 
-        when "in"
-          # Array membership - checks if actual_value is in the expected array
-          Array(expected_value).include?(actual_value)
+                 when "in"
+                   # Array membership - checks if actual_value is in the expected array
+                   Array(expected_value).include?(actual_value)
 
-        when "present"
-          # PRESENT SEMANTICS:
-          # Returns true if value exists AND is not empty
-          # - nil: false
-          # - Empty string "": false
-          # - Empty array []: false
-          # - Empty hash {}: false
-          # - Zero 0: true (zero is a valid value)
-          # - False boolean: true (false is a valid value)
-          # - Non-empty values: true
-          !actual_value.nil? && (actual_value.respond_to?(:empty?) ? !actual_value.empty? : true)
+                 when "present"
+                   # PRESENT SEMANTICS:
+                   # Returns true if value exists AND is not empty
+                   # - nil: false
+                   # - Empty string "": false
+                   # - Empty array []: false
+                   # - Empty hash {}: false
+                   # - Zero 0: true (zero is a valid value)
+                   # - False boolean: true (false is a valid value)
+                   # - Non-empty values: true
+                   !actual_value.nil? && (actual_value.respond_to?(:empty?) ? !actual_value.empty? : true)
 
-        when "blank"
-          # BLANK SEMANTICS:
-          # Returns true if value is nil OR empty
-          # - nil: true
-          # - Empty string "": true
-          # - Empty array []: true
-          # - Empty hash {}: true
-          # - Zero 0: false (zero is a valid value)
-          # - False boolean: false (false is a valid value)
-          # - Non-empty values: false
-          actual_value.nil? || (actual_value.respond_to?(:empty?) ? actual_value.empty? : false)
+                 when "blank"
+                   # BLANK SEMANTICS:
+                   # Returns true if value is nil OR empty
+                   # - nil: true
+                   # - Empty string "": true
+                   # - Empty array []: true
+                   # - Empty hash {}: true
+                   # - Zero 0: false (zero is a valid value)
+                   # - False boolean: false (false is a valid value)
+                   # - Non-empty values: false
+                   actual_value.nil? || (actual_value.respond_to?(:empty?) ? actual_value.empty? : false)
 
-        # STRING OPERATORS
-        when "contains"
-          # Checks if string contains substring (case-sensitive)
-          string_operator?(actual_value, expected_value) &&
-            actual_value.include?(expected_value)
+                 # STRING OPERATORS
+                 when "contains"
+                   # Checks if string contains substring (case-sensitive)
+                   string_operator?(actual_value, expected_value) &&
+                   actual_value.include?(expected_value)
 
-        when "starts_with"
-          # Checks if string starts with prefix (case-sensitive)
-          string_operator?(actual_value, expected_value) &&
-            actual_value.start_with?(expected_value)
+                 when "starts_with"
+                   # Checks if string starts with prefix (case-sensitive)
+                   string_operator?(actual_value, expected_value) &&
+                   actual_value.start_with?(expected_value)
 
-        when "ends_with"
-          # Checks if string ends with suffix (case-sensitive)
-          string_operator?(actual_value, expected_value) &&
-            actual_value.end_with?(expected_value)
+                 when "ends_with"
+                   # Checks if string ends with suffix (case-sensitive)
+                   string_operator?(actual_value, expected_value) &&
+                   actual_value.end_with?(expected_value)
 
-        when "matches"
-          # Matches string against regular expression
-          # expected_value can be a string (converted to regex) or Regexp object
-          result = if !actual_value.is_a?(String) || expected_value.nil?
+                 when "matches"
+                   # Matches string against regular expression
+                   # expected_value can be a string (converted to regex) or Regexp object
+                   if !actual_value.is_a?(String) || expected_value.nil?
                      false
                    else
                      begin
@@ -180,893 +178,921 @@ module DecisionAgent
                      end
                    end
 
-        # NUMERIC OPERATORS
-        when "between"
-          # Checks if numeric value is between min and max (inclusive)
-          # expected_value should be [min, max] or {min: x, max: y}
-          result = if !actual_value.is_a?(Numeric)
-                     false
-                   else
+                 # NUMERIC OPERATORS
+                 when "between"
+                   # Checks if numeric value is between min and max (inclusive)
+                   # expected_value should be [min, max] or {min: x, max: y}
+                   if actual_value.is_a?(Numeric)
                      range = parse_range(expected_value)
                      range ? actual_value.between?(range[:min], range[:max]) : false
+                   else
+                     false
                    end
 
-        when "modulo"
-          # Checks if value modulo divisor equals remainder
-          # expected_value should be [divisor, remainder] or {divisor: x, remainder: y}
-          result = if !actual_value.is_a?(Numeric)
-                     false
-                   else
+                 when "modulo"
+                   # Checks if value modulo divisor equals remainder
+                   # expected_value should be [divisor, remainder] or {divisor: x, remainder: y}
+                   if actual_value.is_a?(Numeric)
                      params = parse_modulo_params(expected_value)
                      params ? (actual_value % params[:divisor]) == params[:remainder] : false
+                   else
+                     false
                    end
 
-        # MATHEMATICAL FUNCTIONS
-        # Trigonometric functions
-        when "sin"
-          # Checks if sin(field_value) equals expected_value
-          # expected_value is the expected result of sin(actual_value)
-          return false unless actual_value.is_a?(Numeric)
-          return false unless expected_value.is_a?(Numeric)
+                 # MATHEMATICAL FUNCTIONS
+                 # Trigonometric functions
+                 when "sin"
+                   # Checks if sin(field_value) equals expected_value
+                   # expected_value is the expected result of sin(actual_value)
+                   return false unless actual_value.is_a?(Numeric)
+                   return false unless expected_value.is_a?(Numeric)
 
-          # OPTIMIZE: Use epsilon comparison instead of round for better performance
-          result = Math.sin(actual_value)
-          (result - expected_value).abs < 1e-10
+                   # OPTIMIZE: Use epsilon comparison instead of round for better performance
+                   result = Math.sin(actual_value)
+                   (result - expected_value).abs < 1e-10
 
-        when "cos"
-          # Checks if cos(field_value) equals expected_value
-          # expected_value is the expected result of cos(actual_value)
-          return false unless actual_value.is_a?(Numeric)
-          return false unless expected_value.is_a?(Numeric)
+                 when "cos"
+                   # Checks if cos(field_value) equals expected_value
+                   # expected_value is the expected result of cos(actual_value)
+                   return false unless actual_value.is_a?(Numeric)
+                   return false unless expected_value.is_a?(Numeric)
 
-          # OPTIMIZE: Use epsilon comparison instead of round for better performance
-          result = Math.cos(actual_value)
-          (result - expected_value).abs < 1e-10
+                   # OPTIMIZE: Use epsilon comparison instead of round for better performance
+                   result = Math.cos(actual_value)
+                   (result - expected_value).abs < 1e-10
 
-        when "tan"
-          # Checks if tan(field_value) equals expected_value
-          # expected_value is the expected result of tan(actual_value)
-          return false unless actual_value.is_a?(Numeric)
-          return false unless expected_value.is_a?(Numeric)
+                 when "tan"
+                   # Checks if tan(field_value) equals expected_value
+                   # expected_value is the expected result of tan(actual_value)
+                   return false unless actual_value.is_a?(Numeric)
+                   return false unless expected_value.is_a?(Numeric)
 
-          # OPTIMIZE: Use epsilon comparison instead of round for better performance
-          result = Math.tan(actual_value)
-          (result - expected_value).abs < 1e-10
+                   # OPTIMIZE: Use epsilon comparison instead of round for better performance
+                   result = Math.tan(actual_value)
+                   (result - expected_value).abs < 1e-10
 
-        # Exponential and logarithmic functions
-        when "sqrt"
-          # Checks if sqrt(field_value) equals expected_value
-          # expected_value is the expected result of sqrt(actual_value)
-          return false unless actual_value.is_a?(Numeric)
-          return false unless expected_value.is_a?(Numeric)
-          return false if actual_value.negative? # sqrt of negative number is invalid
+                 # Exponential and logarithmic functions
+                 when "sqrt"
+                   # Checks if sqrt(field_value) equals expected_value
+                   # expected_value is the expected result of sqrt(actual_value)
+                   return false unless actual_value.is_a?(Numeric)
+                   return false unless expected_value.is_a?(Numeric)
+                   return false if actual_value.negative? # sqrt of negative number is invalid
 
-          # OPTIMIZE: Use epsilon comparison instead of round for better performance
-          result = Math.sqrt(actual_value)
-          (result - expected_value).abs < 1e-10
+                   # OPTIMIZE: Use epsilon comparison instead of round for better performance
+                   result = Math.sqrt(actual_value)
+                   (result - expected_value).abs < 1e-10
 
-        when "power"
-          # Checks if power(field_value, exponent) equals result
-          # expected_value should be [exponent, result] or {exponent: x, result: y}
-          return false unless actual_value.is_a?(Numeric)
+                 when "power"
+                   # Checks if power(field_value, exponent) equals result
+                   # expected_value should be [exponent, result] or {exponent: x, result: y}
+                   return false unless actual_value.is_a?(Numeric)
 
-          params = parse_power_params(expected_value)
-          return false unless params
+                   params = parse_power_params(expected_value)
+                   return false unless params
 
-          # OPTIMIZE: Use epsilon comparison instead of round for better performance
-          result = actual_value**params[:exponent]
-          (result - params[:result]).abs < 1e-10
+                   # OPTIMIZE: Use epsilon comparison instead of round for better performance
+                   result = actual_value**params[:exponent]
+                   (result - params[:result]).abs < 1e-10
 
-        when "exp"
-          # Checks if exp(field_value) equals expected_value
-          # expected_value is the expected result of exp(actual_value) (e^actual_value)
-          return false unless actual_value.is_a?(Numeric)
-          return false unless expected_value.is_a?(Numeric)
+                 when "exp"
+                   # Checks if exp(field_value) equals expected_value
+                   # expected_value is the expected result of exp(actual_value) (e^actual_value)
+                   return false unless actual_value.is_a?(Numeric)
+                   return false unless expected_value.is_a?(Numeric)
 
-          # OPTIMIZE: Use epsilon comparison instead of round for better performance
-          result = Math.exp(actual_value)
-          (result - expected_value).abs < 1e-10
+                   # OPTIMIZE: Use epsilon comparison instead of round for better performance
+                   result = Math.exp(actual_value)
+                   (result - expected_value).abs < 1e-10
 
-        when "log"
-          # Checks if log(field_value) equals expected_value
-          # expected_value is the expected result of log(actual_value) (natural logarithm)
-          return false unless actual_value.is_a?(Numeric)
-          return false unless expected_value.is_a?(Numeric)
-          return false if actual_value <= 0 # log of non-positive number is invalid
+                 when "log"
+                   # Checks if log(field_value) equals expected_value
+                   # expected_value is the expected result of log(actual_value) (natural logarithm)
+                   return false unless actual_value.is_a?(Numeric)
+                   return false unless expected_value.is_a?(Numeric)
+                   return false if actual_value <= 0 # log of non-positive number is invalid
 
-          # OPTIMIZE: Use epsilon comparison instead of round for better performance
-          result = Math.log(actual_value)
-          (result - expected_value).abs < 1e-10
+                   # OPTIMIZE: Use epsilon comparison instead of round for better performance
+                   result = Math.log(actual_value)
+                   (result - expected_value).abs < 1e-10
 
-        # Rounding and absolute value functions
-        when "round"
-          # Checks if round(field_value) equals expected_value
-          # expected_value is the expected result of round(actual_value)
-          return false unless actual_value.is_a?(Numeric)
-          return false unless expected_value.is_a?(Numeric)
+                 # Rounding and absolute value functions
+                 when "round"
+                   # Checks if round(field_value) equals expected_value
+                   # expected_value is the expected result of round(actual_value)
+                   return false unless actual_value.is_a?(Numeric)
+                   return false unless expected_value.is_a?(Numeric)
 
-          actual_value.round == expected_value
+                   actual_value.round == expected_value
 
-        when "floor"
-          # Checks if floor(field_value) equals expected_value
-          # expected_value is the expected result of floor(actual_value)
-          return false unless actual_value.is_a?(Numeric)
-          return false unless expected_value.is_a?(Numeric)
+                 when "floor"
+                   # Checks if floor(field_value) equals expected_value
+                   # expected_value is the expected result of floor(actual_value)
+                   return false unless actual_value.is_a?(Numeric)
+                   return false unless expected_value.is_a?(Numeric)
 
-          actual_value.floor == expected_value
+                   actual_value.floor == expected_value
 
-        when "ceil"
-          # Checks if ceil(field_value) equals expected_value
-          # expected_value is the expected result of ceil(actual_value)
-          return false unless actual_value.is_a?(Numeric)
-          return false unless expected_value.is_a?(Numeric)
+                 when "ceil"
+                   # Checks if ceil(field_value) equals expected_value
+                   # expected_value is the expected result of ceil(actual_value)
+                   return false unless actual_value.is_a?(Numeric)
+                   return false unless expected_value.is_a?(Numeric)
 
-          actual_value.ceil == expected_value
+                   actual_value.ceil == expected_value
 
-        when "abs"
-          # Checks if abs(field_value) equals expected_value
-          # expected_value is the expected result of abs(actual_value)
-          return false unless actual_value.is_a?(Numeric)
-          return false unless expected_value.is_a?(Numeric)
+                 when "abs"
+                   # Checks if abs(field_value) equals expected_value
+                   # expected_value is the expected result of abs(actual_value)
+                   return false unless actual_value.is_a?(Numeric)
+                   return false unless expected_value.is_a?(Numeric)
 
-          actual_value.abs == expected_value
+                   actual_value.abs == expected_value
 
-        # Aggregation functions
-        when "min"
-          # Checks if min(field_value) equals expected_value
-          # field_value should be an array, expected_value is the minimum value
-          return false unless actual_value.is_a?(Array)
-          return false if actual_value.empty?
-          return false unless expected_value.is_a?(Numeric)
+                 # Aggregation functions
+                 when "min"
+                   # Checks if min(field_value) equals expected_value
+                   # field_value should be an array, expected_value is the minimum value
+                   return false unless actual_value.is_a?(Array)
+                   return false if actual_value.empty?
+                   return false unless expected_value.is_a?(Numeric)
 
-          actual_value.min == expected_value
+                   actual_value.min == expected_value
 
-        when "max"
-          # Checks if max(field_value) equals expected_value
-          # field_value should be an array, expected_value is the maximum value
-          return false unless actual_value.is_a?(Array)
-          return false if actual_value.empty?
-          return false unless expected_value.is_a?(Numeric)
+                 when "max"
+                   # Checks if max(field_value) equals expected_value
+                   # field_value should be an array, expected_value is the maximum value
+                   return false unless actual_value.is_a?(Array)
+                   return false if actual_value.empty?
+                   return false unless expected_value.is_a?(Numeric)
 
-          actual_value.max == expected_value
+                   actual_value.max == expected_value
 
-        # STATISTICAL AGGREGATIONS
-        when "sum"
-          # Checks if sum of numeric array equals expected_value
-          # expected_value can be numeric or hash with comparison operators
-          return false unless actual_value.is_a?(Array)
-          return false if actual_value.empty?
+                 # STATISTICAL AGGREGATIONS
+                 when "sum"
+                   # Checks if sum of numeric array equals expected_value
+                   # expected_value can be numeric or hash with comparison operators
+                   return false unless actual_value.is_a?(Array)
+                   return false if actual_value.empty?
 
-          # OPTIMIZE: calculate sum in single pass, filtering as we go
-          sum_value = 0.0
-          found_numeric = false
-          actual_value.each do |v|
-            if v.is_a?(Numeric)
-              sum_value += v
-              found_numeric = true
-            end
-          end
-          return false unless found_numeric
+                   # OPTIMIZE: calculate sum in single pass, filtering as we go
+                   sum_value = 0.0
+                   found_numeric = false
+                   actual_value.each do |v|
+                     if v.is_a?(Numeric)
+                       sum_value += v
+                       found_numeric = true
+                     end
+                   end
+                   return false unless found_numeric
 
-          compare_aggregation_result(sum_value, expected_value)
+                   compare_aggregation_result(sum_value, expected_value)
 
-        when "average", "mean"
-          # Checks if average of numeric array equals expected_value
-          return false unless actual_value.is_a?(Array)
-          return false if actual_value.empty?
+                 when "average", "mean"
+                   # Checks if average of numeric array equals expected_value
+                   return false unless actual_value.is_a?(Array)
+                   return false if actual_value.empty?
 
-          # OPTIMIZE: calculate sum and count in single pass
-          sum_value = 0.0
-          count = 0
-          actual_value.each do |v|
-            if v.is_a?(Numeric)
-              sum_value += v
-              count += 1
-            end
-          end
-          return false if count.zero?
+                   # OPTIMIZE: calculate sum and count in single pass
+                   sum_value = 0.0
+                   count = 0
+                   actual_value.each do |v|
+                     if v.is_a?(Numeric)
+                       sum_value += v
+                       count += 1
+                     end
+                   end
+                   return false if count.zero?
 
-          avg_value = sum_value / count
-          compare_aggregation_result(avg_value, expected_value)
+                   avg_value = sum_value / count
+                   compare_aggregation_result(avg_value, expected_value)
 
-        when "median"
-          # Checks if median of numeric array equals expected_value
-          return false unless actual_value.is_a?(Array)
-          return false if actual_value.empty?
+                 when "median"
+                   # Checks if median of numeric array equals expected_value
+                   return false unless actual_value.is_a?(Array)
+                   return false if actual_value.empty?
 
-          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }.sort
-          return false if numeric_array.empty?
+                   numeric_array = actual_value.select { |v| v.is_a?(Numeric) }.sort
+                   return false if numeric_array.empty?
 
-          median_value = if numeric_array.size.odd?
-                           numeric_array[numeric_array.size / 2]
-                         else
-                           (numeric_array[(numeric_array.size / 2) - 1] + numeric_array[numeric_array.size / 2]) / 2.0
-                         end
-          compare_aggregation_result(median_value, expected_value)
+                   median_value = if numeric_array.size.odd?
+                                    numeric_array[numeric_array.size / 2]
+                                  else
+                                    (numeric_array[(numeric_array.size / 2) - 1] + numeric_array[numeric_array.size / 2]) / 2.0
+                                  end
+                   compare_aggregation_result(median_value, expected_value)
 
-        when "stddev", "standard_deviation"
-          # Checks if standard deviation of numeric array equals expected_value
-          return false unless actual_value.is_a?(Array)
-          return false if actual_value.size < 2
+                 when "stddev", "standard_deviation"
+                   # Checks if standard deviation of numeric array equals expected_value
+                   return false unless actual_value.is_a?(Array)
+                   return false if actual_value.size < 2
 
-          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
-          return false if numeric_array.size < 2
+                   numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
+                   return false if numeric_array.size < 2
 
-          mean = numeric_array.sum.to_f / numeric_array.size
-          variance = numeric_array.sum { |v| (v - mean)**2 } / numeric_array.size
-          stddev_value = Math.sqrt(variance)
-          compare_aggregation_result(stddev_value, expected_value)
+                   mean = numeric_array.sum.to_f / numeric_array.size
+                   variance = numeric_array.sum { |v| (v - mean)**2 } / numeric_array.size
+                   stddev_value = Math.sqrt(variance)
+                   compare_aggregation_result(stddev_value, expected_value)
 
-        when "variance"
-          # Checks if variance of numeric array equals expected_value
-          return false unless actual_value.is_a?(Array)
-          return false if actual_value.size < 2
+                 when "variance"
+                   # Checks if variance of numeric array equals expected_value
+                   return false unless actual_value.is_a?(Array)
+                   return false if actual_value.size < 2
 
-          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
-          return false if numeric_array.size < 2
+                   numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
+                   return false if numeric_array.size < 2
 
-          mean = numeric_array.sum.to_f / numeric_array.size
-          variance_value = numeric_array.sum { |v| (v - mean)**2 } / numeric_array.size
-          compare_aggregation_result(variance_value, expected_value)
+                   mean = numeric_array.sum.to_f / numeric_array.size
+                   variance_value = numeric_array.sum { |v| (v - mean)**2 } / numeric_array.size
+                   compare_aggregation_result(variance_value, expected_value)
 
-        when "percentile"
-          # Checks if Nth percentile of numeric array meets threshold
-          # expected_value: {percentile: 95, threshold: 200} or {percentile: 95, gt: 200, lt: 500}
-          return false unless actual_value.is_a?(Array)
-          return false if actual_value.empty?
+                 when "percentile"
+                   # Checks if Nth percentile of numeric array meets threshold
+                   # expected_value: {percentile: 95, threshold: 200} or {percentile: 95, gt: 200, lt: 500}
+                   return false unless actual_value.is_a?(Array)
+                   return false if actual_value.empty?
 
-          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }.sort
-          return false if numeric_array.empty?
+                   numeric_array = actual_value.select { |v| v.is_a?(Numeric) }.sort
+                   return false if numeric_array.empty?
 
-          params = parse_percentile_params(expected_value)
-          return false unless params
+                   params = parse_percentile_params(expected_value)
+                   return false unless params
 
-          percentile_index = (params[:percentile] / 100.0) * (numeric_array.size - 1)
-          percentile_value = if percentile_index == percentile_index.to_i
-                               numeric_array[percentile_index.to_i]
+                   percentile_index = (params[:percentile] / 100.0) * (numeric_array.size - 1)
+                   percentile_value = if percentile_index == percentile_index.to_i
+                                        numeric_array[percentile_index.to_i]
+                                      else
+                                        lower = numeric_array[percentile_index.floor]
+                                        upper = numeric_array[percentile_index.ceil]
+                                        lower + ((upper - lower) * (percentile_index - percentile_index.floor))
+                                      end
+
+                   compare_percentile_result(percentile_value, params)
+
+                 when "count"
+                   # Checks if count of array elements meets threshold
+                   # expected_value can be numeric or hash with comparison operators
+                   return false unless actual_value.is_a?(Array)
+
+                   count_value = actual_value.size
+                   compare_aggregation_result(count_value, expected_value)
+
+                 # DATE/TIME OPERATORS
+                 when "before_date"
+                   # Checks if date is before specified date
+                   compare_dates(actual_value, expected_value, :<)
+
+                 when "after_date"
+                   # Checks if date is after specified date
+                   compare_dates(actual_value, expected_value, :>)
+
+                 when "within_days"
+                   # Checks if date is within N days from now (past or future)
+                   # expected_value is number of days
+                   return false unless actual_value
+                   return false unless expected_value.is_a?(Numeric)
+
+                   date = parse_date(actual_value)
+                   return false unless date
+
+                   now = Time.now
+                   diff_days = ((date - now) / 86_400).abs # 86400 seconds in a day
+                   diff_days <= expected_value
+
+                 when "day_of_week"
+                   # Checks if date falls on specified day of week
+                   # expected_value can be: "monday", "tuesday", etc. or 0-6 (Sunday=0)
+                   return false unless actual_value
+
+                   date = parse_date(actual_value)
+                   return false unless date
+
+                   expected_day = normalize_day_of_week(expected_value)
+                   return false unless expected_day
+
+                   date.wday == expected_day
+
+                 # DURATION CALCULATIONS
+                 when "duration_seconds"
+                   # Calculates duration between two dates in seconds
+                   # expected_value: {end: "field.path", max: 3600} or {end: "now", min: 60}
+                   return false unless actual_value
+
+                   start_date = parse_date(actual_value)
+                   return false unless start_date
+
+                   params = parse_duration_params(expected_value)
+                   return false unless params
+
+                   end_date = params[:end] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:end]))
+                   return false unless end_date
+
+                   duration = (end_date - start_date).abs
+                   compare_duration_result(duration, params)
+
+                 when "duration_minutes"
+                   # Calculates duration between two dates in minutes
+                   return false unless actual_value
+
+                   start_date = parse_date(actual_value)
+                   return false unless start_date
+
+                   params = parse_duration_params(expected_value)
+                   return false unless params
+
+                   end_date = params[:end] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:end]))
+                   return false unless end_date
+
+                   duration = ((end_date - start_date).abs / 60.0)
+                   compare_duration_result(duration, params)
+
+                 when "duration_hours"
+                   # Calculates duration between two dates in hours
+                   return false unless actual_value
+
+                   start_date = parse_date(actual_value)
+                   return false unless start_date
+
+                   params = parse_duration_params(expected_value)
+                   return false unless params
+
+                   end_date = params[:end] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:end]))
+                   return false unless end_date
+
+                   duration = ((end_date - start_date).abs / 3600.0)
+                   compare_duration_result(duration, params)
+
+                 when "duration_days"
+                   # Calculates duration between two dates in days
+                   return false unless actual_value
+
+                   start_date = parse_date(actual_value)
+                   return false unless start_date
+
+                   params = parse_duration_params(expected_value)
+                   return false unless params
+
+                   end_date = params[:end] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:end]))
+                   return false unless end_date
+
+                   duration = ((end_date - start_date).abs / 86_400.0)
+                   compare_duration_result(duration, params)
+
+                 # DATE ARITHMETIC
+                 when "add_days"
+                   # Adds days to a date and compares
+                   # expected_value: {days: 7, compare: "lt", target: "now"} or {days: 7, eq: target_date}
+                   return false unless actual_value
+
+                   start_date = parse_date(actual_value)
+                   return false unless start_date
+
+                   params = parse_date_arithmetic_params(expected_value)
+                   return false unless params
+
+                   result_date = start_date + (params[:days] * 86_400)
+                   target_date = if params[:target] == "now"
+                                   Time.now
+                                 else
+                                   parse_date(get_nested_value(context_hash,
+                                                               params[:target]))
+                                 end
+                   return false unless target_date
+
+                   compare_date_result?(result_date, target_date, params)
+
+                 when "subtract_days"
+                   # Subtracts days from a date and compares
+                   return false unless actual_value
+
+                   start_date = parse_date(actual_value)
+                   return false unless start_date
+
+                   params = parse_date_arithmetic_params(expected_value)
+                   return false unless params
+
+                   result_date = start_date - (params[:days] * 86_400)
+                   target_date = if params[:target] == "now"
+                                   Time.now
+                                 else
+                                   parse_date(get_nested_value(context_hash,
+                                                               params[:target]))
+                                 end
+                   return false unless target_date
+
+                   compare_date_result?(result_date, target_date, params)
+
+                 when "add_hours"
+                   # Adds hours to a date and compares
+                   return false unless actual_value
+
+                   start_date = parse_date(actual_value)
+                   return false unless start_date
+
+                   params = parse_date_arithmetic_params(expected_value, :hours)
+                   return false unless params
+
+                   result_date = start_date + (params[:hours] * 3600)
+                   target_date = if params[:target] == "now"
+                                   Time.now
+                                 else
+                                   parse_date(get_nested_value(context_hash,
+                                                               params[:target]))
+                                 end
+                   return false unless target_date
+
+                   compare_date_result?(result_date, target_date, params)
+
+                 when "subtract_hours"
+                   # Subtracts hours from a date and compares
+                   return false unless actual_value
+
+                   start_date = parse_date(actual_value)
+                   return false unless start_date
+
+                   params = parse_date_arithmetic_params(expected_value, :hours)
+                   return false unless params
+
+                   result_date = start_date - (params[:hours] * 3600)
+                   target_date = if params[:target] == "now"
+                                   Time.now
+                                 else
+                                   parse_date(get_nested_value(context_hash,
+                                                               params[:target]))
+                                 end
+                   return false unless target_date
+
+                   compare_date_result?(result_date, target_date, params)
+
+                 when "add_minutes"
+                   # Adds minutes to a date and compares
+                   return false unless actual_value
+
+                   start_date = parse_date(actual_value)
+                   return false unless start_date
+
+                   params = parse_date_arithmetic_params(expected_value, :minutes)
+                   return false unless params
+
+                   result_date = start_date + (params[:minutes] * 60)
+                   target_date = if params[:target] == "now"
+                                   Time.now
+                                 else
+                                   parse_date(get_nested_value(context_hash,
+                                                               params[:target]))
+                                 end
+                   return false unless target_date
+
+                   compare_date_result?(result_date, target_date, params)
+
+                 when "subtract_minutes"
+                   # Subtracts minutes from a date and compares
+                   return false unless actual_value
+
+                   start_date = parse_date(actual_value)
+                   return false unless start_date
+
+                   params = parse_date_arithmetic_params(expected_value, :minutes)
+                   return false unless params
+
+                   result_date = start_date - (params[:minutes] * 60)
+                   target_date = if params[:target] == "now"
+                                   Time.now
+                                 else
+                                   parse_date(get_nested_value(context_hash,
+                                                               params[:target]))
+                                 end
+                   return false unless target_date
+
+                   compare_date_result?(result_date, target_date, params)
+
+                 # TIME COMPONENT EXTRACTION
+                 when "hour_of_day"
+                   # Extracts hour of day (0-23) and compares
+                   return false unless actual_value
+
+                   date = parse_date(actual_value)
+                   return false unless date
+
+                   hour = date.hour
+                   compare_numeric_result(hour, expected_value)
+
+                 when "day_of_month"
+                   # Extracts day of month (1-31) and compares
+                   return false unless actual_value
+
+                   date = parse_date(actual_value)
+                   return false unless date
+
+                   day = date.day
+                   compare_numeric_result(day, expected_value)
+
+                 when "month"
+                   # Extracts month (1-12) and compares
+                   return false unless actual_value
+
+                   date = parse_date(actual_value)
+                   return false unless date
+
+                   month = date.month
+                   compare_numeric_result(month, expected_value)
+
+                 when "year"
+                   # Extracts year and compares
+                   return false unless actual_value
+
+                   date = parse_date(actual_value)
+                   return false unless date
+
+                   year = date.year
+                   compare_numeric_result(year, expected_value)
+
+                 when "week_of_year"
+                   # Extracts week of year (1-52) and compares
+                   return false unless actual_value
+
+                   date = parse_date(actual_value)
+                   return false unless date
+
+                   week = date.strftime("%U").to_i + 1 # %U returns 0-53, we want 1-53
+                   compare_numeric_result(week, expected_value)
+
+                 # RATE CALCULATIONS
+                 when "rate_per_second"
+                   # Calculates rate per second from array of timestamps
+                   # expected_value: {max: 10} or {min: 5, max: 100}
+                   return false unless actual_value.is_a?(Array)
+                   return false if actual_value.empty?
+
+                   timestamps = actual_value.map { |ts| parse_date(ts) }.compact
+                   return false if timestamps.size < 2
+
+                   sorted_timestamps = timestamps.sort
+                   time_span = sorted_timestamps.last - sorted_timestamps.first
+                   return false if time_span <= 0
+
+                   rate = timestamps.size.to_f / time_span
+                   compare_rate_result(rate, expected_value)
+
+                 when "rate_per_minute"
+                   # Calculates rate per minute from array of timestamps
+                   return false unless actual_value.is_a?(Array)
+                   return false if actual_value.empty?
+
+                   timestamps = actual_value.map { |ts| parse_date(ts) }.compact
+                   return false if timestamps.size < 2
+
+                   sorted_timestamps = timestamps.sort
+                   time_span = sorted_timestamps.last - sorted_timestamps.first
+                   return false if time_span <= 0
+
+                   rate = (timestamps.size.to_f / time_span) * 60.0
+                   compare_rate_result(rate, expected_value)
+
+                 when "rate_per_hour"
+                   # Calculates rate per hour from array of timestamps
+                   return false unless actual_value.is_a?(Array)
+                   return false if actual_value.empty?
+
+                   timestamps = actual_value.map { |ts| parse_date(ts) }.compact
+                   return false if timestamps.size < 2
+
+                   sorted_timestamps = timestamps.sort
+                   time_span = sorted_timestamps.last - sorted_timestamps.first
+                   return false if time_span <= 0
+
+                   rate = (timestamps.size.to_f / time_span) * 3600.0
+                   compare_rate_result(rate, expected_value)
+
+                 # MOVING WINDOW CALCULATIONS
+                 when "moving_average"
+                   # Calculates moving average over window
+                   # expected_value: {window: 5, threshold: 100} or {window: 5, gt: 100}
+                   return false unless actual_value.is_a?(Array)
+                   return false if actual_value.empty?
+
+                   # OPTIMIZE: filter once and reuse
+                   numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
+                   return false if numeric_array.empty?
+
+                   params = parse_moving_window_params(expected_value)
+                   return false unless params
+
+                   window = [params[:window], numeric_array.size].min
+                   return false if window < 1
+
+                   # OPTIMIZE: use slice instead of last for better performance
+                   window_array = numeric_array.slice(-window, window)
+                   moving_avg = window_array.sum.to_f / window
+                   compare_moving_window_result(moving_avg, params)
+
+                 when "moving_sum"
+                   # Calculates moving sum over window
+                   return false unless actual_value.is_a?(Array)
+                   return false if actual_value.empty?
+
+                   numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
+                   return false if numeric_array.empty?
+
+                   params = parse_moving_window_params(expected_value)
+                   return false unless params
+
+                   window = [params[:window], numeric_array.size].min
+                   return false if window < 1
+
+                   # OPTIMIZE: use slice instead of last
+                   window_array = numeric_array.slice(-window, window)
+                   moving_sum = window_array.sum
+                   compare_moving_window_result(moving_sum, params)
+
+                 when "moving_max"
+                   # Calculates moving max over window
+                   return false unless actual_value.is_a?(Array)
+                   return false if actual_value.empty?
+
+                   numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
+                   return false if numeric_array.empty?
+
+                   params = parse_moving_window_params(expected_value)
+                   return false unless params
+
+                   window = [params[:window], numeric_array.size].min
+                   return false if window < 1
+
+                   # OPTIMIZE: use slice instead of last, iterate directly for max
+                   window_array = numeric_array.slice(-window, window)
+                   moving_max = window_array.max
+                   compare_moving_window_result(moving_max, params)
+
+                 when "moving_min"
+                   # Calculates moving min over window
+                   return false unless actual_value.is_a?(Array)
+                   return false if actual_value.empty?
+
+                   numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
+                   return false if numeric_array.empty?
+
+                   params = parse_moving_window_params(expected_value)
+                   return false unless params
+
+                   window = [params[:window], numeric_array.size].min
+                   return false if window < 1
+
+                   # OPTIMIZE: use slice instead of last
+                   window_array = numeric_array.slice(-window, window)
+                   moving_min = window_array.min
+                   compare_moving_window_result(moving_min, params)
+
+                 # FINANCIAL CALCULATIONS
+                 when "compound_interest"
+                   # Calculates compound interest: A = P(1 + r/n)^(nt)
+                   # expected_value: {rate: 0.05, periods: 12, result: 1050} or {rate: 0.05, periods: 12, compare: "gt", threshold: 1000}
+                   return false unless actual_value.is_a?(Numeric)
+
+                   params = parse_compound_interest_params(expected_value)
+                   return false unless params
+
+                   principal = actual_value
+                   rate = params[:rate]
+                   periods = params[:periods]
+                   result = principal * ((1 + (rate / periods))**periods)
+
+                   if params[:result]
+                     (result.round(2) == params[:result].round(2))
+                   else
+                     compare_financial_result(result, params)
+                   end
+
+                 when "present_value"
+                   # Calculates present value: PV = FV / (1 + r)^n
+                   # expected_value: {rate: 0.05, periods: 10, result: 613.91}
+                   return false unless actual_value.is_a?(Numeric)
+
+                   params = parse_present_value_params(expected_value)
+                   return false unless params
+
+                   future_value = actual_value
+                   rate = params[:rate]
+                   periods = params[:periods]
+                   present_value = future_value / ((1 + rate)**periods)
+
+                   if params[:result]
+                     (present_value.round(2) == params[:result].round(2))
+                   else
+                     compare_financial_result(present_value, params)
+                   end
+
+                 when "future_value"
+                   # Calculates future value: FV = PV * (1 + r)^n
+                   # expected_value: {rate: 0.05, periods: 10, result: 1628.89}
+                   return false unless actual_value.is_a?(Numeric)
+
+                   params = parse_future_value_params(expected_value)
+                   return false unless params
+
+                   present_value = actual_value
+                   rate = params[:rate]
+                   periods = params[:periods]
+                   future_value = present_value * ((1 + rate)**periods)
+
+                   if params[:result]
+                     (future_value.round(2) == params[:result].round(2))
+                   else
+                     compare_financial_result(future_value, params)
+                   end
+
+                 when "payment"
+                   # Calculates loan payment: PMT = P * [r(1+r)^n] / [(1+r)^n - 1]
+                   # expected_value: {rate: 0.05, periods: 12, result: 100}
+                   return false unless actual_value.is_a?(Numeric)
+
+                   params = parse_payment_params(expected_value)
+                   return false unless params
+
+                   principal = actual_value
+                   rate = params[:rate]
+                   periods = params[:periods]
+
+                   return false if rate <= 0 || periods <= 0
+
+                   payment = if rate.zero?
+                               principal / periods
                              else
-                               lower = numeric_array[percentile_index.floor]
-                               upper = numeric_array[percentile_index.ceil]
-                               lower + ((upper - lower) * (percentile_index - percentile_index.floor))
+                               principal * (rate * ((1 + rate)**periods)) / (((1 + rate)**periods) - 1)
                              end
 
-          compare_percentile_result(percentile_value, params)
-
-        when "count"
-          # Checks if count of array elements meets threshold
-          # expected_value can be numeric or hash with comparison operators
-          return false unless actual_value.is_a?(Array)
-
-          count_value = actual_value.size
-          compare_aggregation_result(count_value, expected_value)
-
-        # DATE/TIME OPERATORS
-        when "before_date"
-          # Checks if date is before specified date
-          compare_dates(actual_value, expected_value, :<)
-
-        when "after_date"
-          # Checks if date is after specified date
-          compare_dates(actual_value, expected_value, :>)
-
-        when "within_days"
-          # Checks if date is within N days from now (past or future)
-          # expected_value is number of days
-          return false unless actual_value
-          return false unless expected_value.is_a?(Numeric)
-
-          date = parse_date(actual_value)
-          return false unless date
-
-          now = Time.now
-          diff_days = ((date - now) / 86_400).abs # 86400 seconds in a day
-          diff_days <= expected_value
-
-        when "day_of_week"
-          # Checks if date falls on specified day of week
-          # expected_value can be: "monday", "tuesday", etc. or 0-6 (Sunday=0)
-          return false unless actual_value
-
-          date = parse_date(actual_value)
-          return false unless date
-
-          expected_day = normalize_day_of_week(expected_value)
-          return false unless expected_day
-
-          date.wday == expected_day
-
-        # DURATION CALCULATIONS
-        when "duration_seconds"
-          # Calculates duration between two dates in seconds
-          # expected_value: {end: "field.path", max: 3600} or {end: "now", min: 60}
-          return false unless actual_value
-
-          start_date = parse_date(actual_value)
-          return false unless start_date
-
-          params = parse_duration_params(expected_value)
-          return false unless params
-
-          end_date = params[:end] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:end]))
-          return false unless end_date
-
-          duration = (end_date - start_date).abs
-          compare_duration_result(duration, params)
-
-        when "duration_minutes"
-          # Calculates duration between two dates in minutes
-          return false unless actual_value
-
-          start_date = parse_date(actual_value)
-          return false unless start_date
-
-          params = parse_duration_params(expected_value)
-          return false unless params
-
-          end_date = params[:end] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:end]))
-          return false unless end_date
-
-          duration = ((end_date - start_date).abs / 60.0)
-          compare_duration_result(duration, params)
-
-        when "duration_hours"
-          # Calculates duration between two dates in hours
-          return false unless actual_value
-
-          start_date = parse_date(actual_value)
-          return false unless start_date
-
-          params = parse_duration_params(expected_value)
-          return false unless params
-
-          end_date = params[:end] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:end]))
-          return false unless end_date
-
-          duration = ((end_date - start_date).abs / 3600.0)
-          compare_duration_result(duration, params)
-
-        when "duration_days"
-          # Calculates duration between two dates in days
-          return false unless actual_value
-
-          start_date = parse_date(actual_value)
-          return false unless start_date
-
-          params = parse_duration_params(expected_value)
-          return false unless params
-
-          end_date = params[:end] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:end]))
-          return false unless end_date
-
-          duration = ((end_date - start_date).abs / 86_400.0)
-          compare_duration_result(duration, params)
-
-        # DATE ARITHMETIC
-        when "add_days"
-          # Adds days to a date and compares
-          # expected_value: {days: 7, compare: "lt", target: "now"} or {days: 7, eq: target_date}
-          return false unless actual_value
-
-          start_date = parse_date(actual_value)
-          return false unless start_date
-
-          params = parse_date_arithmetic_params(expected_value)
-          return false unless params
-
-          result_date = start_date + (params[:days] * 86_400)
-          target_date = params[:target] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:target]))
-          return false unless target_date
-
-          compare_date_result?(result_date, target_date, params)
-
-        when "subtract_days"
-          # Subtracts days from a date and compares
-          return false unless actual_value
-
-          start_date = parse_date(actual_value)
-          return false unless start_date
-
-          params = parse_date_arithmetic_params(expected_value)
-          return false unless params
-
-          result_date = start_date - (params[:days] * 86_400)
-          target_date = params[:target] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:target]))
-          return false unless target_date
-
-          compare_date_result?(result_date, target_date, params)
-
-        when "add_hours"
-          # Adds hours to a date and compares
-          return false unless actual_value
-
-          start_date = parse_date(actual_value)
-          return false unless start_date
-
-          params = parse_date_arithmetic_params(expected_value, :hours)
-          return false unless params
-
-          result_date = start_date + (params[:hours] * 3600)
-          target_date = params[:target] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:target]))
-          return false unless target_date
-
-          compare_date_result?(result_date, target_date, params)
-
-        when "subtract_hours"
-          # Subtracts hours from a date and compares
-          return false unless actual_value
-
-          start_date = parse_date(actual_value)
-          return false unless start_date
-
-          params = parse_date_arithmetic_params(expected_value, :hours)
-          return false unless params
-
-          result_date = start_date - (params[:hours] * 3600)
-          target_date = params[:target] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:target]))
-          return false unless target_date
-
-          compare_date_result?(result_date, target_date, params)
-
-        when "add_minutes"
-          # Adds minutes to a date and compares
-          return false unless actual_value
-
-          start_date = parse_date(actual_value)
-          return false unless start_date
-
-          params = parse_date_arithmetic_params(expected_value, :minutes)
-          return false unless params
-
-          result_date = start_date + (params[:minutes] * 60)
-          target_date = params[:target] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:target]))
-          return false unless target_date
-
-          compare_date_result?(result_date, target_date, params)
-
-        when "subtract_minutes"
-          # Subtracts minutes from a date and compares
-          return false unless actual_value
-
-          start_date = parse_date(actual_value)
-          return false unless start_date
-
-          params = parse_date_arithmetic_params(expected_value, :minutes)
-          return false unless params
-
-          result_date = start_date - (params[:minutes] * 60)
-          target_date = params[:target] == "now" ? Time.now : parse_date(get_nested_value(context_hash, params[:target]))
-          return false unless target_date
-
-          compare_date_result?(result_date, target_date, params)
-
-        # TIME COMPONENT EXTRACTION
-        when "hour_of_day"
-          # Extracts hour of day (0-23) and compares
-          return false unless actual_value
-
-          date = parse_date(actual_value)
-          return false unless date
-
-          hour = date.hour
-          compare_numeric_result(hour, expected_value)
-
-        when "day_of_month"
-          # Extracts day of month (1-31) and compares
-          return false unless actual_value
-
-          date = parse_date(actual_value)
-          return false unless date
-
-          day = date.day
-          compare_numeric_result(day, expected_value)
-
-        when "month"
-          # Extracts month (1-12) and compares
-          return false unless actual_value
-
-          date = parse_date(actual_value)
-          return false unless date
-
-          month = date.month
-          compare_numeric_result(month, expected_value)
-
-        when "year"
-          # Extracts year and compares
-          return false unless actual_value
-
-          date = parse_date(actual_value)
-          return false unless date
-
-          year = date.year
-          compare_numeric_result(year, expected_value)
-
-        when "week_of_year"
-          # Extracts week of year (1-52) and compares
-          return false unless actual_value
-
-          date = parse_date(actual_value)
-          return false unless date
-
-          week = date.strftime("%U").to_i + 1 # %U returns 0-53, we want 1-53
-          compare_numeric_result(week, expected_value)
-
-        # RATE CALCULATIONS
-        when "rate_per_second"
-          # Calculates rate per second from array of timestamps
-          # expected_value: {max: 10} or {min: 5, max: 100}
-          return false unless actual_value.is_a?(Array)
-          return false if actual_value.empty?
-
-          timestamps = actual_value.map { |ts| parse_date(ts) }.compact
-          return false if timestamps.size < 2
-
-          sorted_timestamps = timestamps.sort
-          time_span = sorted_timestamps.last - sorted_timestamps.first
-          return false if time_span <= 0
-
-          rate = timestamps.size.to_f / time_span
-          compare_rate_result(rate, expected_value)
-
-        when "rate_per_minute"
-          # Calculates rate per minute from array of timestamps
-          return false unless actual_value.is_a?(Array)
-          return false if actual_value.empty?
-
-          timestamps = actual_value.map { |ts| parse_date(ts) }.compact
-          return false if timestamps.size < 2
-
-          sorted_timestamps = timestamps.sort
-          time_span = sorted_timestamps.last - sorted_timestamps.first
-          return false if time_span <= 0
-
-          rate = (timestamps.size.to_f / time_span) * 60.0
-          compare_rate_result(rate, expected_value)
-
-        when "rate_per_hour"
-          # Calculates rate per hour from array of timestamps
-          return false unless actual_value.is_a?(Array)
-          return false if actual_value.empty?
-
-          timestamps = actual_value.map { |ts| parse_date(ts) }.compact
-          return false if timestamps.size < 2
-
-          sorted_timestamps = timestamps.sort
-          time_span = sorted_timestamps.last - sorted_timestamps.first
-          return false if time_span <= 0
-
-          rate = (timestamps.size.to_f / time_span) * 3600.0
-          compare_rate_result(rate, expected_value)
-
-        # MOVING WINDOW CALCULATIONS
-        when "moving_average"
-          # Calculates moving average over window
-          # expected_value: {window: 5, threshold: 100} or {window: 5, gt: 100}
-          return false unless actual_value.is_a?(Array)
-          return false if actual_value.empty?
-
-          # OPTIMIZE: filter once and reuse
-          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
-          return false if numeric_array.empty?
-
-          params = parse_moving_window_params(expected_value)
-          return false unless params
-
-          window = [params[:window], numeric_array.size].min
-          return false if window < 1
-
-          # OPTIMIZE: use slice instead of last for better performance
-          window_array = numeric_array.slice(-window, window)
-          moving_avg = window_array.sum.to_f / window
-          compare_moving_window_result(moving_avg, params)
-
-        when "moving_sum"
-          # Calculates moving sum over window
-          return false unless actual_value.is_a?(Array)
-          return false if actual_value.empty?
-
-          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
-          return false if numeric_array.empty?
-
-          params = parse_moving_window_params(expected_value)
-          return false unless params
-
-          window = [params[:window], numeric_array.size].min
-          return false if window < 1
-
-          # OPTIMIZE: use slice instead of last
-          window_array = numeric_array.slice(-window, window)
-          moving_sum = window_array.sum
-          compare_moving_window_result(moving_sum, params)
-
-        when "moving_max"
-          # Calculates moving max over window
-          return false unless actual_value.is_a?(Array)
-          return false if actual_value.empty?
-
-          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
-          return false if numeric_array.empty?
-
-          params = parse_moving_window_params(expected_value)
-          return false unless params
-
-          window = [params[:window], numeric_array.size].min
-          return false if window < 1
-
-          # OPTIMIZE: use slice instead of last, iterate directly for max
-          window_array = numeric_array.slice(-window, window)
-          moving_max = window_array.max
-          compare_moving_window_result(moving_max, params)
-
-        when "moving_min"
-          # Calculates moving min over window
-          return false unless actual_value.is_a?(Array)
-          return false if actual_value.empty?
-
-          numeric_array = actual_value.select { |v| v.is_a?(Numeric) }
-          return false if numeric_array.empty?
-
-          params = parse_moving_window_params(expected_value)
-          return false unless params
-
-          window = [params[:window], numeric_array.size].min
-          return false if window < 1
-
-          # OPTIMIZE: use slice instead of last
-          window_array = numeric_array.slice(-window, window)
-          moving_min = window_array.min
-          compare_moving_window_result(moving_min, params)
-
-        # FINANCIAL CALCULATIONS
-        when "compound_interest"
-          # Calculates compound interest: A = P(1 + r/n)^(nt)
-          # expected_value: {rate: 0.05, periods: 12, result: 1050} or {rate: 0.05, periods: 12, compare: "gt", threshold: 1000}
-          return false unless actual_value.is_a?(Numeric)
-
-          params = parse_compound_interest_params(expected_value)
-          return false unless params
-
-          principal = actual_value
-          rate = params[:rate]
-          periods = params[:periods]
-          result = principal * ((1 + (rate / periods))**periods)
-
-          if params[:result]
-            (result.round(2) == params[:result].round(2))
-          else
-            compare_financial_result(result, params)
-          end
-
-        when "present_value"
-          # Calculates present value: PV = FV / (1 + r)^n
-          # expected_value: {rate: 0.05, periods: 10, result: 613.91}
-          return false unless actual_value.is_a?(Numeric)
-
-          params = parse_present_value_params(expected_value)
-          return false unless params
-
-          future_value = actual_value
-          rate = params[:rate]
-          periods = params[:periods]
-          present_value = future_value / ((1 + rate)**periods)
-
-          if params[:result]
-            (present_value.round(2) == params[:result].round(2))
-          else
-            compare_financial_result(present_value, params)
-          end
-
-        when "future_value"
-          # Calculates future value: FV = PV * (1 + r)^n
-          # expected_value: {rate: 0.05, periods: 10, result: 1628.89}
-          return false unless actual_value.is_a?(Numeric)
-
-          params = parse_future_value_params(expected_value)
-          return false unless params
-
-          present_value = actual_value
-          rate = params[:rate]
-          periods = params[:periods]
-          future_value = present_value * ((1 + rate)**periods)
-
-          if params[:result]
-            (future_value.round(2) == params[:result].round(2))
-          else
-            compare_financial_result(future_value, params)
-          end
-
-        when "payment"
-          # Calculates loan payment: PMT = P * [r(1+r)^n] / [(1+r)^n - 1]
-          # expected_value: {rate: 0.05, periods: 12, result: 100}
-          return false unless actual_value.is_a?(Numeric)
-
-          params = parse_payment_params(expected_value)
-          return false unless params
-
-          principal = actual_value
-          rate = params[:rate]
-          periods = params[:periods]
-
-          return false if rate <= 0 || periods <= 0
-
-          payment = if rate.zero?
-                      principal / periods
-                    else
-                      principal * (rate * ((1 + rate)**periods)) / (((1 + rate)**periods) - 1)
-                    end
-
-          if params[:result]
-            (payment.round(2) == params[:result].round(2))
-          else
-            compare_financial_result(payment, params)
-          end
-
-        # STRING AGGREGATIONS
-        when "join"
-          # Joins array of strings with separator
-          # expected_value: {separator: ",", result: "a,b,c"} or {separator: ",", contains: "a"}
-          return false unless actual_value.is_a?(Array)
-          return false if actual_value.empty?
-
-          string_array = actual_value.map(&:to_s)
-          params = parse_join_params(expected_value)
-          return false unless params
-
-          joined = string_array.join(params[:separator])
-
-          if params[:result]
-            joined == params[:result]
-          elsif params[:contains]
-            joined.include?(params[:contains])
-          else
-            false
-          end
-
-        when "length"
-          # Gets length of string or array
-          # expected_value: {max: 500} or {min: 10, max: 100}
-          return false if actual_value.nil?
-
-          length_value = if actual_value.is_a?(String) || actual_value.is_a?(Array)
-                           actual_value.length
-                         else
-                           return false
-                         end
-
-          compare_length_result(length_value, expected_value)
-
-        # COLLECTION OPERATORS
-        when "contains_all"
-          # Checks if array contains all specified elements
-          # expected_value should be an array
-          return false unless actual_value.is_a?(Array)
-          return false unless expected_value.is_a?(Array)
-          return true if expected_value.empty?
-
-          # OPTIMIZE: Use Set for O(1) lookups instead of O(n) include?
-          # For small arrays, Set overhead is minimal; for large arrays, huge win
-          actual_set = actual_value.to_set
-          expected_value.all? { |item| actual_set.include?(item) }
-
-        when "contains_any"
-          # Checks if array contains any of the specified elements
-          # expected_value should be an array
-          return false unless actual_value.is_a?(Array)
-          return false unless expected_value.is_a?(Array)
-          return false if expected_value.empty?
-
-          # OPTIMIZE: Use Set for O(1) lookups instead of O(n) include?
-          # Early exit on first match for better performance
-          actual_set = actual_value.to_set
-          expected_value.any? { |item| actual_set.include?(item) }
-
-        when "intersects"
-          # Checks if two arrays have any common elements
-          # expected_value should be an array
-          return false unless actual_value.is_a?(Array)
-          return false unless expected_value.is_a?(Array)
-          return false if actual_value.empty? || expected_value.empty?
-
-          # OPTIMIZE: Use Set intersection for O(n) instead of array & which creates intermediate array
-          # Check smaller array against larger set for better performance
-          if actual_value.size <= expected_value.size
-            expected_set = expected_value.to_set
-            actual_value.any? { |item| expected_set.include?(item) }
-          else
-            actual_set = actual_value.to_set
-            expected_value.any? { |item| actual_set.include?(item) }
-          end
-
-        when "subset_of"
-          # Checks if array is a subset of another array
-          # All elements in actual_value must be in expected_value
-          return false unless actual_value.is_a?(Array)
-          return false unless expected_value.is_a?(Array)
-          return true if actual_value.empty?
-
-          # OPTIMIZE: Use Set for O(1) lookups instead of O(n) include?
-          expected_set = expected_value.to_set
-          actual_value.all? { |item| expected_set.include?(item) }
-
-        # GEOSPATIAL OPERATORS
-        when "within_radius"
-          # Checks if point is within radius of center point
-          # actual_value: {lat: y, lon: x} or [lat, lon]
-          # expected_value: {center: {lat: y, lon: x}, radius: distance_in_km}
-          point = parse_coordinates(actual_value)
-          return false unless point
-
-          params = parse_radius_params(expected_value)
-          return false unless params
-
-          # Cache geospatial distance calculations
-          distance = get_cached_distance(point, params[:center])
-          distance <= params[:radius]
-
-        when "in_polygon"
-          # Checks if point is inside a polygon using ray casting algorithm
-          # actual_value: {lat: y, lon: x} or [lat, lon]
-          # expected_value: array of vertices [{lat: y, lon: x}, ...] or [[lat, lon], ...]
-          point = parse_coordinates(actual_value)
-          return false unless point
-
-          polygon = parse_polygon(expected_value)
-          return false unless polygon
-          return false if polygon.size < 3 # Need at least 3 vertices
-
-          point_in_polygon?(point, polygon)
-
-        when "fetch_from_api"
-          # Fetches data from external API and enriches context
-          # expected_value: { endpoint: :endpoint_name, params: {...}, mapping: {...} }
-          return false unless expected_value.is_a?(Hash)
-          return false unless expected_value[:endpoint] || expected_value["endpoint"]
-
-          begin
-            endpoint_name = (expected_value[:endpoint] || expected_value["endpoint"]).to_sym
-            params = expand_template_params(expected_value[:params] || expected_value["params"] || {}, context_hash)
-            mapping = expected_value[:mapping] || expected_value["mapping"] || {}
-
-            # Get data enrichment client
-            client = DecisionAgent.data_enrichment_client
-
-            # Fetch data from API
-            response_data = client.fetch(endpoint_name, params: params, use_cache: true)
-
-            # Apply mapping if provided and merge into context_hash
-            if mapping.any?
-              mapped_data = apply_mapping(response_data, mapping)
-              # Merge mapped data into context_hash for subsequent conditions
-              mapped_data.each do |key, value|
-                context_hash[key] = value
-              end
-              # Return true if fetch succeeded and mapping applied
-              mapped_data.any?
-            else
-              # Return true if fetch succeeded
-              !response_data.nil?
-            end
-          rescue StandardError => e
-            # Log error but return false (fail-safe)
-            warn "Data enrichment error: #{e.message}" if ENV["DEBUG"]
-            false
-          end
-
-        else
-          # Unknown operator - returns false (fail-safe)
-          # Note: Validation should catch this earlier
-          false
-        end
+                   if params[:result]
+                     (payment.round(2) == params[:result].round(2))
+                   else
+                     compare_financial_result(payment, params)
+                   end
+
+                 # STRING AGGREGATIONS
+                 when "join"
+                   # Joins array of strings with separator
+                   # expected_value: {separator: ",", result: "a,b,c"} or {separator: ",", contains: "a"}
+                   return false unless actual_value.is_a?(Array)
+                   return false if actual_value.empty?
+
+                   string_array = actual_value.map(&:to_s)
+                   params = parse_join_params(expected_value)
+                   return false unless params
+
+                   joined = string_array.join(params[:separator])
+
+                   if params[:result]
+                     joined == params[:result]
+                   elsif params[:contains]
+                     joined.include?(params[:contains])
+                   else
+                     false
+                   end
+
+                 when "length"
+                   # Gets length of string or array
+                   # expected_value: {max: 500} or {min: 10, max: 100}
+                   return false if actual_value.nil?
+
+                   length_value = if actual_value.is_a?(String) || actual_value.is_a?(Array)
+                                    actual_value.length
+                                  else
+                                    return false
+                                  end
+
+                   compare_length_result(length_value, expected_value)
+
+                 # COLLECTION OPERATORS
+                 when "contains_all"
+                   # Checks if array contains all specified elements
+                   # expected_value should be an array
+                   return false unless actual_value.is_a?(Array)
+                   return false unless expected_value.is_a?(Array)
+                   return true if expected_value.empty?
+
+                   # OPTIMIZE: Use Set for O(1) lookups instead of O(n) include?
+                   # For small arrays, Set overhead is minimal; for large arrays, huge win
+                   actual_set = actual_value.to_set
+                   expected_value.all? { |item| actual_set.include?(item) }
+
+                 when "contains_any"
+                   # Checks if array contains any of the specified elements
+                   # expected_value should be an array
+                   return false unless actual_value.is_a?(Array)
+                   return false unless expected_value.is_a?(Array)
+                   return false if expected_value.empty?
+
+                   # OPTIMIZE: Use Set for O(1) lookups instead of O(n) include?
+                   # Early exit on first match for better performance
+                   actual_set = actual_value.to_set
+                   expected_value.any? { |item| actual_set.include?(item) }
+
+                 when "intersects"
+                   # Checks if two arrays have any common elements
+                   # expected_value should be an array
+                   return false unless actual_value.is_a?(Array)
+                   return false unless expected_value.is_a?(Array)
+                   return false if actual_value.empty? || expected_value.empty?
+
+                   # OPTIMIZE: Use Set intersection for O(n) instead of array & which creates intermediate array
+                   # Check smaller array against larger set for better performance
+                   if actual_value.size <= expected_value.size
+                     expected_set = expected_value.to_set
+                     actual_value.any? { |item| expected_set.include?(item) }
+                   else
+                     actual_set = actual_value.to_set
+                     expected_value.any? { |item| actual_set.include?(item) }
+                   end
+
+                 when "subset_of"
+                   # Checks if array is a subset of another array
+                   # All elements in actual_value must be in expected_value
+                   return false unless actual_value.is_a?(Array)
+                   return false unless expected_value.is_a?(Array)
+                   return true if actual_value.empty?
+
+                   # OPTIMIZE: Use Set for O(1) lookups instead of O(n) include?
+                   expected_set = expected_value.to_set
+                   actual_value.all? { |item| expected_set.include?(item) }
+
+                 # GEOSPATIAL OPERATORS
+                 when "within_radius"
+                   # Checks if point is within radius of center point
+                   # actual_value: {lat: y, lon: x} or [lat, lon]
+                   # expected_value: {center: {lat: y, lon: x}, radius: distance_in_km}
+                   point = parse_coordinates(actual_value)
+                   return false unless point
+
+                   params = parse_radius_params(expected_value)
+                   return false unless params
+
+                   # Cache geospatial distance calculations
+                   distance = get_cached_distance(point, params[:center])
+                   distance <= params[:radius]
+
+                 when "in_polygon"
+                   # Checks if point is inside a polygon using ray casting algorithm
+                   # actual_value: {lat: y, lon: x} or [lat, lon]
+                   # expected_value: array of vertices [{lat: y, lon: x}, ...] or [[lat, lon], ...]
+                   point = parse_coordinates(actual_value)
+                   return false unless point
+
+                   polygon = parse_polygon(expected_value)
+                   return false unless polygon
+                   return false if polygon.size < 3 # Need at least 3 vertices
+
+                   point_in_polygon?(point, polygon)
+
+                 when "fetch_from_api"
+                   # Fetches data from external API and enriches context
+                   # expected_value: { endpoint: :endpoint_name, params: {...}, mapping: {...} }
+                   return false unless expected_value.is_a?(Hash)
+                   return false unless expected_value[:endpoint] || expected_value["endpoint"]
+
+                   begin
+                     endpoint_name = (expected_value[:endpoint] || expected_value["endpoint"]).to_sym
+                     params = expand_template_params(expected_value[:params] || expected_value["params"] || {}, context_hash)
+                     mapping = expected_value[:mapping] || expected_value["mapping"] || {}
+
+                     # Get data enrichment client
+                     client = DecisionAgent.data_enrichment_client
+
+                     # Fetch data from API
+                     response_data = client.fetch(endpoint_name, params: params, use_cache: true)
+
+                     # Apply mapping if provided and merge into context_hash
+                     if mapping.any?
+                       mapped_data = apply_mapping(response_data, mapping)
+                       # Merge mapped data into context_hash for subsequent conditions
+                       mapped_data.each do |key, value|
+                         context_hash[key] = value
+                       end
+                       # Return true if fetch succeeded and mapping applied
+                       mapped_data.any?
+                     else
+                       # Return true if fetch succeeded
+                       !response_data.nil?
+                     end
+                   rescue StandardError => e
+                     # Log error but return false (fail-safe)
+                     warn "Data enrichment error: #{e.message}" if ENV["DEBUG"]
+                     false
+                   end
+
+                 else
+                   # Unknown operator - returns false (fail-safe)
+                   # Note: Validation should catch this earlier
+                   false
+                 end
 
         # Add trace if collector is provided
-        if trace_collector
-          trace_collector.add_trace(Explainability::ConditionTrace.new(
-            field: field,
-            operator: op,
-            expected_value: expected_value,
-            actual_value: actual_value,
-            result: result
-          ))
-        end
+        trace_collector&.add_trace(Explainability::ConditionTrace.new(
+          field: field,
+          operator: op,
+          expected_value: expected_value,
+          actual_value: actual_value,
+          result: result
+        ))
 
         result
       end

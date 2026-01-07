@@ -354,16 +354,16 @@ RSpec.describe DecisionAgent::Decision do
       }
 
       evaluator = DecisionAgent::Evaluators::JsonRuleEvaluator.new(rules_json: rules)
-      
+
       # When no rules match, evaluator returns nil, so agent raises NoEvaluationsError
       # This is expected behavior - we can't have a decision without matching rules
-      expect {
+      expect do
         agent = DecisionAgent::Agent.new(
           evaluators: [evaluator],
           scoring_strategy: DecisionAgent::Scoring::WeightedAverage.new
         )
         agent.decide(context: { risk_score: 0.8 })
-      }.to raise_error(DecisionAgent::NoEvaluationsError)
+      end.to raise_error(DecisionAgent::NoEvaluationsError)
     end
   end
 
@@ -407,7 +407,7 @@ RSpec.describe DecisionAgent::Decision do
       # Rule2's condition failed
       failed = result.failed_conditions
       expect(failed).to be_an(Array)
-      # Note: Since rule1 matches first, rule2 might not be evaluated due to short-circuit
+      # NOTE: Since rule1 matches first, rule2 might not be evaluated due to short-circuit
       # This depends on implementation
     end
   end
@@ -578,4 +578,3 @@ RSpec.describe DecisionAgent::Evaluators::JsonRuleEvaluator do
     end
   end
 end
-

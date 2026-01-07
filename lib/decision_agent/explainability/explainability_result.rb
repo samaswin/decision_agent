@@ -26,12 +26,9 @@ module DecisionAgent
         @rule_traces.flat_map(&:failed_conditions)
       end
 
-      def because(verbose: false)
-        if verbose
-          all_passed_conditions.map(&:description)
-        else
-          all_passed_conditions.map(&:description)
-        end
+      def because(verbose: false) # rubocop:disable Lint/UnusedMethodArgument
+        # verbose parameter kept for API compatibility, but currently both modes return same format
+        all_passed_conditions.map(&:description)
       end
 
       def failed_conditions(verbose: false)
@@ -53,4 +50,3 @@ module DecisionAgent
     end
   end
 end
-

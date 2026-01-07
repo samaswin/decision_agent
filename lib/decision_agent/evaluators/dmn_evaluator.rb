@@ -56,7 +56,7 @@ module DecisionAgent
 
         # Apply hit policy to select the appropriate evaluation
         result = apply_hit_policy(matching_evaluations)
-        
+
         # Add explainability to metadata by creating new Evaluation with updated metadata
         if result && explainability_result
           metadata = result.metadata.dup
@@ -69,7 +69,7 @@ module DecisionAgent
             metadata: metadata
           )
         end
-        
+
         result
       end
 
@@ -133,11 +133,11 @@ module DecisionAgent
 
           # If explainability is already collected, use the trace data
           matched = if explainability_result
-                     rule_trace = explainability_result.rule_traces.find { |rt| rt.rule_id == (rule["id"] || "rule_#{rules.index(rule)}") }
-                     rule_trace&.matched
-                   else
-                     Dsl::ConditionEvaluator.evaluate(if_clause, ctx)
-                   end
+                      rule_trace = explainability_result.rule_traces.find { |rt| rt.rule_id == (rule["id"] || "rule_#{rules.index(rule)}") }
+                      rule_trace&.matched
+                    else
+                      Dsl::ConditionEvaluator.evaluate(if_clause, ctx)
+                    end
 
           next unless matched
 
@@ -148,12 +148,10 @@ module DecisionAgent
             ruleset: @rules_json["ruleset"],
             hit_policy: @decision.decision_table.hit_policy
           }
-          
+
           # Add explainability data to metadata
-          if explainability_result
-            metadata[:explainability] = explainability_result.to_h
-          end
-          
+          metadata[:explainability] = explainability_result.to_h if explainability_result
+
           return Evaluation.new(
             decision: then_clause["decision"],
             weight: then_clause["weight"] || 1.0,
@@ -178,11 +176,11 @@ module DecisionAgent
 
           # If explainability is already collected, use the trace data
           matched = if explainability_result
-                     rule_trace = explainability_result.rule_traces.find { |rt| rt.rule_id == (rule["id"] || "rule_#{rules.index(rule)}") }
-                     rule_trace&.matched
-                   else
-                     Dsl::ConditionEvaluator.evaluate(if_clause, ctx)
-                   end
+                      rule_trace = explainability_result.rule_traces.find { |rt| rt.rule_id == (rule["id"] || "rule_#{rules.index(rule)}") }
+                      rule_trace&.matched
+                    else
+                      Dsl::ConditionEvaluator.evaluate(if_clause, ctx)
+                    end
 
           next unless matched
 
@@ -193,10 +191,10 @@ module DecisionAgent
             ruleset: @rules_json["ruleset"],
             hit_policy: @decision.decision_table.hit_policy
           }
-          
+
           # Add explainability data to metadata (will be added to final result)
           # For now, we'll add it to the final result after hit policy is applied
-          
+
           matching << Evaluation.new(
             decision: then_clause["decision"],
             weight: then_clause["weight"] || 1.0,
