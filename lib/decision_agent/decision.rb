@@ -44,7 +44,7 @@ module DecisionAgent
       # Structure decision result as explainability by default
       # This makes explainability the primary format for decision results
       explainability_data = explainability(verbose: false)
-      
+
       {
         # Explainability fields (primary structure)
         decision: explainability_data[:decision],
@@ -63,43 +63,63 @@ module DecisionAgent
     private
 
     def all_explainability_results
-      @evaluations.flat_map do |evaluation|
-        next [] unless evaluation.metadata.is_a?(Hash)
-        next [] unless evaluation.metadata[:explainability]
+      @evaluations.flat_map { |evaluation| extract_explainability_from_evaluation(evaluation) }
+    end
 
-        # Reconstruct ExplainabilityResult from metadata
-        explainability_data = evaluation.metadata[:explainability]
-        
-        # Handle both hash and symbol keys
-        explainability_data = explainability_data.transform_keys(&:to_sym) if explainability_data.is_a?(Hash)
-        
-        rule_traces = (explainability_data[:rule_traces] || explainability_data["rule_traces"] || []).map do |rt_data|
-          rt_data = rt_data.transform_keys(&:to_sym) if rt_data.is_a?(Hash)
-          
-          condition_traces = (rt_data[:condition_traces] || rt_data["condition_traces"] || []).map do |ct_data|
-            ct_data = ct_data.transform_keys(&:to_sym) if ct_data.is_a?(Hash)
-            Explainability::ConditionTrace.new(
-              field: ct_data[:field] || ct_data["field"],
-              operator: ct_data[:operator] || ct_data["operator"],
-              expected_value: ct_data[:expected_value] || ct_data["expected_value"],
-              actual_value: ct_data[:actual_value] || ct_data["actual_value"],
-              result: ct_data[:result] || ct_data["result"]
-            )
-          end
-          Explainability::RuleTrace.new(
-            rule_id: rt_data[:rule_id] || rt_data["rule_id"],
-            matched: rt_data[:matched] || rt_data["matched"],
-            condition_traces: condition_traces,
-            decision: rt_data[:decision] || rt_data["decision"],
-            weight: rt_data[:weight] || rt_data["weight"],
-            reason: rt_data[:reason] || rt_data["reason"]
-          )
-        end
-        [Explainability::ExplainabilityResult.new(
-          evaluator_name: explainability_data[:evaluator_name] || explainability_data["evaluator_name"] || evaluation.evaluator_name,
-          rule_traces: rule_traces
-        )]
-      end
+    def extract_explainability_from_evaluation(evaluation)
+      return [] unless evaluation.metadata.is_a?(Hash)
+      return [] unless evaluation.metadata[:explainability]
+
+      explainability_data = normalize_hash_keys(evaluation.metadata[:explainability])
+      rule_traces = reconstruct_rule_traces(explainability_data)
+      evaluator_name = explainability_data[:evaluator_name] || evaluation.evaluator_name
+
+      [Explainability::ExplainabilityResult.new(
+        evaluator_name: evaluator_name,
+        rule_traces: rule_traces
+      )]
+    end
+
+    def normalize_hash_keys(data)
+      return data unless data.is_a?(Hash)
+
+      data.transform_keys(&:to_sym)
+    end
+
+    def reconstruct_rule_traces(explainability_data)
+      rule_traces_data = explainability_data[:rule_traces] || []
+      rule_traces_data.map { |rt_data| reconstruct_rule_trace(rt_data) }
+    end
+
+    def reconstruct_rule_trace(rt_data)
+      normalized_rt = normalize_hash_keys(rt_data)
+      condition_traces = reconstruct_condition_traces(normalized_rt)
+
+      Explainability::RuleTrace.new(
+        rule_id: normalized_rt[:rule_id],
+        matched: normalized_rt[:matched],
+        condition_traces: condition_traces,
+        decision: normalized_rt[:decision],
+        weight: normalized_rt[:weight],
+        reason: normalized_rt[:reason]
+      )
+    end
+
+    def reconstruct_condition_traces(rule_trace_data)
+      condition_traces_data = rule_trace_data[:condition_traces] || []
+      condition_traces_data.map { |ct_data| reconstruct_condition_trace(ct_data) }
+    end
+
+    def reconstruct_condition_trace(ct_data)
+      normalized_ct = normalize_hash_keys(ct_data)
+
+      Explainability::ConditionTrace.new(
+        field: normalized_ct[:field],
+        operator: normalized_ct[:operator],
+        expected_value: normalized_ct[:expected_value],
+        actual_value: normalized_ct[:actual_value],
+        result: normalized_ct[:result]
+      )
     end
 
     public
