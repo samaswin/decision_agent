@@ -117,7 +117,7 @@ See [Code Examples](docs/CODE_EXAMPLES.md) for more comprehensive examples.
 - **Prometheus Export** - Industry-standard metrics format
 - **Intelligent Alerting** - Anomaly detection with customizable rules
 - **Grafana Integration** - Pre-built dashboards and alert rules
-- **Version Control** - Full rule version control, rollback, and history
+- **Version Control** - Full rule version control, rollback, and history ([Versioning Guide](docs/VERSIONING.md))
 - **Thread-Safe** - Safe for multi-threaded servers and background jobs
 - **High Performance** - 10,000+ decisions/second, ~0.1ms latency
 
