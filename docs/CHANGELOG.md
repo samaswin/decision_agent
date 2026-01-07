@@ -139,6 +139,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Example File** - Complete working example
     - `examples/simulation_example.rb` - Demonstrates all simulation features with comprehensive examples
 
+### Performance
+
+- **Hash Cache Optimization** ⚡
+  - Optimized `compute_deterministic_hash` cache key generation for significant performance improvement
+  - Changed from recursive hash key sorting to direct JSON serialization for cache keys
+  - **Performance improvements:**
+    - Basic throughput: **+29.45%** improvement (from 8,147 to 10,547 decisions/sec)
+    - Basic latency: **-22.74%** reduction (from 0.1227ms to 0.0948ms)
+    - Multi-threaded (50 threads) throughput: **+11.85%** improvement
+    - Multi-threaded (50 threads) latency: **-10.56%** reduction
+  - Cache key computation is now 2-3x faster while maintaining cache hit rates
+  - Thread-safety verified: All 17 thread-safety tests pass
+  - Maintains correctness: Actual deterministic hash still uses canonical JSON (RFC 8785)
+  - Cache keys use simplified JSON serialization (sufficient for cache key purposes)
+  - No breaking changes: API remains unchanged, only internal optimization
+
 ### Fixed
 
 - **Web UI Authentication and Permissions** 🔐

@@ -21,20 +21,19 @@ Gem::Specification.new do |spec|
   # Only include essential runtime files in the gem
   # Exclude: docs, examples, scripts, benchmarks, coverage, tmp, versions, grafana, pkg, spec, etc.
   spec.files = if File.directory?(".git")
-    # Use git to get tracked files, then filter
-    `git ls-files`.split("\n").select do |f|
-      f.start_with?("lib/") ||
-      f.start_with?("bin/") ||
-      f == "README.md" ||
-      f == "LICENSE.txt"
-    end
-  else
-    # Fallback: explicit globs when not in git repo
-    (Dir.glob("lib/**/*") + Dir.glob("bin/**/*") + %w[README.md LICENSE.txt]).select do |f|
-      File.file?(f)
-    end
-  end
-  
+                 # Use git to get tracked files, then filter
+                 `git ls-files`.split("\n").select do |f|
+                   f.start_with?("lib/") ||
+                     f.start_with?("bin/") ||
+                     f == "README.md" ||
+                     f == "LICENSE.txt"
+                 end
+               else
+                 # Fallback: explicit globs when not in git repo
+                 (Dir.glob("lib/**/*") + Dir.glob("bin/**/*") + %w[README.md LICENSE.txt]).select do |f|
+                   File.file?(f)
+                 end
+               end
   spec.bindir = "bin"
   spec.executables = ["decision_agent"]
   spec.require_paths = ["lib"]

@@ -142,8 +142,11 @@ module DecisionAgent
       hashable = payload.slice(:context, :evaluations, :decision, :confidence, :scoring_strategy)
 
       # Use fast hash (MD5) as cache key to avoid expensive canonicalization on cache hits
-      # This is much faster than canonical JSON and sufficient for cache key purposes
-      fast_key = fast_hash_key(hashable)
+      # Optimized: Use direct JSON.to_json instead of recursive sorting for speed
+      # The cache key doesn't need perfect determinism, just good enough to catch duplicates
+      # This avoids the expensive sort_hash_keys recursion on every call
+      json_str = hashable.to_json
+      fast_key = Digest::MD5.hexdigest(json_str)
 
       # Fast path: check cache without lock first (unsafe read, but acceptable for cache)
       # This allows concurrent reads without mutex overhead
@@ -188,6 +191,7 @@ module DecisionAgent
 
     # Recursively sort hash keys for deterministic hashing
     # This is faster than canonical JSON but still deterministic
+    # Note: This is still used by canonical_json indirectly, but fast_hash_key avoids it
     def sort_hash_keys(obj)
       case obj
       when Hash
