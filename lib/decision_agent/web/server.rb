@@ -2241,12 +2241,12 @@ module DecisionAgent
           rescue StandardError
             # If logging fails, continue with permission denial
           end
-          # Use halt to stop execution and return 403
-          # NOTE: Explicit parentheses in halt() call are required for Ruby 3.0 compatibility.
-          # Without parentheses, halt may not reliably stop execution in Ruby 3.0.
-          # Do not remove parentheses or change to halt without parentheses.
+          # Use halt with explicit status and JSON string body for Ruby 3.0+ compatibility
+          # In Ruby 3.0+, halt needs the response body as a string (not hash) to properly set the response
+          # Format: halt status_code, json_string
           content_type :json
-          halt(403, { error: "Permission denied: #{permission}" }.to_json)
+          error_response = { error: "Permission denied: #{permission}" }.to_json
+          halt 403, error_response
         end
 
         # Log successful permission check, but don't let logging failures prevent access
