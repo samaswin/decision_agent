@@ -2241,11 +2241,13 @@ module DecisionAgent
           rescue StandardError
             # If logging fails, continue with permission denial
           end
-          # Move halt outside ensure block - Ruby 3.1 compatibility
-          # Placing halt here instead of ensure block fixes Ruby 3.1 issue where
-          # halt inside ensure doesn't reliably stop execution
+          # Use halt to stop execution and return 403
+          # This fixes Ruby 3.0 compatibility where halt may not reliably stop execution
           content_type :json
-          halt 403, { error: "Permission denied: #{permission}" }.to_json
+          # rubocop:disable Style/MethodCallWithArgsParentheses
+          # Explicit parentheses required for Ruby 3.0 compatibility
+          halt(403, { error: "Permission denied: #{permission}" }.to_json)
+          # rubocop:enable Style/MethodCallWithArgsParentheses
         end
 
         # Log successful permission check, but don't let logging failures prevent access
@@ -2270,6 +2272,7 @@ module DecisionAgent
         if disable_flag
           normalized = disable_flag.to_s.strip.downcase
           return true if %w[true 1 yes].include?(normalized)
+          # If explicitly set to false, respect it and don't check environment
           return false if %w[false 0 no].include?(normalized)
         end
 
