@@ -454,7 +454,7 @@ RSpec.describe "Performance Optimizations" do
                          1800  # Higher threshold for Ruby 3.1+
                        end
 
-      # Note: This test uses regex matching which is more expensive than simple comparisons.
+      # NOTE: This test uses regex matching which is more expensive than simple comparisons.
       # The threshold accounts for system variability, complex rules, test environment, and
       # potential interference from other tests when running in the full suite.
       # For simpler rules in production, expect 5,000-8,000+ decisions/second (see PERFORMANCE_AND_THREAD_SAFETY.md)

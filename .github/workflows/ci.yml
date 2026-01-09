@@ -34,8 +34,12 @@ jobs:
     - name: Install dependencies
       run: bundle install
 
-    - name: Run tests
-      run: bundle exec rspec
+    - name: Prepare parallel test databases
+      run: bundle exec rake parallel:create
+      continue-on-error: true
+
+    - name: Run tests in parallel
+      run: bundle exec parallel_rspec spec
 
     - name: Upload coverage to Codecov
       if: matrix.ruby-version == '3.3'
