@@ -204,6 +204,38 @@ bundle exec ruby benchmarks/basic_decision_benchmark.rb
 - Baseline files are stored in `benchmarks/baselines/` directory
 - Results include timestamp, Ruby version, and performance metrics
 
+### Cross-Ruby Version Benchmarking
+
+Run performance benchmarks across all supported Ruby versions automatically:
+
+```bash
+./scripts/benchmark_all_ruby_versions.sh
+```
+
+This script will:
+- Benchmark each Ruby version (3.0.7, 3.1.6, 3.2.5, 3.3.5)
+- Run `bundle install` for each version
+- Execute all performance benchmarks (`rake benchmark:all`)
+- Run regression tests to compare against baselines
+- Generate a summary report with results
+
+**Output:**
+- Colored status messages for each Ruby version
+- Key performance metrics (throughput, latency)
+- Final summary showing success/failure for each version
+- Detailed logs saved to `benchmark_logs/<timestamp>/`
+
+**Log Files:**
+- `benchmark_logs/<timestamp>/bundle_install_<version>.log` - Bundle install logs
+- `benchmark_logs/<timestamp>/benchmark_<version>.log` - Full benchmark output
+- `benchmarks/results/` - Benchmark result JSON files
+
+**Requirements:**
+- asdf installed and in PATH
+- Ruby versions installed via asdf: `asdf install ruby 3.0.7` (etc.)
+
+See [Development Setup Guide](../docs/DEVELOPMENT_SETUP.md) for complete setup instructions.
+
 ### Docker Execution
 
 #### Using the Convenience Script
@@ -246,8 +278,15 @@ docker-compose -f benchmarks/docker-compose.yml run --rm benchmark-3.3 rake benc
 
 Benchmarks run automatically in CI/CD on:
 - Pull requests (when `lib/**` or `benchmarks/**` files change)
+- Every push to main branch
 - Weekly schedule (Sunday at midnight)
 - All supported Ruby versions (3.0, 3.1, 3.2, 3.3)
+
+**GitHub Actions Workflows:**
+- `.github/workflows/ci.yml` - Main CI workflow with benchmark job
+- `.github/workflows/benchmark.yml` - Dedicated benchmark workflow
+
+Benchmark results are uploaded as artifacts and can be downloaded from the GitHub Actions UI.
 
 ## Best Practices
 

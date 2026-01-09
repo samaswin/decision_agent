@@ -481,13 +481,16 @@ See [Thread-Safety Guide](docs/THREAD_SAFETY.md) and [Performance Analysis](docs
 
 **Run Benchmarks:**
 ```bash
-# Run all benchmarks
+# Run all benchmarks (single Ruby version)
 rake benchmark:all
 
 # Run specific benchmarks
 rake benchmark:basic      # Basic decision performance
 rake benchmark:threads    # Thread-safety and scalability
 rake benchmark:regression # Compare against baseline
+
+# Run benchmarks across all Ruby versions (3.0.7, 3.1.6, 3.2.5, 3.3.5)
+./scripts/benchmark_all_ruby_versions.sh
 
 # See [Benchmarks Guide](benchmarks/README.md) for complete documentation
 ```
@@ -519,6 +522,7 @@ rake benchmark:regression # Compare against baseline
 3. Set up development environment (see [Development Setup](docs/DEVELOPMENT_SETUP.md))
 4. Add tests (maintain 90%+ coverage)
 5. Run tests across all Ruby versions: `./scripts/test_all_ruby_versions.sh`
+6. Run benchmarks across all Ruby versions: `./scripts/benchmark_all_ruby_versions.sh`
 6. Submit a pull request
 
 See [Development Setup Guide](docs/DEVELOPMENT_SETUP.md) for detailed setup instructions, testing workflows, and development best practices.

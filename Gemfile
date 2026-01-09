@@ -5,8 +5,8 @@ gemspec
 group :development, :test do
   gem "activerecord", "~> 7.0"
   gem "activesupport", "< 7.2" # Pin to version compatible with Ruby 3.0+
-  gem "benchmark-ips" # Better benchmark statistics
   gem "benchmark_driver" # Advanced benchmarking framework for testing benchmarks
+  gem "benchmark-ips" # Better benchmark statistics
   gem "connection_pool", "< 3.0" # Pin to version compatible with Ruby 3.0+
   gem "memory_profiler" # Memory profiling
   gem "minitest", "< 6.0" # Pin to version compatible with Ruby 3.0+

@@ -123,6 +123,8 @@ Logs are saved in timestamped directories (e.g., `test_logs/20260109_143022/`) s
 
 ### Running Benchmarks
 
+#### Single Ruby Version
+
 ```bash
 # Run all benchmarks
 rake benchmark:all
@@ -134,6 +136,39 @@ rake benchmark:regression # Compare against baseline
 
 # See benchmarks/README.md for complete documentation
 ```
+
+#### Cross-Ruby Version Benchmarking
+
+Run performance benchmarks across all supported Ruby versions automatically:
+
+```bash
+./scripts/benchmark_all_ruby_versions.sh
+```
+
+This script will:
+- Benchmark each Ruby version (3.0.7, 3.1.6, 3.2.5, 3.3.5)
+- Run `bundle install` for each version
+- Execute all performance benchmarks (`rake benchmark:all`)
+- Run regression tests to compare against baselines
+- Generate a summary report with results
+- Save detailed logs for analysis
+
+**Output:**
+- Colored status messages for each Ruby version
+- Bundle install progress
+- Benchmark execution progress with key performance metrics
+- Final summary showing:
+  - Which versions completed successfully ✅
+  - Which versions failed ❌
+  - Key performance metrics (throughput, latency)
+  - Location of detailed log files
+
+**Log Files:**
+- `benchmark_logs/<timestamp>/bundle_install_<version>.log` - Bundle install logs
+- `benchmark_logs/<timestamp>/benchmark_<version>.log` - Full benchmark output
+- `benchmarks/results/` - Benchmark result JSON files
+
+Logs are saved in timestamped directories (e.g., `benchmark_logs/20260109_143022/`) so multiple benchmark runs are preserved and not overwritten. The logs are never deleted automatically.
 
 ### Code Coverage
 
@@ -160,7 +195,8 @@ decision_agent/
 ├── docs/                   # Documentation
 ├── benchmarks/             # Performance benchmarks
 ├── scripts/                # Utility scripts
-│   └── test_all_ruby_versions.sh  # Multi-version testing
+│   ├── test_all_ruby_versions.sh  # Multi-version testing
+│   └── benchmark_all_ruby_versions.sh  # Multi-version benchmarking
 ├── Gemfile                 # Dependencies
 └── Rakefile                # Rake tasks
 ```
@@ -174,15 +210,17 @@ Key development dependencies:
 - **simplecov** (~> 0.22) - Code coverage
 - **rubocop** (~> 1.60) - Code style checker
 - **benchmark-ips** - Performance benchmarking
+- **benchmark_driver** - Advanced benchmarking framework
 - **webmock** (~> 3.18) - HTTP request mocking
 
 ## Testing Best Practices
 
 1. **Run tests before committing**: Always run the full test suite
 2. **Test across Ruby versions**: Use `./scripts/test_all_ruby_versions.sh` before major changes
-3. **Maintain coverage**: Keep test coverage above 85%
-4. **Use parallel tests**: Significantly faster for large test suites
-5. **Check for regressions**: Run benchmarks after performance-related changes
+3. **Benchmark across Ruby versions**: Use `./scripts/benchmark_all_ruby_versions.sh` after performance-related changes
+4. **Maintain coverage**: Keep test coverage above 85%
+5. **Use parallel tests**: Significantly faster for large test suites
+6. **Check for regressions**: Run benchmarks after performance-related changes
 
 ## Troubleshooting
 
@@ -223,12 +261,30 @@ Check the detailed logs in `/tmp/rspec_<version>.log` for specific error message
 
 ## CI/CD Integration
 
-The multi-Ruby version testing script can be integrated into CI/CD pipelines:
+The multi-Ruby version testing and benchmarking scripts are integrated into CI/CD pipelines:
+
+### GitHub Actions
+
+The project includes GitHub Actions workflows that automatically:
+- Run tests across all Ruby versions (3.0.7, 3.1.6, 3.2.5, 3.3.5) on every PR
+- Run performance benchmarks across all Ruby versions
+- Upload benchmark results as artifacts
+- Check for performance regressions
+
+**Workflows:**
+- `.github/workflows/ci.yml` - Main CI workflow with tests and benchmarks
+- `.github/workflows/benchmark.yml` - Dedicated benchmark workflow (runs on lib/ or benchmarks/ changes)
+
+**Example usage in custom workflows:**
 
 ```yaml
-# Example GitHub Actions workflow
+# Test all Ruby versions
 - name: Test all Ruby versions
   run: ./scripts/test_all_ruby_versions.sh
+
+# Benchmark all Ruby versions
+- name: Benchmark all Ruby versions
+  run: ./scripts/benchmark_all_ruby_versions.sh
 ```
 
 ## Additional Resources
