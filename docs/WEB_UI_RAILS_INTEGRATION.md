@@ -88,24 +88,7 @@ mount DecisionAgent::Web::Server, at: '/admin/rules'
 
 ## Rack App Integration (Non-Rails)
 
-For Sinatra or other Rack applications:
-
-### Sinatra
-
-```ruby
-# config.ru or app.rb
-require 'sinatra'
-require 'decision_agent/web/server'
-
-# Mount as a sub-app
-map '/decision_agent' do
-  run DecisionAgent::Web::Server
-end
-
-map '/' do
-  run YourSinatraApp
-end
-```
+For Rack applications:
 
 ### config.ru
 

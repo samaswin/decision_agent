@@ -18,7 +18,7 @@ example_files.each do |example_file|
 
   # Skip examples that start servers or are interactive
   skip_patterns = [
-    "03_sinatra_app.rb", # Starts a server
+    "03_rack_app.rb", # Starts a server
     "02_rails_integration.rb", # Requires Rails setup
     "04_rails_web_ui_integration.rb", # Requires Rails setup
     "rails_rbac_integration.rb" # Requires Rails setup

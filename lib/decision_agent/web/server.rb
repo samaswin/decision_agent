@@ -76,33 +76,9 @@ module DecisionAgent
 
       class << self
         attr_reader :batch_test_storage, :batch_test_storage_mutex, :simulation_storage, :simulation_storage_mutex, :public_folder, :views_folder, :bind, :port
-        attr_writer :authenticator, :public_folder, :views_folder, :bind, :port
+        attr_writer :authenticator, :permission_checker, :access_audit_logger, :public_folder, :views_folder, :bind, :port
 
         alias_method :simulation_storage, :simulation_storage if method_defined?(:simulation_storage)
-
-        # Sinatra-like set method for compatibility
-        def set(key, value)
-          case key
-          when :public_folder
-            @public_folder = value
-          when :views
-            @views_folder = value
-          when :bind
-            @bind = value
-          when :port
-            @port = value
-          end
-        end
-
-        # Settings accessor (Sinatra compatibility)
-        def settings
-          @settings ||= Struct.new(:public_folder, :views, :bind, :port).new(
-            @public_folder || PUBLIC_FOLDER,
-            @views_folder || VIEWS_FOLDER,
-            @bind || "0.0.0.0",
-            @port || 4567
-          )
-        end
       end
 
       def self.authenticator
@@ -348,7 +324,7 @@ module DecisionAgent
         # Main page - serve the rule builder UI
         router.get "/" do |ctx|
           begin
-            html_file = File.join(Server.settings.public_folder, "index.html")
+            html_file = File.join(Server.public_folder, "index.html")
             unless File.exist?(html_file)
               ctx.status(404)
               ctx.body("Index page not found")
@@ -380,13 +356,13 @@ module DecisionAgent
         # Serve static assets explicitly
         router.get "/styles.css" do |ctx|
           ctx.content_type "text/css"
-          css_file = File.join(Server.settings.public_folder, "styles.css")
+          css_file = File.join(Server.public_folder, "styles.css")
           ctx.send_file(css_file) if File.exist?(css_file)
         end
 
         router.get "/app.js" do |ctx|
           ctx.content_type "application/javascript"
-          js_file = File.join(Server.settings.public_folder, "app.js")
+          js_file = File.join(Server.public_folder, "app.js")
           ctx.send_file(js_file) if File.exist?(js_file)
         end
 
@@ -1457,7 +1433,7 @@ module DecisionAgent
 
         # GET /testing/batch - Batch testing UI page
         router.get "/testing/batch" do |ctx|
-          batch_file = File.join(Server.settings.public_folder, "batch_testing.html")
+          batch_file = File.join(Server.public_folder, "batch_testing.html")
           ctx.send_file(batch_file) if File.exist?(batch_file)
           unless ctx.halted?
             ctx.status(404)
@@ -1947,7 +1923,7 @@ module DecisionAgent
 
         # GET /simulation - Simulation dashboard UI page
         router.get "/simulation" do |ctx|
-          sim_file = File.join(Server.settings.public_folder, "simulation.html")
+          sim_file = File.join(Server.public_folder, "simulation.html")
           if File.exist?(sim_file)
             ctx.send_file(sim_file)
           else
@@ -1961,7 +1937,7 @@ module DecisionAgent
 
         # GET /simulation/replay - Historical replay UI page
         router.get "/simulation/replay" do |ctx|
-          replay_file = File.join(Server.settings.public_folder, "simulation_replay.html")
+          replay_file = File.join(Server.public_folder, "simulation_replay.html")
           if File.exist?(replay_file)
             ctx.send_file(replay_file)
           else
@@ -1975,7 +1951,7 @@ module DecisionAgent
 
         # GET /simulation/whatif - What-if analysis UI page
         router.get "/simulation/whatif" do |ctx|
-          whatif_file = File.join(Server.settings.public_folder, "simulation_whatif.html")
+          whatif_file = File.join(Server.public_folder, "simulation_whatif.html")
           if File.exist?(whatif_file)
             ctx.send_file(whatif_file)
           else
@@ -1989,7 +1965,7 @@ module DecisionAgent
 
         # GET /simulation/impact - Impact analysis UI page
         router.get "/simulation/impact" do |ctx|
-          impact_file = File.join(Server.settings.public_folder, "simulation_impact.html")
+          impact_file = File.join(Server.public_folder, "simulation_impact.html")
           if File.exist?(impact_file)
             ctx.send_file(impact_file)
           else
@@ -2003,7 +1979,7 @@ module DecisionAgent
 
         # GET /simulation/shadow - Shadow testing UI page
         router.get "/simulation/shadow" do |ctx|
-          shadow_file = File.join(Server.settings.public_folder, "simulation_shadow.html")
+          shadow_file = File.join(Server.public_folder, "simulation_shadow.html")
           if File.exist?(shadow_file)
             ctx.send_file(shadow_file)
           else
@@ -2017,7 +1993,7 @@ module DecisionAgent
 
         # GET /auth/login - Login page
         router.get "/auth/login" do |ctx|
-          login_file = File.join(Server.settings.public_folder, "login.html")
+          login_file = File.join(Server.public_folder, "login.html")
           if File.exist?(login_file)
             ctx.send_file(login_file)
           else
@@ -2031,7 +2007,7 @@ module DecisionAgent
 
         # GET /auth/users - User management page
         router.get "/auth/users" do |ctx|
-          users_file = File.join(Server.settings.public_folder, "users.html")
+          users_file = File.join(Server.public_folder, "users.html")
           if File.exist?(users_file)
             ctx.send_file(users_file)
           else
@@ -2047,7 +2023,7 @@ module DecisionAgent
 
         # GET /dmn/editor - DMN Editor UI page
         router.get "/dmn/editor" do |ctx|
-          dmn_file = File.join(Server.settings.public_folder, "dmn-editor.html")
+          dmn_file = File.join(Server.public_folder, "dmn-editor.html")
           if File.exist?(dmn_file)
             ctx.send_file(dmn_file)
           else

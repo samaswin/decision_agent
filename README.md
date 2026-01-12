@@ -104,7 +104,7 @@ See [Code Examples](docs/CODE_EXAMPLES.md) for more comprehensive examples.
 
 ### Developer Experience
 - **Pluggable Architecture** - Custom evaluators, scoring, audit adapters
-- **Framework Agnostic** - Works with Rails, Sinatra, or standalone
+- **Framework Agnostic** - Works with Rails, Rack, or standalone
 - **JSON Rule DSL** - Non-technical users can write rules
 - **DMN 1.3 Support** - Industry-standard Decision Model and Notation with full FEEL expression language
 - **Visual Rule Builder** - Web UI for rule management and DMN modeler
@@ -140,7 +140,7 @@ Rails.application.routes.draw do
 end
 ```
 
-**Rack/Sinatra:**
+**Rack:**
 ```ruby
 require 'decision_agent/web/server'
 map '/decision_agent' do

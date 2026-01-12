@@ -17,7 +17,7 @@ Visual guide to the DecisionAgent monitoring and analytics architecture.
           │                 │                 │                 │
           │                 │                 │                 │
 ┌─────────▼─────────────────▼─────────────────▼─────────────────▼────────┐
-│                       Dashboard Server (Sinatra)                        │
+│                       Dashboard Server (Rack)                            │
 │                                                                          │
 │  HTTP Endpoints:                 WebSocket:                             │
 │  • GET  /                        • /ws (real-time)                      │
@@ -458,7 +458,7 @@ end
 ├─────────────────────────────────────────────┤
 │ 1. Dashboard Authentication                  │
 │    • Rails: use authenticate helper          │
-│    • Sinatra: basic auth middleware          │
+│    • Rack: basic auth middleware             │
 │                                              │
 │ 2. Metrics Endpoint Protection               │
 │    • IP whitelist for /metrics               │

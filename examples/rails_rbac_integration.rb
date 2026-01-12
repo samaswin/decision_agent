@@ -140,11 +140,11 @@ end
 =end
 
 # ============================================================================
-# Integration with Rack middleware (for Sinatra, etc.)
+# Integration with Rack middleware
 # ============================================================================
 
 =begin
-# In your config.ru or Sinatra app
+# In your config.ru or Rack app
 require 'decision_agent'
 
 # Configure RBAC

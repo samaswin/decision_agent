@@ -58,7 +58,7 @@ module DecisionAgent
 
         def extract_resource_id(env)
           request = Rack::Request.new(env)
-          # Try params first (for query parameters and Sinatra path params)
+          # Try params first (for query parameters and path params)
           resource_id = request.params["id"] || request.params["rule_id"] || request.params["version_id"]
 
           # If not in params, try to extract from path (e.g., /api/rules/123 -> 123)

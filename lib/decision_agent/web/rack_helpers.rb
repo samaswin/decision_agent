@@ -1,5 +1,5 @@
 # Rack helpers for framework-agnostic web server
-# These helpers provide Sinatra-like convenience methods for pure Rack applications
+# These helpers provide convenience methods for pure Rack applications
 
 require "rack"
 require "rack/file"
@@ -62,7 +62,7 @@ module DecisionAgent
         private
 
         def add_route(method, path_pattern, handler)
-          # Convert Sinatra-style path patterns to regex
+          # Convert path patterns to regex
           # Example: "/api/versions/:id" -> /^\/api\/versions\/(?<id>[^\/]+)$/
           # Handle wildcard "*" for catch-all routes
           if path_pattern == "*"

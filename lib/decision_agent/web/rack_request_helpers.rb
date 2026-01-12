@@ -1,5 +1,5 @@
 # Request/Response helpers for Rack applications
-# Provides Sinatra-like convenience methods
+# Provides convenience methods for handling requests and responses
 
 require "rack"
 require "rack/utils"
@@ -8,7 +8,7 @@ require "uri"
 module DecisionAgent
   module Web
     module RackRequestHelpers
-      # Context object that provides Sinatra-like methods in route handlers
+      # Context object that provides convenience methods in route handlers
       class RequestContext
         attr_reader :env, :request, :response_status, :response_headers, :response_body
         attr_accessor :current_user, :current_session

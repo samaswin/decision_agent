@@ -99,10 +99,10 @@ rails db:migrate
 
 ---
 
-### 3. Sinatra Application ([03_sinatra_app.rb](03_sinatra_app.rb))
+### 3. Rack Application ([03_rack_app.rb](03_rack_app.rb))
 
 **What it covers:**
-- Complete Sinatra app with versioning API
+- Complete Rack app with versioning API
 - RESTful endpoints
 - CORS configuration
 - Error handling
@@ -111,7 +111,7 @@ rails db:migrate
 
 **Run it:**
 ```bash
-ruby examples/03_sinatra_app.rb
+ruby examples/03_rack_app.rb
 # Visit http://localhost:4567
 ```
 
@@ -159,7 +159,7 @@ ruby examples/04_advanced_scenarios.rb
 - Mounting Web UI in Rails applications
 - Authentication and authorization
 - Custom middleware configuration
-- Sinatra/Rack integration
+- Rack integration
 - Standalone server setup
 - Environment-based configuration
 
@@ -407,7 +407,7 @@ gem install decision_agent
 
 All examples use file-based storage by default. Versions are stored in:
 - `./versions/` (basic examples)
-- `./data/versions/` (Sinatra app)
+- `./data/versions/` (Rack app)
 - Custom paths as configured
 
 ### Rails with ActiveRecord
@@ -503,7 +503,7 @@ end
 ## Next Steps
 
 1. **Start with Example 1** - Understand the basics
-2. **Choose your framework** - Rails (Example 2) or Sinatra (Example 3)
+2. **Choose your framework** - Rails (Example 2) or Rack (Example 3)
 3. **Explore advanced features** - Example 4 for production patterns
 4. **Read the full docs** - [VERSIONING.md](../docs/VERSIONING.md)
 
