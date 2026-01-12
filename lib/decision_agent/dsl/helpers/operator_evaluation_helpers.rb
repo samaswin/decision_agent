@@ -145,7 +145,7 @@ module DecisionAgent
           Operators::CollectionOperators.handle(op, actual_value, expected_value)
         end
 
-        def self.try_special_operators(op, actual_value, expected_value, context_hash, geospatial_cache:, geospatial_cache_mutex:)
+        def self.try_special_operators(op, actual_value, expected_value, _context_hash, geospatial_cache:, geospatial_cache_mutex:)
           Operators::GeospatialOperators.handle(
             op, actual_value, expected_value,
             geospatial_cache: geospatial_cache,

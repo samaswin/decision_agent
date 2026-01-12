@@ -75,10 +75,11 @@ module DecisionAgent
       @router = nil
 
       class << self
-        attr_reader :batch_test_storage, :batch_test_storage_mutex, :simulation_storage, :simulation_storage_mutex, :public_folder, :views_folder, :bind, :port
-        attr_writer :authenticator, :permission_checker, :access_audit_logger, :public_folder, :views_folder, :bind, :port
+        attr_accessor :public_folder, :views_folder, :bind, :port
+        attr_reader :batch_test_storage, :batch_test_storage_mutex, :simulation_storage, :simulation_storage_mutex
+        attr_writer :authenticator, :permission_checker, :access_audit_logger
 
-        alias_method :simulation_storage, :simulation_storage if method_defined?(:simulation_storage)
+        alias simulation_storage simulation_storage if method_defined?(:simulation_storage)
       end
 
       def self.authenticator
@@ -149,9 +150,7 @@ module DecisionAgent
 
         # Route the request
         route_match = self.class.router.match(env)
-        unless route_match
-          return [404, { "Content-Type" => "text/plain" }, ["Not Found"]]
-        end
+        return [404, { "Content-Type" => "text/plain" }, ["Not Found"]] unless route_match
 
         # Create request context with route params
         ctx = RequestContext.new(env, route_match[:params] || {})
@@ -173,9 +172,10 @@ module DecisionAgent
 
       private
 
-      def serve_static_file(path, env)
+      def serve_static_file(path, _env)
         # Serve static files from public folder
-        static_paths = ["/styles.css", "/app.js", "/index.html", "/batch_testing.html", "/simulation.html", "/login.html", "/users.html", "/dmn-editor.html"]
+        static_paths = ["/styles.css", "/app.js", "/index.html", "/batch_testing.html", "/simulation.html", "/login.html", "/users.html",
+                        "/dmn-editor.html"]
         static_extensions = [".css", ".js", ".html", ".svg", ".png", ".jpg", ".gif", ".json", ".xml"]
 
         return nil unless static_paths.include?(path) || static_extensions.any? { |ext| path.end_with?(ext) }
@@ -323,34 +323,32 @@ module DecisionAgent
 
         # Main page - serve the rule builder UI
         router.get "/" do |ctx|
-          begin
-            html_file = File.join(Server.public_folder, "index.html")
-            unless File.exist?(html_file)
-              ctx.status(404)
-              ctx.body("Index page not found")
-              next
-            end
-
-            html_content = File.read(html_file, encoding: "UTF-8")
-
-            # Determine the base path from the request
-            base_path = ctx.script_name.empty? ? "./" : "#{ctx.script_name}/"
-
-            # Inject or update base tag
-            base_tag = "<base href=\"#{base_path}\">"
-            html_content = if html_content.include?("<base")
-                            html_content.sub(/<base[^>]*>/, base_tag)
-                          else
-                            html_content.sub("<head>", "<head>\n    #{base_tag}")
-                          end
-
-            ctx.content_type "text/html"
-            ctx.body(html_content)
-          rescue StandardError => e
-            ctx.status(500)
-            ctx.content_type "text/html"
-            ctx.body("Error loading page: #{e.message}")
+          html_file = File.join(Server.public_folder, "index.html")
+          unless File.exist?(html_file)
+            ctx.status(404)
+            ctx.body("Index page not found")
+            next
           end
+
+          html_content = File.read(html_file, encoding: "UTF-8")
+
+          # Determine the base path from the request
+          base_path = ctx.script_name.empty? ? "./" : "#{ctx.script_name}/"
+
+          # Inject or update base tag
+          base_tag = "<base href=\"#{base_path}\">"
+          html_content = if html_content.include?("<base")
+                           html_content.sub(/<base[^>]*>/, base_tag)
+                         else
+                           html_content.sub("<head>", "<head>\n    #{base_tag}")
+                         end
+
+          ctx.content_type "text/html"
+          ctx.body(html_content)
+        rescue StandardError => e
+          ctx.status(500)
+          ctx.content_type "text/html"
+          ctx.body("Error loading page: #{e.message}")
         end
 
         # Serve static assets explicitly
@@ -380,29 +378,29 @@ module DecisionAgent
 
             # If validation passes
             ctx.json({
-              valid: true,
-              message: "Rules are valid!"
-            })
+                       valid: true,
+                       message: "Rules are valid!"
+                     })
           rescue JSON::ParserError => e
             ctx.status(400)
             ctx.json({
-              valid: false,
-              errors: ["Invalid JSON: #{e.message}"]
-            })
+                       valid: false,
+                       errors: ["Invalid JSON: #{e.message}"]
+                     })
           rescue DecisionAgent::InvalidRuleDslError => e
             # Validation failed
             ctx.status(422)
             ctx.json({
-              valid: false,
-              errors: Server.parse_validation_errors(e.message)
-            })
+                       valid: false,
+                       errors: Server.parse_validation_errors(e.message)
+                     })
           rescue StandardError => e
             # Unexpected error
             ctx.status(500)
             ctx.json({
-              valid: false,
-              errors: ["Server error: #{e.message}"]
-            })
+                       valid: false,
+                       errors: ["Server error: #{e.message}"]
+                     })
           end
         end
 
@@ -463,24 +461,24 @@ module DecisionAgent
               ctx.json(response)
             else
               ctx.json({
-                success: true,
-                decision: nil,
-                because: [],
-                failed_conditions: [],
-                message: "No rules matched the given context",
-                explainability: {
-                  decision: nil,
-                  because: [],
-                  failed_conditions: []
-                }
-              })
+                         success: true,
+                         decision: nil,
+                         because: [],
+                         failed_conditions: [],
+                         message: "No rules matched the given context",
+                         explainability: {
+                           decision: nil,
+                           because: [],
+                           failed_conditions: []
+                         }
+                       })
             end
           rescue StandardError => e
             ctx.status(500)
             ctx.json({
-              success: false,
-              error: e.message
-            })
+                       success: false,
+                       error: e.message
+                     })
           end
         end
 
@@ -639,10 +637,10 @@ module DecisionAgent
             )
 
             ctx.json({
-              token: session.token,
-              user: user.to_h,
-              expires_at: session.expires_at.iso8601
-            })
+                       token: session.token,
+                       user: user.to_h,
+                       expires_at: session.expires_at.iso8601
+                     })
           rescue JSON::ParserError
             ctx.status(400)
             ctx.json({ error: "Invalid JSON" })
@@ -729,11 +727,11 @@ module DecisionAgent
 
             # Validate roles
             roles.each do |role|
-              unless Auth::Role.exists?(role)
-                ctx.status(400)
-                ctx.json({ error: "Invalid role: #{role}" })
-                next
-              end
+              next if Auth::Role.exists?(role)
+
+              ctx.status(400)
+              ctx.json({ error: "Invalid role: #{role}" })
+              next
             end
 
             user = Server.authenticator.create_user(
@@ -912,12 +910,12 @@ module DecisionAgent
               )
 
               ctx.json({
-                success: true,
-                message: "If the email exists, a password reset token has been generated",
-                # In production, remove this token from response and send via email
-                token: token.token,
-                expires_at: token.expires_at.iso8601
-              })
+                         success: true,
+                         message: "If the email exists, a password reset token has been generated",
+                         # In production, remove this token from response and send via email
+                         token: token.token,
+                         expires_at: token.expires_at.iso8601
+                       })
             else
               # Log failed attempt (but don't reveal if user exists)
               Server.access_audit_logger.log_authentication(
@@ -929,9 +927,9 @@ module DecisionAgent
               )
 
               ctx.json({
-                success: true,
-                message: "If the email exists, a password reset token has been generated"
-              })
+                         success: true,
+                         message: "If the email exists, a password reset token has been generated"
+                       })
             end
           rescue JSON::ParserError
             ctx.status(400)
@@ -981,9 +979,9 @@ module DecisionAgent
             )
 
             ctx.json({
-              success: true,
-              message: "Password has been reset successfully"
-            })
+                       success: true,
+                       message: "Password has been reset successfully"
+                     })
           rescue JSON::ParserError
             ctx.status(400)
             ctx.json({ error: "Invalid JSON" })
@@ -1182,7 +1180,7 @@ module DecisionAgent
           begin
             # Handle file upload from multipart form data
             file_param = ctx.params[:file] || ctx.params["file"]
-            
+
             unless file_param && (file_param[:tempfile] || file_param["tempfile"])
               ctx.status(400)
               ctx.json({ error: "No file uploaded" })
@@ -1222,12 +1220,12 @@ module DecisionAgent
             if importer.errors.any?
               ctx.status(422)
               ctx.json({
-                error: "Import completed with errors: #{importer.errors.join('; ')}",
-                test_id: nil,
-                scenarios_count: scenarios.size,
-                errors: importer.errors,
-                warnings: importer.warnings
-              })
+                         error: "Import completed with errors: #{importer.errors.join('; ')}",
+                         test_id: nil,
+                         scenarios_count: scenarios.size,
+                         errors: importer.errors,
+                         warnings: importer.warnings
+                       })
               next
             end
 
@@ -1246,11 +1244,11 @@ module DecisionAgent
 
             ctx.status(201)
             ctx.json({
-              test_id: test_id,
-              scenarios_count: scenarios.size,
-              errors: importer.errors,
-              warnings: importer.warnings
-            })
+                       test_id: test_id,
+                       scenarios_count: scenarios.size,
+                       errors: importer.errors,
+                       warnings: importer.warnings
+                     })
           rescue DecisionAgent::ImportError => e
             ctx.status(422)
             ctx.json({ error: e.message, errors: importer&.errors || [] })
@@ -1337,13 +1335,13 @@ module DecisionAgent
             end
 
             ctx.json({
-              test_id: test_id,
-              status: "completed",
-              results_count: results.size,
-              statistics: runner.statistics,
-              comparison: comparison,
-              coverage: coverage.to_h
-            })
+                       test_id: test_id,
+                       status: "completed",
+                       results_count: results.size,
+                       statistics: runner.statistics,
+                       comparison: comparison,
+                       coverage: coverage.to_h
+                     })
           rescue StandardError => e
             # Update status to failed
             test_id_for_error = test_id || (data && data["test_id"])
@@ -1380,17 +1378,17 @@ module DecisionAgent
             end
 
             ctx.json({
-              test_id: test_data[:id],
-              status: test_data[:status],
-              created_at: test_data[:created_at],
-              started_at: test_data[:started_at],
-              completed_at: test_data[:completed_at],
-              scenarios_count: test_data[:scenarios]&.size || 0,
-              results: test_data[:results],
-              comparison: test_data[:comparison],
-              statistics: test_data[:statistics],
-              error: test_data[:error]
-            })
+                       test_id: test_data[:id],
+                       status: test_data[:status],
+                       created_at: test_data[:created_at],
+                       started_at: test_data[:started_at],
+                       completed_at: test_data[:completed_at],
+                       scenarios_count: test_data[:scenarios]&.size || 0,
+                       results: test_data[:results],
+                       comparison: test_data[:comparison],
+                       statistics: test_data[:statistics],
+                       error: test_data[:error]
+                     })
           rescue StandardError => e
             ctx.status(500)
             ctx.json({ error: e.message })
@@ -1422,9 +1420,9 @@ module DecisionAgent
             end
 
             ctx.json({
-              test_id: test_data[:id],
-              coverage: test_data[:coverage]
-            })
+                       test_id: test_data[:id],
+                       coverage: test_data[:coverage]
+                     })
           rescue StandardError => e
             ctx.status(500)
             ctx.json({ error: e.message })
@@ -1444,7 +1442,7 @@ module DecisionAgent
           ctx.body("Batch testing page not found: #{e.message}")
         end
 
-      # Simulation API Endpoints
+        # Simulation API Endpoints
 
         # POST /api/simulation/replay - Historical replay/backtesting
         router.post "/api/simulation/replay" do |ctx|
@@ -1531,9 +1529,9 @@ module DecisionAgent
             end
 
             ctx.json({
-              replay_id: replay_id,
-              results: results
-            })
+                       replay_id: replay_id,
+                       results: results
+                     })
           rescue StandardError => e
             ctx.status(500)
             ctx.json({ error: "Replay failed: #{e.message}" })
@@ -1597,9 +1595,9 @@ module DecisionAgent
             end
 
             ctx.json({
-              analysis_id: analysis_id,
-              results: results
-            })
+                       analysis_id: analysis_id,
+                       results: results
+                     })
           rescue StandardError => e
             ctx.status(500)
             ctx.json({ error: "What-if analysis failed: #{e.message}" })
@@ -1704,9 +1702,9 @@ module DecisionAgent
             end
 
             ctx.json({
-              impact_id: impact_id,
-              results: results
-            })
+                       impact_id: impact_id,
+                       results: results
+                     })
           rescue StandardError => e
             ctx.status(500)
             ctx.json({ error: "Impact analysis failed: #{e.message}" })
@@ -1905,16 +1903,16 @@ module DecisionAgent
             versions = version_mgr.list_versions
 
             ctx.json({
-              versions: versions.map do |v|
-                {
-                  id: v[:id] || v["id"],
-                  rule_id: v[:rule_id] || v["rule_id"],
-                  version_number: v[:version_number] || v["version_number"],
-                  status: v[:status] || v["status"],
-                  created_at: v[:created_at] || v["created_at"]
-                }
-              end
-            })
+                       versions: versions.map do |v|
+                         {
+                           id: v[:id] || v["id"],
+                           rule_id: v[:rule_id] || v["rule_id"],
+                           version_number: v[:version_number] || v["version_number"],
+                           status: v[:status] || v["status"],
+                           created_at: v[:created_at] || v["created_at"]
+                         }
+                       end
+                     })
           rescue StandardError => e
             ctx.status(500)
             ctx.json({ error: e.message })
@@ -2397,7 +2395,7 @@ module DecisionAgent
             # Check if request has multipart form data (file upload)
             file_param = ctx.params[:file] || ctx.params["file"]
             content_type_header = ctx.request.content_type || ""
-            
+
             if file_param && (file_param[:tempfile] || file_param["tempfile"])
               # File upload
               file = file_param[:tempfile] || file_param["tempfile"]
@@ -2435,29 +2433,29 @@ module DecisionAgent
 
             ctx.status(201)
             ctx.json({
-              success: true,
-              ruleset_name: ruleset_name,
-              decisions_imported: result[:decisions_imported],
-              model: {
-                id: result[:model].id,
-                name: result[:model].name,
-                namespace: result[:model].namespace,
-                decisions: result[:model].decisions.map do |d|
-                  {
-                    id: d.id,
-                    name: d.name
-                  }
-                end
-              },
-              versions: result[:versions].map do |v|
-                {
-                  version: v[:version],
-                  rule_id: v[:rule_id],
-                  created_by: v[:created_by],
-                  created_at: v[:created_at]
-                }
-              end
-            })
+                       success: true,
+                       ruleset_name: ruleset_name,
+                       decisions_imported: result[:decisions_imported],
+                       model: {
+                         id: result[:model].id,
+                         name: result[:model].name,
+                         namespace: result[:model].namespace,
+                         decisions: result[:model].decisions.map do |d|
+                           {
+                             id: d.id,
+                             name: d.name
+                           }
+                         end
+                       },
+                       versions: result[:versions].map do |v|
+                         {
+                           version: v[:version],
+                           rule_id: v[:rule_id],
+                           created_by: v[:created_by],
+                           created_at: v[:created_at]
+                         }
+                       end
+                     })
           rescue Dmn::InvalidDmnModelError, Dmn::DmnParseError => e
             ctx.status(400)
             ctx.json({ error: "DMN validation error", message: e.message })
@@ -2488,8 +2486,7 @@ module DecisionAgent
             ctx.json({ error: "Export failed", message: e.message })
           end
         end
-
-      end  # End of define_routes method
+      end
 
       # Class method to start the server (for CLI usage)
       # Framework-agnostic: uses Rack::Server which supports any Rack-compatible server

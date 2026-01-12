@@ -62,7 +62,6 @@ require_relative "decision_agent/auth/rbac_config"
 require_relative "decision_agent/auth/permission_checker"
 require_relative "decision_agent/auth/access_audit_logger"
 
-
 require_relative "decision_agent/simulation"
 
 require_relative "decision_agent/explainability/condition_trace"

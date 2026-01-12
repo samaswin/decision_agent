@@ -52,61 +52,61 @@ module DecisionAgent
             ctx.body("")
           end
 
-      # Class-level configuration
-      class << self
-        attr_accessor :metrics_collector, :prometheus_exporter, :alert_manager
-        attr_reader :websocket_clients
+          # Class-level configuration
+          class << self
+            attr_accessor :metrics_collector, :prometheus_exporter, :alert_manager
+            attr_reader :websocket_clients
 
-        def configure_monitoring(metrics_collector:, prometheus_exporter:, alert_manager:)
-          @metrics_collector = metrics_collector
-          @prometheus_exporter = prometheus_exporter
-          @alert_manager = alert_manager
-          @websocket_clients = []
+            def configure_monitoring(metrics_collector:, prometheus_exporter:, alert_manager:)
+              @metrics_collector = metrics_collector
+              @prometheus_exporter = prometheus_exporter
+              @alert_manager = alert_manager
+              @websocket_clients = []
 
-          setup_real_time_updates
-        end
+              setup_real_time_updates
+            end
 
-        def setup_real_time_updates
-          # Register observer for real-time metric updates
-          @metrics_collector.add_observer do |event_type, metric|
-            broadcast_to_clients({
-                                   type: "metric_update",
-                                   event: event_type,
-                                   data: metric,
-                                   timestamp: Time.now.utc.iso8601
-                                 })
+            def setup_real_time_updates
+              # Register observer for real-time metric updates
+              @metrics_collector.add_observer do |event_type, metric|
+                broadcast_to_clients({
+                                       type: "metric_update",
+                                       event: event_type,
+                                       data: metric,
+                                       timestamp: Time.now.utc.iso8601
+                                     })
+              end
+
+              # Register alert handler
+              @alert_manager.add_handler do |alert|
+                broadcast_to_clients({
+                                       type: "alert",
+                                       data: alert,
+                                       timestamp: Time.now.utc.iso8601
+                                     })
+              end
+            end
+
+            def broadcast_to_clients(message)
+              return unless WEBSOCKET_AVAILABLE
+              return if @websocket_clients.empty? # Skip if no clients connected
+
+              json_message = message.to_json
+              @websocket_clients.each do |client|
+                client.send(json_message) if client.ready_state == Faye::WebSocket::API::OPEN
+              rescue StandardError => e
+                warn "WebSocket send failed: #{e.message}"
+              end
+            end
+
+            def add_websocket_client(ws)
+              @websocket_clients << ws
+            end
+
+            def remove_websocket_client(ws)
+              @websocket_clients.delete(ws)
+            end
           end
-
-          # Register alert handler
-          @alert_manager.add_handler do |alert|
-            broadcast_to_clients({
-                                   type: "alert",
-                                   data: alert,
-                                   timestamp: Time.now.utc.iso8601
-                                 })
-          end
-        end
-
-        def broadcast_to_clients(message)
-          return unless WEBSOCKET_AVAILABLE
-          return if @websocket_clients.empty? # Skip if no clients connected
-
-          json_message = message.to_json
-          @websocket_clients.each do |client|
-            client.send(json_message) if client.ready_state == Faye::WebSocket::API::OPEN
-          rescue StandardError => e
-            warn "WebSocket send failed: #{e.message}"
-          end
-        end
-
-        def add_websocket_client(ws)
-          @websocket_clients << ws
-        end
-
-        def remove_websocket_client(ws)
-          @websocket_clients.delete(ws)
-        end
-      end
 
           # Main dashboard page
           router.get "/" do |ctx|
@@ -322,11 +322,11 @@ module DecisionAgent
           router.get "/health" do |ctx|
             ctx.content_type "application/json"
             ctx.json({
-              status: "ok",
-              version: DecisionAgent::VERSION,
-              websocket_clients: DashboardServer.websocket_clients.size,
-              metrics_count: DashboardServer.metrics_collector.metrics_count
-            })
+                       status: "ok",
+                       version: DecisionAgent::VERSION,
+                       websocket_clients: DashboardServer.websocket_clients.size,
+                       metrics_count: DashboardServer.metrics_collector.metrics_count
+                     })
           end
         end
 
@@ -448,9 +448,7 @@ module DecisionAgent
 
       def call(env)
         route_match = DashboardServer.router.match(env)
-        unless route_match
-          return [404, { "Content-Type" => "text/plain" }, ["Not Found"]]
-        end
+        return [404, { "Content-Type" => "text/plain" }, ["Not Found"]] unless route_match
 
         # Create request context with route params
         ctx = Web::RackRequestHelpers::RequestContext.new(env, route_match[:params] || {})

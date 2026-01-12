@@ -10,7 +10,7 @@ module DecisionAgent
     module RackRequestHelpers
       # Context object that provides convenience methods in route handlers
       class RequestContext
-        attr_reader :env, :request, :response_status, :response_headers, :response_body
+        attr_reader :env, :request, :response_status, :response_headers, :response_body, :halted_response
         attr_accessor :current_user, :current_session
 
         def initialize(env, route_params = {})
@@ -30,20 +30,20 @@ module DecisionAgent
           query_params_sym = query_params.transform_keys(&:to_sym)
           body_params_sym = body_params.transform_keys(&:to_sym)
           @params = route_params_sym.merge(query_params_sym).merge(body_params_sym)
-          
+
           # Handle multipart form data (file uploads)
           content_type_header = @env["CONTENT_TYPE"] || ""
-          if content_type_header.include?("multipart/form-data")
-            # Rack::Request handles multipart automatically
-            multipart_params = @request.params
-            multipart_params_sym = multipart_params.transform_keys(&:to_sym)
-            @params.merge!(multipart_params_sym)
-          end
+          return unless content_type_header.include?("multipart/form-data")
+
+          # Rack::Request handles multipart automatically
+          multipart_params = @request.params
+          multipart_params_sym = multipart_params.transform_keys(&:to_sym)
+          @params.merge!(multipart_params_sym)
         end
 
         def params
           # Return params with support for both symbol and string key access
-          @params_with_indifferent_access ||= begin
+          @params ||= begin
             hash = @params.dup
             # Add string-key versions for all symbol keys
             @params.each do |k, v|
@@ -55,7 +55,7 @@ module DecisionAgent
             end
             # Create accessor that checks both
             def hash.[](key)
-              super(key.to_sym) || super(key.to_s) || super(key)
+              super(key.to_sym) || super(key.to_s) || super
             end
             hash
           end
@@ -101,10 +101,6 @@ module DecisionAgent
 
         def halted?
           @halted
-        end
-
-        def halted_response
-          @halted_response
         end
 
         def send_file(filepath)

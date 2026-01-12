@@ -45,9 +45,7 @@ module DecisionAgent
           script_name = env["SCRIPT_NAME"] || ""
 
           # Remove script_name prefix if present
-          if script_name && !script_name.empty? && path.start_with?(script_name)
-            path = path[script_name.length..] || "/"
-          end
+          path = path[script_name.length..] || "/" if script_name && !script_name.empty? && path.start_with?(script_name)
 
           route = find_route(method, path)
           return nil unless route
@@ -65,13 +63,13 @@ module DecisionAgent
           # Convert path patterns to regex
           # Example: "/api/versions/:id" -> /^\/api\/versions\/(?<id>[^\/]+)$/
           # Handle wildcard "*" for catch-all routes
-          if path_pattern == "*"
-            regex_pattern = ".*"
-          else
-            regex_pattern = path_pattern
-              .gsub(%r{:[^/]+}) { |match| "(?<#{match[1..]}>[^/]+)" }
-              .gsub(/\*/, ".*")
-          end
+          regex_pattern = if path_pattern == "*"
+                            ".*"
+                          else
+                            path_pattern
+                              .gsub(%r{:[^/]+}) { |match| "(?<#{match[1..]}>[^/]+)" }
+                              .gsub("*", ".*")
+                          end
           regex = /^#{regex_pattern}$/
 
           @routes << {
@@ -86,7 +84,7 @@ module DecisionAgent
           # Try exact match first, then try routes in order
           # More specific routes should be registered first
           @routes.each do |route|
-            next unless route[:method] == method || route[:method] == "*"
+            next unless [method, "*"].include?(route[:method])
 
             match = route[:pattern].match(path)
             next unless match
