@@ -305,7 +305,7 @@ authenticate :user, ->(user) { user.admin? } do
 end
 ```
 
-### Rack/Sinatra
+### Rack
 
 ```ruby
 # config.ru

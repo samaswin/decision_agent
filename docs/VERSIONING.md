@@ -24,7 +24,7 @@ DecisionAgent includes a comprehensive versioning system for tracking rule chang
 ✅ **Version History** - List all versions for a rule with metadata
 ✅ **Version Comparison** - Diff two versions to see changes
 ✅ **Rollback** - Activate any previous version
-✅ **Framework-Agnostic** - Works with Rails, Sinatra, or any Ruby framework
+✅ **Framework-Agnostic** - Works with Rails, Rack, or any Ruby framework
 ✅ **Pluggable Storage** - File-based or database-backed storage
 ✅ **Audit Trail** - Track who made changes and when
 ✅ **Web UI** - Visual interface for version management
@@ -65,7 +65,7 @@ The versioning system uses the **Adapter Pattern** to support different storage 
 
 ## Installation
 
-### For Standalone / Sinatra Apps
+### For Standalone / Rack Apps
 
 No additional setup required! The gem uses file-based storage by default.
 
@@ -239,7 +239,7 @@ deleted = manager.delete_version(version_id: "approval_001_v2")
 
 ## Web UI
 
-The Sinatra web server includes a visual interface for version management.
+The Rack web server includes a visual interface for version management.
 
 ### Start the Server
 
@@ -743,7 +743,7 @@ manager = DecisionAgent::Versioning::VersionManager.new(
 
 ## HTTP API Endpoints
 
-When using the Sinatra web server:
+When using the Rack web server:
 
 ### `POST /api/versions`
 
@@ -877,18 +877,18 @@ version = rule.create_new_version(
 )
 ```
 
-### With Sinatra
+### With Rack
 
 ```ruby
-require 'sinatra'
+require 'rack'
 require 'decision_agent'
 
 manager = DecisionAgent::Versioning::VersionManager.new
 
-post '/rules/:rule_id/versions' do
-  content_type :json
-  
-  rule_id = params[:rule_id]
+# In your Rack app's call method
+if env['REQUEST_METHOD'] == 'POST' && env['PATH_INFO'] =~ %r{^/rules/([^/]+)/versions$}
+  rule_id = $1
+  request = Rack::Request.new(env)
   data = JSON.parse(request.body.read)
   
   version = manager.save_version(
@@ -898,11 +898,9 @@ post '/rules/:rule_id/versions' do
     changelog: data['changelog']
   )
   
-  version.to_json
-end
-
-get '/rules/:rule_id/versions' do
-  content_type :json
+  [200, {'Content-Type' => 'application/json'}, [version.to_json]]
+elsif env['REQUEST_METHOD'] == 'GET' && env['PATH_INFO'] =~ %r{^/rules/([^/]+)/versions$}
+  rule_id = $1
   
   versions = manager.get_versions(rule_id: params[:rule_id])
   versions.to_json

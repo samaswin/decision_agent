@@ -1461,8 +1461,8 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
       real_adapter = DecisionAgent::Versioning::FileStorageAdapter.new(storage_path: temp_storage_path)
       real_version_manager = DecisionAgent::Versioning::VersionManager.new(adapter: real_adapter)
 
-      # Stub the version_manager method to return our real manager
-      allow_any_instance_of(DecisionAgent::Web::Server).to receive(:version_manager).and_return(real_version_manager)
+      # Stub the version_manager class method to return our real manager
+      allow(DecisionAgent::Web::Server).to receive(:version_manager).and_return(real_version_manager)
     end
 
     after do
@@ -1910,8 +1910,8 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
 
     describe "GET /testing/batch, /auth/login, /auth/users" do
       it "handles missing files gracefully" do
-        # Stub send_file to raise error
-        allow_any_instance_of(DecisionAgent::Web::Server).to receive(:send_file).and_raise(StandardError.new("File not found"))
+        # Stub send_file to raise error on RequestContext instances
+        allow_any_instance_of(DecisionAgent::Web::RackRequestHelpers::RequestContext).to receive(:send_file).and_raise(StandardError.new("File not found"))
 
         get "/testing/batch"
         expect(last_response.status).to eq(404)

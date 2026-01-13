@@ -139,7 +139,7 @@ decision.confidence = 0.99  # FrozenError - cannot mutate
 ✅ **Multi-Threaded Web Servers**
 - Puma (default for Rails 7+)
 - Unicorn with multiple workers
-- Sinatra/Rack applications
+- Rack applications
 
 ✅ **Background Job Processors**
 - Multi-threaded job processors

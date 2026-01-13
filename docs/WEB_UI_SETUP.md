@@ -17,7 +17,7 @@ decision_agent/
 │           │   ├── index.html      # Main UI
 │           │   ├── styles.css      # Styling
 │           │   └── app.js          # JavaScript app
-│           └── server.rb           # Sinatra web server
+│           └── server.rb           # Rack web server
 └── WEB_UI.md                       # Complete documentation
 ```
 
@@ -50,20 +50,6 @@ decision_agent/
 ## Quick Test
 
 ### 1. Install Dependencies
-
-First, install Sinatra:
-
-```bash
-bundle add sinatra
-```
-
-Or manually add to Gemfile:
-
-```ruby
-gem 'sinatra', '~> 3.0'
-```
-
-Then run:
 
 ```bash
 bundle install
@@ -283,16 +269,6 @@ DISABLE_WEBUI_PERMISSIONS=false RACK_ENV=development
 
 ## Troubleshooting
 
-### "Cannot load such file -- sinatra"
-
-Install Sinatra:
-
-```bash
-bundle add sinatra
-# or
-gem install sinatra
-```
-
 ### Port 4567 Already in Use
 
 Use a different port:
@@ -360,7 +336,7 @@ decision_agent web
    - Windows (via WSL)
 
 4. **Consider adding tests** for the web UI:
-   - Sinatra endpoint tests
+   - Rack endpoint tests
    - JavaScript unit tests (optional)
 
 ## Documentation
@@ -372,7 +348,6 @@ decision_agent web
 ## Updates Made
 
 ### decision_agent.gemspec
-- Added Sinatra dependency
 - Added bin directory to files
 - Added executables
 
@@ -381,7 +356,7 @@ decision_agent web
 - Updated roadmap (marked Web UI as complete)
 
 ### New Files
-- `lib/decision_agent/web/server.rb` - Sinatra app
+- `lib/decision_agent/web/server.rb` - Rack app
 - `lib/decision_agent/web/public/index.html` - UI
 - `lib/decision_agent/web/public/styles.css` - Styling
 - `lib/decision_agent/web/public/app.js` - JavaScript

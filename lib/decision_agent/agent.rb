@@ -146,37 +146,46 @@ module DecisionAgent
       # The cache key doesn't need perfect determinism, just good enough to catch duplicates
       # This avoids the expensive sort_hash_keys recursion on every call
       json_str = hashable.to_json
-      fast_key = Digest::MD5.hexdigest(json_str)
+      fast_key = Digest::MD5.new.hexdigest(json_str)
 
       # Fast path: check cache without lock first (unsafe read, but acceptable for cache)
-      # This allows concurrent reads without mutex overhead
-      cache = self.class.hash_cache
-      cached_hash = cache[fast_key]
+      cached_hash = lookup_cached_hash(fast_key)
       return cached_hash if cached_hash
 
-      # Cache miss - compute canonical JSON (required for deterministic hashing)
-      # This is expensive, but only happens on cache misses
-      canonical = canonical_json(hashable)
-
-      # Compute SHA256 hash (also expensive, but only on cache misses)
-      computed_hash = Digest::SHA256.hexdigest(canonical)
+      # Cache miss - compute canonical JSON and hash
+      computed_hash = compute_canonical_hash(hashable)
 
       # Store in cache (thread-safe, with size limit)
-      # Only lock when we need to write
+      cache_hash(fast_key, computed_hash)
+
+      computed_hash
+    end
+
+    def lookup_cached_hash(fast_key)
+      self.class.hash_cache[fast_key]
+    end
+
+    def compute_canonical_hash(hashable)
+      canonical = canonical_json(hashable)
+      Digest::SHA256.new.hexdigest(canonical)
+    end
+
+    def cache_hash(fast_key, computed_hash)
       self.class.hash_cache_mutex.synchronize do
         # Double-check after acquiring lock (another thread may have added it)
         return self.class.hash_cache[fast_key] if self.class.hash_cache[fast_key]
 
-        # Clear cache if it gets too large (simple FIFO eviction)
-        if self.class.hash_cache.size >= self.class.hash_cache_max_size
-          # Remove oldest 10% of entries (simple approximation)
-          keys_to_remove = self.class.hash_cache.keys.first(self.class.hash_cache_max_size / 10)
-          keys_to_remove.each { |key| self.class.hash_cache.delete(key) }
-        end
+        evict_cache_if_needed
         self.class.hash_cache[fast_key] = computed_hash
       end
+    end
 
-      computed_hash
+    def evict_cache_if_needed
+      return unless self.class.hash_cache.size >= self.class.hash_cache_max_size
+
+      # Remove oldest 10% of entries (simple FIFO eviction)
+      keys_to_remove = self.class.hash_cache.keys.first(self.class.hash_cache_max_size / 10)
+      keys_to_remove.each { |key| self.class.hash_cache.delete(key) }
     end
 
     # Fast hash key generation using MD5 (much faster than canonical JSON + SHA256)

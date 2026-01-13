@@ -413,7 +413,7 @@ The Web UI consists of:
   - `styles.css`: Modern, responsive styling
   - `app.js`: Rule builder logic
 
-- **Backend**: Sinatra web server
+- **Backend**: Rack web server
   - Serves static files
   - Validates rules using DecisionAgent::Dsl::SchemaValidator
   - Provides REST API

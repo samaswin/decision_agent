@@ -21,7 +21,7 @@ require 'decision_agent/web/server'
 # Uncomment this to mount DecisionAgent at /decision_agent
 # and your main app at /
 
-# require './your_app'  # Your Sinatra or other Rack app
+# require './your_app'  # Your Rack application
 #
 # map '/decision_agent' do
 #   run DecisionAgent::Web::Server

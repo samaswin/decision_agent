@@ -307,7 +307,7 @@ class RulesController < ApplicationController
 end
 ```
 
-### In Sinatra/Rack Apps
+### In Rack Apps
 
 ```ruby
 require 'decision_agent'
