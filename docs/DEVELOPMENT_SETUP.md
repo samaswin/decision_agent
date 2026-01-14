@@ -222,6 +222,195 @@ Key development dependencies:
 5. **Use parallel tests**: Significantly faster for large test suites
 6. **Check for regressions**: Run benchmarks after performance-related changes
 
+## Testing the Gem in External Projects
+
+Before publishing a new version to RubyGems, you'll often want to test your changes in external applications. This section covers three methods for testing the gem locally in other projects.
+
+### Method 1: Using Bundler's `path` Option (Recommended for Active Development)
+
+This method allows you to use the local gem directly by specifying its path in the consuming project's `Gemfile`.
+
+**Setup:**
+
+```ruby
+# In your test project's Gemfile
+gem 'decision_agent', path: '/absolute/path/to/decision_agent'
+```
+
+**Usage:**
+
+```bash
+cd /path/to/your/test/project
+bundle install
+```
+
+**Benefits:**
+- Changes are reflected immediately without rebuilding
+- Best for rapid iteration during development
+- No need to rebuild the gem after each change
+
+**Verification:**
+
+```bash
+# In your test project
+bundle list | grep decision_agent
+# Should show: decision_agent (x.x.x) at /absolute/path/to/decision_agent
+
+# Or check in a Ruby console
+bundle exec irb
+require 'decision_agent'
+DecisionAgent::VERSION
+```
+
+**Cleanup:**
+
+```ruby
+# In your test project's Gemfile, remove or comment out the path option
+# gem 'decision_agent', path: '/absolute/path/to/decision_agent'
+gem 'decision_agent'  # Use the published version
+```
+
+Then run `bundle install` to switch back to the published gem.
+
+### Method 2: Using `bundle config local` (Alternative for Active Development)
+
+This method overrides the gem source locally without modifying the `Gemfile`.
+
+**Setup:**
+
+```bash
+# In your test project directory
+bundle config local.decision_agent /absolute/path/to/decision_agent
+
+# Verify the configuration
+bundle config
+```
+
+**Usage:**
+
+```bash
+cd /path/to/your/test/project
+bundle install
+```
+
+**Benefits:**
+- Keep the original gem source in `Gemfile` unchanged
+- Local override is only active on your machine
+- Easy to toggle on/off without editing files
+
+**Verification:**
+
+```bash
+# Check that the local override is active
+bundle config | grep decision_agent
+# Should show: local.decision_agent: "/absolute/path/to/decision_agent"
+
+bundle list | grep decision_agent
+# Should show the local path
+```
+
+**Cleanup:**
+
+```bash
+# Remove the local override
+bundle config --delete local.decision_agent
+
+# Reinstall to use the published gem
+bundle install
+```
+
+### Method 3: Building and Installing Locally (For Final Testing)
+
+This method tests the actual gem packaging and installation process, similar to how users will install it from RubyGems.
+
+**Build the Gem:**
+
+```bash
+# In the decision_agent directory
+gem build decision_agent.gemspec
+# Creates: decision_agent-<version>.gem
+```
+
+**Install Locally:**
+
+```bash
+# Install the built gem
+gem install ./decision_agent-<version>.gem
+
+# Or install to a specific location
+gem install ./decision_agent-<version>.gem --install-dir vendor/gems
+```
+
+**Usage in Test Project:**
+
+```ruby
+# In your test project's Gemfile
+gem 'decision_agent', '= <version>'  # Use exact version you built
+```
+
+```bash
+bundle install
+```
+
+**Benefits:**
+- Tests the actual gem packaging process
+- Validates gemspec configuration
+- Best for pre-release validation
+- Simulates the end-user installation experience
+
+**Verification:**
+
+```bash
+# Check installed gems
+gem list decision_agent
+# Should show: decision_agent (<version>)
+
+# In your test project
+bundle list | grep decision_agent
+# Should show: decision_agent (<version>)
+```
+
+**Cleanup:**
+
+```bash
+# Uninstall the local gem
+gem uninstall decision_agent -v <version>
+
+# Or remove all versions
+gem uninstall decision_agent --all
+
+# In your test project, update Gemfile to use published version
+# Then run bundle install
+```
+
+### Best Practices
+
+**Choose the Right Method:**
+- **Active development**: Use Method 1 or 2 for immediate feedback during development
+- **Pre-release testing**: Use Method 3 to validate the gem packaging before publishing
+- **Team testing**: Method 1 is easier to share with team members (document the path)
+
+**Testing Workflow:**
+1. Make changes in the decision_agent repository
+2. Run tests in decision_agent: `bundle exec rspec`
+3. Test in external project using one of the methods above
+4. Run tests in the consuming application
+5. Iterate until satisfied
+
+**Common Pitfalls:**
+- **Bundler cache**: Run `bundle clean --force` in the test project if changes don't appear
+- **Version conflicts**: Ensure the version in `decision_agent.gemspec` matches expectations
+- **Absolute paths**: Always use absolute paths, not relative paths like `../decision_agent`
+- **Gemfile.lock**: Commit `Gemfile.lock` changes only when using published versions, not local paths
+
+**Testing Checklist:**
+- [ ] Run decision_agent tests: `bundle exec rspec`
+- [ ] Test in external project using local gem
+- [ ] Run consuming application tests
+- [ ] Verify all features work as expected
+- [ ] Check for deprecation warnings
+- [ ] Test edge cases and error handling
+
 ## Troubleshooting
 
 ### Ruby Version Not Detected
