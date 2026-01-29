@@ -314,7 +314,8 @@ RSpec.describe DecisionAgent::Dsl::ConditionEvaluator do
 
       it "handles invalid regex gracefully" do
         ctx = DecisionAgent::Context.new({ text: "test" })
-        condition = { "field" => "text", "op" => "matches", "value" => "[invalid(" }
+        # Use invalid pattern that raises RegexpError without Ruby "duplicated range" warning
+        condition = { "field" => "text", "op" => "matches", "value" => "[" }
         result = described_class.evaluate_field_condition(condition, ctx)
         expect(result).to be false
       end

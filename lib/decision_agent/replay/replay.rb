@@ -4,6 +4,7 @@ require "json"
 module DecisionAgent
   module Replay
     def self.run(audit_payload, strict: true)
+      raise ArgumentError, "audit_payload cannot be nil" if audit_payload.nil?
       validate_payload!(audit_payload)
 
       context = Context.new(audit_payload[:context] || audit_payload["context"])

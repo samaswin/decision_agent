@@ -46,6 +46,17 @@ RSpec.configure do |config|
     $original_disable_webui_permissions = ENV.fetch("DISABLE_WEBUI_PERMISSIONS", nil)
     # rubocop:enable Style/GlobalVars
     ENV["DISABLE_WEBUI_PERMISSIONS"] = "false"
+
+    # Use memory storage for MetricsCollector in tests to avoid "no such table" stderr
+    # (decision_logs/error_metrics exist only when monitoring migration is run)
+    if defined?(DecisionAgent::Monitoring::MetricsCollector)
+      mod = Module.new do
+        def initialize(window_size: 3600, storage: :memory, cleanup_threshold: 100)
+          super
+        end
+      end
+      DecisionAgent::Monitoring::MetricsCollector.prepend(mod)
+    end
   end
 
   config.after(:suite) do

@@ -210,7 +210,7 @@ RSpec.describe "Advanced DSL Operators" do
           rules: [
             {
               id: "rule_1",
-              if: { field: "text", op: "matches", value: "[invalid(" },
+              if: { field: "text", op: "matches", value: "[" },
               then: { decision: "match" }
             }
           ]

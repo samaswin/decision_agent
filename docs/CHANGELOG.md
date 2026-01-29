@@ -78,6 +78,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - No need to set up authentication system for basic testing
     - Maintains security in production environments
 
+- **Test Run Noise and Warnings** 🧹
+  - **SQLite "no such table" in specs** – Eliminated stderr noise (`Failed to record decision/error to database: no such table: decision_logs/error_metrics`) during test runs.
+    - **Cause:** `MetricsCollector` defaults to `storage: :auto`, which can use the ActiveRecord adapter when models exist; test DBs often do not have monitoring tables.
+    - **Solution:** In `spec/spec_helper.rb`, a prepended module overrides `MetricsCollector#initialize` so the default `storage:` is `:memory` in tests. Specs that use `MetricsCollector.new` no longer hit the DB unless they explicitly pass `storage: :activerecord`.
+  - **RSpec bare `raise_error`** – Replaced bare `raise_error` in replay edge-case spec to satisfy RSpec’s recommendation and avoid false positives.
+    - **Location:** `spec/replay_edge_cases_spec.rb` (nil audit payload example).
+    - **Change:** `Replay.run` now raises `ArgumentError, "audit_payload cannot be nil"` when `audit_payload.nil?`; the spec expects `raise_error(ArgumentError)`.
+    - **Files:** `lib/decision_agent/replay/replay.rb`, `spec/replay_edge_cases_spec.rb`.
+  - **Regex "character class has duplicated range" warning** – Removed Ruby warning from test output when exercising invalid regex handling.
+    - **Cause:** Specs used the invalid pattern `"[invalid("`, which triggers Ruby’s "duplicated range" warning when passed to `Regexp.new`.
+    - **Change:** Specs now use the invalid pattern `"["` (unclosed character class), which still raises `RegexpError` and is rescued, without emitting that warning.
+    - **Files:** `spec/dsl/condition_evaluator_spec.rb`, `spec/advanced_operators_spec.rb`.
+
 ### Changed
 
 - **DmnEditor refactor (Metrics/ClassLength)** 📐

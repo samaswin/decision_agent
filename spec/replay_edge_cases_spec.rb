@@ -636,7 +636,7 @@ RSpec.describe "DecisionAgent::Replay Edge Cases" do
     it "handles nil audit payload" do
       expect do
         DecisionAgent::Replay.run(nil, strict: false)
-      end.to raise_error
+      end.to raise_error(ArgumentError)
     end
   end
 
