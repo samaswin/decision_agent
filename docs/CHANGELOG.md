@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 2026-01-14
+## [1.1.0]
 
 ### Fixed
 
@@ -77,6 +77,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Easier local development and testing of Web UI features
     - No need to set up authentication system for basic testing
     - Maintains security in production environments
+
+- **Test Run Noise and Warnings** 🧹
+  - **SQLite "no such table" in specs** – Eliminated stderr noise (`Failed to record decision/error to database: no such table: decision_logs/error_metrics`) during test runs.
+    - **Cause:** `MetricsCollector` defaults to `storage: :auto`, which can use the ActiveRecord adapter when models exist; test DBs often do not have monitoring tables.
+    - **Solution:** In `spec/spec_helper.rb`, a prepended module overrides `MetricsCollector#initialize` so the default `storage:` is `:memory` in tests. Specs that use `MetricsCollector.new` no longer hit the DB unless they explicitly pass `storage: :activerecord`.
+  - **RSpec bare `raise_error`** – Replaced bare `raise_error` in replay edge-case spec to satisfy RSpec’s recommendation and avoid false positives.
+    - **Location:** `spec/replay_edge_cases_spec.rb` (nil audit payload example).
+    - **Change:** `Replay.run` now raises `ArgumentError, "audit_payload cannot be nil"` when `audit_payload.nil?`; the spec expects `raise_error(ArgumentError)`.
+    - **Files:** `lib/decision_agent/replay/replay.rb`, `spec/replay_edge_cases_spec.rb`.
+  - **Regex "character class has duplicated range" warning** – Removed Ruby warning from test output when exercising invalid regex handling.
+    - **Cause:** Specs used the invalid pattern `"[invalid("`, which triggers Ruby’s "duplicated range" warning when passed to `Regexp.new`.
+    - **Change:** Specs now use the invalid pattern `"["` (unclosed character class), which still raises `RegexpError` and is rescued, without emitting that warning.
+    - **Files:** `spec/dsl/condition_evaluator_spec.rb`, `spec/advanced_operators_spec.rb`.
+
+### Changed
+
+- **DmnEditor refactor (Metrics/ClassLength)** 📐
+  - Extracted serialization and XML building from `DmnEditor` into nested modules to resolve RuboCop `Metrics/ClassLength` (class was 375 lines; limit 322).
+  - **New modules:**
+    - `lib/decision_agent/web/dmn_editor/serialization.rb` – `DmnEditor::Serialization` with `serialize_model`, `serialize_decision`, `serialize_decision_table`, `serialize_input`, `serialize_output`, `serialize_rule`.
+    - `lib/decision_agent/web/dmn_editor/xml_builder.rb` – `DmnEditor::XmlBuilder` with `generate_dmn_xml`, `build_decision_table_xml`, and private helpers for inputs/outputs/rules.
+  - **Metrics/MethodLength:** Refactored `build_rules_xml` in `XmlBuilder` to satisfy the 31-line method limit: extracted `build_rule_xml`, `add_entry_element`, and `add_rule_description` so all methods stay short and RuboCop passes.
+  - Public API unchanged; `DecisionAgent::Web::DmnEditor` behavior and interface unchanged.
 
 ### Added
 
