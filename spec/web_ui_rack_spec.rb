@@ -1910,8 +1910,16 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
 
     describe "GET /testing/batch, /auth/login, /auth/users" do
       it "handles missing files gracefully" do
-        # Stub send_file to raise error on RequestContext instances
-        allow_any_instance_of(DecisionAgent::Web::RackRequestHelpers::RequestContext).to receive(:send_file).and_raise(StandardError.new("File not found"))
+        # Stub File.exist? to return false for specific HTML files
+        original_exist = File.method(:exist?)
+        allow(File).to receive(:exist?).and_wrap_original do |_method, *args|
+          path = args.first.to_s
+          if path.end_with?("batch_testing.html", "login.html", "users.html")
+            false
+          else
+            original_exist.call(*args)
+          end
+        end
 
         get "/testing/batch"
         expect(last_response.status).to eq(404)
