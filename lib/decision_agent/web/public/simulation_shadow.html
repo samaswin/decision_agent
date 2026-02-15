@@ -263,12 +263,36 @@
     </div>
 
     <script>
-        // API calls use root path since all endpoints are at /api/...
-        const basePath = '/';
+        // Helper function to get the base path for API calls
+        function getBasePath() {
+            const baseTag = document.querySelector('base');
+            if (baseTag && baseTag.href) {
+                try {
+                    const baseUrl = new URL(baseTag.href, window.location.href);
+                    let path = baseUrl.pathname;
+                    if (path && !path.endsWith('/')) path += '/';
+                    return path;
+                } catch (e) {
+                    // fallback
+                }
+            }
+            const pathname = window.location.pathname;
+            const dirPath = pathname.substring(0, pathname.lastIndexOf('/') + 1);
+            return dirPath || '/';
+        }
+
+        function getAuthHeaders() {
+            const token = localStorage.getItem('auth_token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            return headers;
+        }
+
+        const basePath = getBasePath();
 
         // Load versions
         function loadVersions() {
-            fetch(`${basePath}api/versions`)
+            fetch(`${basePath}api/versions`, { headers: getAuthHeaders() })
                 .then(response => response.json())
                 .then(data => {
                     const select = document.getElementById('shadowVersion');
@@ -432,7 +456,7 @@
 
                 fetch(endpoint, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders(),
                     body: JSON.stringify(requestData)
                 })
                 .then(response => response.json())

@@ -337,6 +337,13 @@
             return dirPath || '/';
         }
 
+        function getAuthHeaders() {
+            const token = localStorage.getItem('auth_token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            return headers;
+        }
+
         const basePath = getBasePath();
         let currentTestId = null;
         let currentScenarios = null;
@@ -380,8 +387,13 @@
             progressFill.style.width = '0%';
             progressText.textContent = 'Uploading...';
 
+            const uploadHeaders = {};
+            const token = localStorage.getItem('auth_token');
+            if (token) uploadHeaders['Authorization'] = `Bearer ${token}`;
+
             fetch(`${basePath}api/testing/batch/import`, {
                 method: 'POST',
+                headers: uploadHeaders,
                 body: formData
             })
             .then(response => response.json())
@@ -397,6 +409,7 @@
                     uploadStatus.textContent = `Successfully imported ${data.scenarios_count} scenarios. Test ID: ${data.test_id}`;
                     uploadProgress.classList.add('hidden');
                     document.getElementById('runTestBtn').disabled = false;
+                    document.getElementById('resumeTestBtn').disabled = false;
                     
                     if (data.errors && data.errors.length > 0) {
                         uploadStatus.textContent += `\nWarnings: ${data.errors.join(', ')}`;
@@ -434,7 +447,7 @@
                 JSON.parse(rulesJson);
                 fetch(`${basePath}api/validate`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders(),
                     body: JSON.stringify(JSON.parse(rulesJson))
                 })
                 .then(response => response.json())
@@ -487,7 +500,7 @@
 
             fetch(`${basePath}api/testing/batch/run`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({
                     test_id: currentTestId,
                     rules: JSON.parse(rulesJson),
@@ -514,9 +527,66 @@
             });
         });
 
+        // Resume test - re-run the previously imported test
+        document.getElementById('resumeTestBtn').addEventListener('click', () => {
+            if (!currentTestId) {
+                alert('No test to resume. Please import test data first.');
+                return;
+            }
+
+            const rulesJson = document.getElementById('rulesJson').value;
+            try {
+                JSON.parse(rulesJson);
+            } catch (e) {
+                alert('Invalid rules JSON: ' + e.message);
+                return;
+            }
+
+            const runStatus = document.getElementById('runStatus');
+            const runProgress = document.getElementById('runProgress');
+            const runProgressText = document.getElementById('runProgressText');
+
+            runStatus.classList.add('hidden');
+            runProgress.classList.remove('hidden');
+            runProgressText.textContent = 'Resuming...';
+
+            const options = {
+                parallel: document.getElementById('parallelExecution').checked,
+                thread_count: parseInt(document.getElementById('threadCount').value) || 4
+            };
+
+            fetch(`${basePath}api/testing/batch/run`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    test_id: currentTestId,
+                    rules: JSON.parse(rulesJson),
+                    options: options
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    runStatus.className = 'error-message';
+                    runStatus.textContent = `Error: ${data.error}`;
+                    runProgress.classList.add('hidden');
+                } else {
+                    runStatus.className = 'success-message';
+                    runStatus.textContent = 'Test resumed and completed successfully!';
+                    runProgress.classList.add('hidden');
+                    loadResults(currentTestId);
+                }
+            })
+            .catch(error => {
+                runStatus.className = 'error-message';
+                runStatus.textContent = `Error: ${error.message}`;
+                runProgress.classList.add('hidden');
+            });
+        });
+
         // Load results
         function loadResults(testId) {
-            fetch(`${basePath}api/testing/batch/${testId}/results`)
+            fetch(`${basePath}api/testing/batch/${testId}/results`, { headers: getAuthHeaders() })
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
@@ -604,7 +674,7 @@
 
         // Load coverage
         function loadCoverage(testId) {
-            fetch(`${basePath}api/testing/batch/${testId}/coverage`)
+            fetch(`${basePath}api/testing/batch/${testId}/coverage`, { headers: getAuthHeaders() })
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
