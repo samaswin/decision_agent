@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   module Simulation
     # Library of pre-defined test scenario templates

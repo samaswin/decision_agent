@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Request/Response helpers for Rack applications
 # Provides convenience methods for handling requests and responses
 

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   module Versioning
     # Abstract base class for version storage adapters

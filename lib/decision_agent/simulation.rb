@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Simulation and What-If Analysis module
 # Provides tools for scenario testing, historical replay, impact analysis, shadow testing, and Monte Carlo simulation
 

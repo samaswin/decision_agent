@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   module Explainability
     # Represents the trace of a rule evaluation including all conditions

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   module Dsl
     # JSON Schema validator for Decision Agent rule DSL

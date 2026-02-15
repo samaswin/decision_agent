@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative "decision_agent/version"
 require_relative "decision_agent/errors"
 require_relative "decision_agent/context"

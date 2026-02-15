@@ -116,6 +116,9 @@ GEM
     rubocop-ast (1.49.0)
       parser (>= 3.3.7.2)
       prism (~> 1.7)
+    rubocop-rspec (3.9.0)
+      lint_roller (~> 1.1)
+      rubocop (~> 1.81)
     ruby-prof (1.7.2)
       base64
     ruby-progressbar (1.13.0)
@@ -160,6 +163,7 @@ DEPENDENCIES
   rake (~> 13.0)
   rspec (~> 3.12)
   rubocop (~> 1.60)
+  rubocop-rspec (~> 3.9)
   ruby-prof
   simplecov (~> 0.22)
   sqlite3 (~> 1.6)

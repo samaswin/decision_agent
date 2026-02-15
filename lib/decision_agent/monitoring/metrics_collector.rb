@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "monitor"
 require "time"
 require_relative "storage/memory_adapter"

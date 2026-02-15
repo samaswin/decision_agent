@@ -1,3 +1,6 @@
+plugins:
+  - rubocop-rspec
+
 AllCops:
   TargetRubyVersion: 3.0
   NewCops: enable
@@ -9,6 +12,13 @@ AllCops:
     - 'versions/**/*'
     - 'grafana/**/*'
     - 'examples/**/*'
+
+# RSpec - only NoExpectationExample enabled; other cops disabled for existing spec style
+RSpec:
+  Enabled: false
+
+RSpec/NoExpectationExample:
+  Enabled: true
 
 # Style preferences
 Style/StringLiterals:

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "rack"
 require "json"
 require_relative "../web/rack_helpers"

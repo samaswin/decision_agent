@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class RuleVersion < ApplicationRecord
   belongs_to :rule, primary_key: :rule_id, foreign_key: :rule_id, optional: true
 

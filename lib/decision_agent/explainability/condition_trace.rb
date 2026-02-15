@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   module Explainability
     # Represents a single condition evaluation with its result and values

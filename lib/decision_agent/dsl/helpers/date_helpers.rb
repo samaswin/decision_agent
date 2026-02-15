@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   module Dsl
     module Helpers
@@ -43,13 +45,18 @@ module DecisionAgent
           nil
         end
 
+        ALLOWED_COMPARISON_OPERATORS = %i[< > <= >= ==].freeze
+
         def self.compare_dates(actual_value, expected_value, operator, parse_date:)
           return false unless actual_value && expected_value
+
+          op = operator.to_sym
+          raise ArgumentError, "Unsupported comparison operator: #{operator}" unless ALLOWED_COMPARISON_OPERATORS.include?(op)
 
           # Fast path: Both are already Time/Date objects (no parsing needed)
           actual_is_date = actual_value.is_a?(Time) || actual_value.is_a?(Date) || actual_value.is_a?(DateTime)
           expected_is_date = expected_value.is_a?(Time) || expected_value.is_a?(Date) || expected_value.is_a?(DateTime)
-          return actual_value.send(operator, expected_value) if actual_is_date && expected_is_date
+          return actual_value.public_send(op, expected_value) if actual_is_date && expected_is_date
 
           # Slow path: Parse dates (with caching)
           actual_date = parse_date.call(actual_value)
@@ -57,7 +64,7 @@ module DecisionAgent
 
           return false unless actual_date && expected_date
 
-          actual_date.send(operator, expected_date)
+          actual_date.public_send(op, expected_date)
         end
 
         def self.normalize_day_of_week(value)

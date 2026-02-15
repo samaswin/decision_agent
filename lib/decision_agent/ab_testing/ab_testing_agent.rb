@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   module ABTesting
     # Agent wrapper that adds A/B testing capabilities to the standard Agent

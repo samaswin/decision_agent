@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   module Explainability
     # Container for all explainability data from a decision evaluation
