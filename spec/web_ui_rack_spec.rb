@@ -1207,7 +1207,9 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
       end
 
       it "handles server errors" do
-        allow_any_instance_of(DecisionAgent::Versioning::VersionManager).to receive(:save_version).and_raise(StandardError.new("DB error"))
+        version_manager_double = instance_double(DecisionAgent::Versioning::VersionManager)
+        allow(DecisionAgent::Web::Server).to receive(:version_manager).and_return(version_manager_double)
+        allow(version_manager_double).to receive(:save_version).and_raise(StandardError.new("DB error"))
 
         post "/api/versions",
              {
@@ -1231,7 +1233,9 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
       end
 
       it "handles server errors" do
-        allow_any_instance_of(DecisionAgent::Versioning::VersionManager).to receive(:get_versions).and_raise(StandardError.new("DB error"))
+        version_manager_double = instance_double(DecisionAgent::Versioning::VersionManager)
+        allow(DecisionAgent::Web::Server).to receive(:version_manager).and_return(version_manager_double)
+        allow(version_manager_double).to receive(:get_versions).and_raise(StandardError.new("DB error"))
 
         get "/api/rules/rule1/versions", {}, { "HTTP_AUTHORIZATION" => "Bearer #{user[:session].token}" }
         expect(last_response.status).to eq(500)
@@ -1247,7 +1251,9 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
       end
 
       it "handles server errors" do
-        allow_any_instance_of(DecisionAgent::Versioning::VersionManager).to receive(:get_history).and_raise(StandardError.new("DB error"))
+        version_manager_double = instance_double(DecisionAgent::Versioning::VersionManager)
+        allow(DecisionAgent::Web::Server).to receive(:version_manager).and_return(version_manager_double)
+        allow(version_manager_double).to receive(:get_history).and_raise(StandardError.new("DB error"))
 
         get "/api/rules/rule1/history", {}, { "HTTP_AUTHORIZATION" => "Bearer #{user[:session].token}" }
         expect(last_response.status).to eq(500)
@@ -1273,7 +1279,9 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
       end
 
       it "handles server errors" do
-        allow_any_instance_of(DecisionAgent::Versioning::VersionManager).to receive(:get_version).and_raise(StandardError.new("DB error"))
+        version_manager_double = instance_double(DecisionAgent::Versioning::VersionManager)
+        allow(DecisionAgent::Web::Server).to receive(:version_manager).and_return(version_manager_double)
+        allow(version_manager_double).to receive(:get_version).and_raise(StandardError.new("DB error"))
 
         get "/api/versions/v1", {}, { "HTTP_AUTHORIZATION" => "Bearer #{user[:session].token}" }
         expect(last_response.status).to eq(500)
@@ -1334,7 +1342,9 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
         )
         admin_session = authenticator.login("deploy3@example.com", "password123")
 
-        allow_any_instance_of(DecisionAgent::Versioning::VersionManager).to receive(:rollback).and_raise(StandardError.new("DB error"))
+        version_manager_double = instance_double(DecisionAgent::Versioning::VersionManager)
+        allow(DecisionAgent::Web::Server).to receive(:version_manager).and_return(version_manager_double)
+        allow(version_manager_double).to receive(:rollback).and_raise(StandardError.new("DB error"))
 
         post "/api/versions/v1/activate",
              {}.to_json,
@@ -1352,7 +1362,9 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
       end
 
       it "handles server errors" do
-        allow_any_instance_of(DecisionAgent::Versioning::VersionManager).to receive(:compare).and_raise(StandardError.new("DB error"))
+        version_manager_double = instance_double(DecisionAgent::Versioning::VersionManager)
+        allow(DecisionAgent::Web::Server).to receive(:version_manager).and_return(version_manager_double)
+        allow(version_manager_double).to receive(:compare).and_raise(StandardError.new("DB error"))
 
         get "/api/versions/v1/compare/v2", {}, { "HTTP_AUTHORIZATION" => "Bearer #{user[:session].token}" }
         expect(last_response.status).to eq(500)
@@ -1382,7 +1394,9 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
         )
         admin_session = authenticator.login("delete2@example.com", "password123")
 
-        allow_any_instance_of(DecisionAgent::Versioning::VersionManager).to receive(:delete_version).and_raise(DecisionAgent::NotFoundError.new("Version not found"))
+        version_manager_double = instance_double(DecisionAgent::Versioning::VersionManager)
+        allow(DecisionAgent::Web::Server).to receive(:version_manager).and_return(version_manager_double)
+        allow(version_manager_double).to receive(:delete_version).and_raise(DecisionAgent::NotFoundError.new("Version not found"))
 
         delete "/api/versions/v1", {}, { "HTTP_AUTHORIZATION" => "Bearer #{admin_session.token}" }
         expect(last_response.status).to eq(404)
@@ -1398,7 +1412,9 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
         )
         admin_session = authenticator.login("delete3@example.com", "password123")
 
-        allow_any_instance_of(DecisionAgent::Versioning::VersionManager).to receive(:delete_version).and_raise(DecisionAgent::ValidationError.new("Cannot delete active version"))
+        version_manager_double = instance_double(DecisionAgent::Versioning::VersionManager)
+        allow(DecisionAgent::Web::Server).to receive(:version_manager).and_return(version_manager_double)
+        allow(version_manager_double).to receive(:delete_version).and_raise(DecisionAgent::ValidationError.new("Cannot delete active version"))
 
         delete "/api/versions/v1", {}, { "HTTP_AUTHORIZATION" => "Bearer #{admin_session.token}" }
         expect(last_response.status).to eq(422)
@@ -1414,7 +1430,9 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
         )
         admin_session = authenticator.login("delete4@example.com", "password123")
 
-        allow_any_instance_of(DecisionAgent::Versioning::VersionManager).to receive(:delete_version).and_raise(StandardError.new("DB error"))
+        version_manager_double = instance_double(DecisionAgent::Versioning::VersionManager)
+        allow(DecisionAgent::Web::Server).to receive(:version_manager).and_return(version_manager_double)
+        allow(version_manager_double).to receive(:delete_version).and_raise(StandardError.new("DB error"))
 
         delete "/api/versions/v1", {}, { "HTTP_AUTHORIZATION" => "Bearer #{admin_session.token}" }
         expect(last_response.status).to eq(500)
@@ -1969,7 +1987,10 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
         session = authenticator.login("loggerfail@example.com", "password123")
 
         # Simulate audit logger failure
-        allow_any_instance_of(DecisionAgent::Auth::AccessAuditLogger).to receive(:log_permission_check).and_raise(StandardError.new("Logger error"))
+        audit_logger_double = instance_double(DecisionAgent::Auth::AccessAuditLogger)
+        allow(DecisionAgent::Web::Server).to receive(:access_audit_logger).and_return(audit_logger_double)
+        allow(audit_logger_double).to receive(:log_permission_check).and_raise(StandardError.new("Logger error"))
+        allow(audit_logger_double).to receive(:log_access)
 
         # Should still deny permission even if logging fails
         get "/api/auth/roles", {}, { "HTTP_AUTHORIZATION" => "Bearer #{session.token}" }
@@ -1987,7 +2008,10 @@ RSpec.describe "DecisionAgent Web UI Rack Integration" do
         admin_session = authenticator.login("loggerfail2@example.com", "password123")
 
         # Simulate audit logger failure after permission check passes
-        allow_any_instance_of(DecisionAgent::Auth::AccessAuditLogger).to receive(:log_permission_check).and_raise(StandardError.new("Logger error"))
+        audit_logger_double = instance_double(DecisionAgent::Auth::AccessAuditLogger)
+        allow(DecisionAgent::Web::Server).to receive(:access_audit_logger).and_return(audit_logger_double)
+        allow(audit_logger_double).to receive(:log_permission_check).and_raise(StandardError.new("Logger error"))
+        allow(audit_logger_double).to receive(:log_access)
 
         # Should still allow access even if logging fails
         get "/api/auth/roles", {}, { "HTTP_AUTHORIZATION" => "Bearer #{admin_session.token}" }
