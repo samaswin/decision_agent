@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "digest"
+require "openssl"
 require "zlib"
 
 module DecisionAgent
@@ -144,7 +144,7 @@ module DecisionAgent
       end
 
       def generate_result_key(decision_id, context_hash)
-        Digest::SHA256.hexdigest("#{decision_id}:#{context_hash}")
+        OpenSSL::Digest::SHA256.hexdigest("#{decision_id}:#{context_hash}")
       end
 
       def calculate_hit_rate(hits, misses)
