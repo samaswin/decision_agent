@@ -20,8 +20,19 @@ RSpec.describe "Issue Verification Tests" do
       end
 
       before(:each) do
-        # Clean slate for each test
-        ActiveRecord::Base.connection.execute("DROP TABLE IF EXISTS rule_versions")
+        # Release all connections so SQLite releases locks (especially after threaded examples).
+        # Otherwise "database is locked" can occur when the next example runs DROP TABLE.
+        ActiveRecord::Base.connection_pool.disconnect!
+        # Clean slate for each test; retry on SQLite busy to handle transient locks
+        retries = 3
+        begin
+          ActiveRecord::Base.connection.execute("DROP TABLE IF EXISTS rule_versions")
+        rescue ActiveRecord::StatementInvalid => e
+          raise unless e.cause.is_a?(SQLite3::BusyException) && (retries -= 1) > 0
+
+          sleep(0.05 * (3 - retries))
+          retry
+        end
       end
 
       describe "Unique constraint on [rule_id, version_number]" do
