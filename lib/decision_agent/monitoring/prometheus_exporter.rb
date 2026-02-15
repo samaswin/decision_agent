@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "monitor"
 
 module DecisionAgent
@@ -6,7 +8,7 @@ module DecisionAgent
     class PrometheusExporter
       include MonitorMixin
 
-      CONTENT_TYPE = "text/plain; version=0.0.4".freeze
+      CONTENT_TYPE = "text/plain; version=0.0.4"
 
       def initialize(metrics_collector:, namespace: "decision_agent")
         super()

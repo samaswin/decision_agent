@@ -318,6 +318,31 @@ module DecisionAgent
         @dmn_editor ||= DecisionAgent::Web::DmnEditor.new
       end
 
+      # Serve an HTML file with <base> tag injection for subpath mounting
+      def self.serve_html_with_base_tag(ctx, html_file, not_found_message = "Page not found")
+        unless File.exist?(html_file)
+          ctx.status(404)
+          ctx.body(not_found_message)
+          return
+        end
+
+        html_content = File.read(html_file, encoding: "UTF-8")
+
+        # Determine the base path from the request
+        base_path = ctx.script_name.empty? ? "./" : "#{ctx.script_name}/"
+
+        # Inject or update base tag
+        base_tag = "<base href=\"#{base_path}\">"
+        html_content = if html_content.include?("<base")
+                         html_content.sub(/<base[^>]*>/, base_tag)
+                       else
+                         html_content.sub("<head>", "<head>\n    #{base_tag}")
+                       end
+
+        ctx.content_type "text/html"
+        ctx.body(html_content)
+      end
+
       # Define all routes (will be populated below)
       def self.define_routes(router)
         # OPTIONS handler for CORS preflight
@@ -329,27 +354,7 @@ module DecisionAgent
         # Main page - serve the rule builder UI
         router.get "/" do |ctx|
           html_file = File.join(Server.public_folder, "index.html")
-          unless File.exist?(html_file)
-            ctx.status(404)
-            ctx.body("Index page not found")
-            next
-          end
-
-          html_content = File.read(html_file, encoding: "UTF-8")
-
-          # Determine the base path from the request
-          base_path = ctx.script_name.empty? ? "./" : "#{ctx.script_name}/"
-
-          # Inject or update base tag
-          base_tag = "<base href=\"#{base_path}\">"
-          html_content = if html_content.include?("<base")
-                           html_content.sub(/<base[^>]*>/, base_tag)
-                         else
-                           html_content.sub("<head>", "<head>\n    #{base_tag}")
-                         end
-
-          ctx.content_type "text/html"
-          ctx.body(html_content)
+          Server.serve_html_with_base_tag(ctx, html_file, "Index page not found")
         rescue StandardError => e
           ctx.status(500)
           ctx.content_type "text/html"
@@ -1443,12 +1448,7 @@ module DecisionAgent
         # GET /testing/batch - Batch testing UI page
         router.get "/testing/batch" do |ctx|
           batch_file = File.join(Server.public_folder, "batch_testing.html")
-          if File.exist?(batch_file)
-            ctx.send_file(batch_file)
-          else
-            ctx.status(404)
-            ctx.body("Batch testing page not found")
-          end
+          Server.serve_html_with_base_tag(ctx, batch_file, "Batch testing page not found")
         rescue StandardError => e
           ctx.status(404)
           ctx.body("Batch testing page not found: #{e.message}")
@@ -1934,12 +1934,7 @@ module DecisionAgent
         # GET /simulation - Simulation dashboard UI page
         router.get "/simulation" do |ctx|
           sim_file = File.join(Server.public_folder, "simulation.html")
-          if File.exist?(sim_file)
-            ctx.send_file(sim_file)
-          else
-            ctx.status(404)
-            ctx.body("Simulation page not found")
-          end
+          Server.serve_html_with_base_tag(ctx, sim_file, "Simulation page not found")
         rescue StandardError
           ctx.status(404)
           ctx.body("Simulation page not found")
@@ -1948,12 +1943,7 @@ module DecisionAgent
         # GET /simulation/replay - Historical replay UI page
         router.get "/simulation/replay" do |ctx|
           replay_file = File.join(Server.public_folder, "simulation_replay.html")
-          if File.exist?(replay_file)
-            ctx.send_file(replay_file)
-          else
-            ctx.status(404)
-            ctx.body("Historical replay page not found")
-          end
+          Server.serve_html_with_base_tag(ctx, replay_file, "Historical replay page not found")
         rescue StandardError
           ctx.status(404)
           ctx.body("Historical replay page not found")
@@ -1962,12 +1952,7 @@ module DecisionAgent
         # GET /simulation/whatif - What-if analysis UI page
         router.get "/simulation/whatif" do |ctx|
           whatif_file = File.join(Server.public_folder, "simulation_whatif.html")
-          if File.exist?(whatif_file)
-            ctx.send_file(whatif_file)
-          else
-            ctx.status(404)
-            ctx.body("What-if analysis page not found")
-          end
+          Server.serve_html_with_base_tag(ctx, whatif_file, "What-if analysis page not found")
         rescue StandardError
           ctx.status(404)
           ctx.body("What-if analysis page not found")
@@ -1976,12 +1961,7 @@ module DecisionAgent
         # GET /simulation/impact - Impact analysis UI page
         router.get "/simulation/impact" do |ctx|
           impact_file = File.join(Server.public_folder, "simulation_impact.html")
-          if File.exist?(impact_file)
-            ctx.send_file(impact_file)
-          else
-            ctx.status(404)
-            ctx.body("Impact analysis page not found")
-          end
+          Server.serve_html_with_base_tag(ctx, impact_file, "Impact analysis page not found")
         rescue StandardError
           ctx.status(404)
           ctx.body("Impact analysis page not found")
@@ -1990,12 +1970,7 @@ module DecisionAgent
         # GET /simulation/shadow - Shadow testing UI page
         router.get "/simulation/shadow" do |ctx|
           shadow_file = File.join(Server.public_folder, "simulation_shadow.html")
-          if File.exist?(shadow_file)
-            ctx.send_file(shadow_file)
-          else
-            ctx.status(404)
-            ctx.body("Shadow testing page not found")
-          end
+          Server.serve_html_with_base_tag(ctx, shadow_file, "Shadow testing page not found")
         rescue StandardError
           ctx.status(404)
           ctx.body("Shadow testing page not found")
@@ -2004,12 +1979,7 @@ module DecisionAgent
         # GET /auth/login - Login page
         router.get "/auth/login" do |ctx|
           login_file = File.join(Server.public_folder, "login.html")
-          if File.exist?(login_file)
-            ctx.send_file(login_file)
-          else
-            ctx.status(404)
-            ctx.body("Login page not found")
-          end
+          Server.serve_html_with_base_tag(ctx, login_file, "Login page not found")
         rescue StandardError
           ctx.status(404)
           ctx.body("Login page not found")
@@ -2018,12 +1988,7 @@ module DecisionAgent
         # GET /auth/users - User management page
         router.get "/auth/users" do |ctx|
           users_file = File.join(Server.public_folder, "users.html")
-          if File.exist?(users_file)
-            ctx.send_file(users_file)
-          else
-            ctx.status(404)
-            ctx.body("User management page not found")
-          end
+          Server.serve_html_with_base_tag(ctx, users_file, "User management page not found")
         rescue StandardError
           ctx.status(404)
           ctx.body("User management page not found")
@@ -2034,12 +1999,7 @@ module DecisionAgent
         # GET /dmn/editor - DMN Editor UI page
         router.get "/dmn/editor" do |ctx|
           dmn_file = File.join(Server.public_folder, "dmn-editor.html")
-          if File.exist?(dmn_file)
-            ctx.send_file(dmn_file)
-          else
-            ctx.status(404)
-            ctx.body("DMN Editor page not found")
-          end
+          Server.serve_html_with_base_tag(ctx, dmn_file, "DMN Editor page not found")
         rescue StandardError
           ctx.status(404)
           ctx.body("DMN Editor page not found")

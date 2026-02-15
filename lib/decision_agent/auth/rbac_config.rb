@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   module Auth
     # Configuration class for RBAC adapter

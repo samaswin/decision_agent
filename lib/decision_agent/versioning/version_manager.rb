@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   module Versioning
     # High-level service for managing rule versions

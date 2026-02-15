@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # A/B Test Assignment model for decision_agent gem
 # Tracks individual variant assignments and their results
 class ABTestAssignmentModel < ActiveRecord::Base

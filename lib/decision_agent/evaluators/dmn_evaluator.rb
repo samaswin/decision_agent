@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative "../dmn/adapter"
 require_relative "../dmn/errors"
 require_relative "base"

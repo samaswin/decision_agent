@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   class Decision
     attr_reader :decision, :confidence, :explanations, :evaluations, :audit_payload

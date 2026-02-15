@@ -20,3 +20,5 @@ group :development, :test do
   gem "sqlite3", "~> 1.6"
   gem "webmock", "~> 3.18" # For HTTP request mocking in tests
 end
+
+gem "rubocop-rspec", "~> 3.9", group: :development

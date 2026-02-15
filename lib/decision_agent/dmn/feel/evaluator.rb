@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative "../errors"
 require_relative "simple_parser"
 require_relative "parser"
@@ -622,7 +624,7 @@ module DecisionAgent
           when Types::Context
             object[property.to_sym]
           else
-            object.respond_to?(property) ? object.send(property) : nil
+            object.respond_to?(property) ? object.public_send(property) : nil
           end
         end
 

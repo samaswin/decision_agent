@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   module Testing
     # Represents a single test scenario with context and expected results

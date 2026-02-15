@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   module ABTesting
     # Represents an A/B test configuration for comparing rule versions

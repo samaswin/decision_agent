@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   module Explainability
     # Collects condition traces during evaluation

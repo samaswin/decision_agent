@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative "errors"
 
 module DecisionAgent
@@ -738,7 +740,7 @@ module DecisionAgent
       end
 
       def draw_1d_regions(data, config)
-        svg = ""
+        svg = String.new
         current_decision = nil
         region_start = nil
 
@@ -771,7 +773,7 @@ module DecisionAgent
       end
 
       def draw_1d_boundaries(data, config)
-        data[:boundaries].each_with_object("") do |boundary, svg|
+        data[:boundaries].each_with_object(String.new) do |boundary, svg|
           x = config[:margin][:left] + ((boundary[:value] - config[:min_val]) * config[:x_scale])
           svg << "<line x1='#{x}' y1='#{config[:margin][:top]}' x2='#{x}' " \
                  "y2='#{config[:margin][:top] + config[:chart_height]}' stroke='#000' " \
@@ -780,7 +782,7 @@ module DecisionAgent
       end
 
       def draw_1d_axes(data, config)
-        svg = draw_1d_axis_lines(config)
+        svg = +draw_1d_axis_lines(config)
         svg << draw_1d_axis_label(data, config)
         svg << draw_1d_tick_marks(config)
       end
@@ -810,7 +812,7 @@ module DecisionAgent
         margin = config[:margin]
         chart_height = config[:chart_height]
 
-        (0..4).each_with_object("") do |i, svg|
+        (0..4).each_with_object(String.new) do |i, svg|
           value = config[:min_val] + ((config[:max_val] - config[:min_val]) * i / 4.0)
           x = margin[:left] + ((value - config[:min_val]) * config[:x_scale])
           svg << "<line x1='#{x}' y1='#{margin[:top] + chart_height}' " \
@@ -880,7 +882,7 @@ module DecisionAgent
       end
 
       def draw_2d_grid(data, config)
-        data[:grid].each_with_index.with_object("") do |(row, i), svg|
+        data[:grid].each_with_index.with_object(String.new) do |(row, i), svg|
           row.each_with_index do |point, j|
             x = config[:margin][:left] + (j * config[:cell_width])
             y = config[:margin][:top] + (i * config[:cell_height])
@@ -894,7 +896,7 @@ module DecisionAgent
 
       def draw_2d_boundaries(data, config)
         sampled_boundaries = data[:boundaries].sample([data[:boundaries].size, 500].min)
-        sampled_boundaries.each_with_object("") do |boundary, svg|
+        sampled_boundaries.each_with_object(String.new) do |boundary, svg|
           svg << draw_boundary_line(boundary, config)
         end
       end
@@ -925,7 +927,7 @@ module DecisionAgent
       end
 
       def draw_2d_axes(data, config)
-        svg = draw_2d_axis_lines(config)
+        svg = +draw_2d_axis_lines(config)
         svg << draw_2d_axis_labels(data, config)
         svg << draw_2d_tick_marks(config)
       end
@@ -960,7 +962,7 @@ module DecisionAgent
         margin = config[:margin]
         chart_height = config[:chart_height]
 
-        (0..4).each_with_object("") do |index, svg|
+        (0..4).each_with_object(String.new) do |index, svg|
           svg << draw_2d_x_tick(index, config, margin, chart_height)
           svg << draw_2d_y_tick(index, config, margin)
         end

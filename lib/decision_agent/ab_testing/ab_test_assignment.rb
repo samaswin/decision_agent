@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   module ABTesting
     # Tracks individual assignments of users/requests to A/B test variants

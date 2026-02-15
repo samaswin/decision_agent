@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   module Simulation
     # Base error class for simulation module

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Rack helpers for framework-agnostic web server
 # These helpers provide convenience methods for pure Rack applications
 

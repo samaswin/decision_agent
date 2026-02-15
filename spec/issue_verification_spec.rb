@@ -159,15 +159,11 @@ RSpec.describe "Issue Verification Tests" do
 
           # Check for duplicate version numbers
           version_numbers = results.map(&:version_number).sort
-          duplicates = version_numbers.select { |v| version_numbers.count(v) > 1 }.uniq
 
-          if duplicates.any?
-            puts "\n⚠️  RACE CONDITION DETECTED: Duplicate version numbers: #{duplicates.inspect}"
-            puts "    Version numbers created: #{version_numbers.inspect}"
-          end
-
-          # Without constraint, we EXPECT duplicates in high concurrency
-          # This test demonstrates the problem
+          # Without a unique constraint, all threads should successfully create records
+          # (even if they have duplicate version numbers due to the race condition)
+          expect(results.size).to eq(10), "Expected all 10 threads to create records without constraint"
+          expect(version_numbers).not_to be_empty
         end
       end
 

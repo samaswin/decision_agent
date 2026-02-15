@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # A/B Test model for decision_agent gem
 # Stores A/B test configurations
 class ABTestModel < ActiveRecord::Base

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   class Evaluation
     attr_reader :decision, :weight, :reason, :evaluator_name, :metadata

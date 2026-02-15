@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative "../errors"
 require_relative "types"
 
@@ -92,7 +94,7 @@ module DecisionAgent
             if char.match?(/\d/) ||
                (char == "-" && i + 1 < expr.length && expr[i + 1].match?(/\d/) &&
                 (tokens.empty? || tokens.last[:type] == :operator || tokens.last[:type] == :paren))
-              num_str = ""
+              num_str = String.new
               num_str << char if char == "-"
               i += 1 if char == "-"
 
@@ -116,7 +118,7 @@ module DecisionAgent
 
             # Quoted strings
             if char == '"'
-              str = ""
+              str = String.new
               i += 1
               while i < expr.length && expr[i] != '"'
                 str << expr[i]
@@ -129,7 +131,7 @@ module DecisionAgent
 
             # Booleans and keywords
             if char.match?(/[a-zA-Z]/)
-              word = ""
+              word = String.new
               while i < expr.length && expr[i].match?(/[a-zA-Z_]/)
                 word << expr[i]
                 i += 1

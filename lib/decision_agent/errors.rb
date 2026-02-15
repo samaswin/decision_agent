@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DecisionAgent
   class Error < StandardError; end
 

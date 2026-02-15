@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Rule < ApplicationRecord
   has_many :rule_versions, primary_key: :rule_id, foreign_key: :rule_id, dependent: :destroy
 
