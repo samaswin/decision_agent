@@ -158,8 +158,9 @@ module DecisionAgent
 
       # Use fast hash (MD5) as cache key to avoid expensive canonicalization on cache hits
       # The cache key doesn't need perfect determinism, just good enough to catch duplicates
+      # Use class method Digest::MD5.hexdigest for Ruby 3.1+ compatibility (avoid Digest::Base.new)
       json_str = hashable.to_json
-      fast_key = Digest::MD5.new.hexdigest(json_str)
+      fast_key = Digest::MD5.hexdigest(json_str)
 
       # Fast path: check cache without lock first (unsafe read, but acceptable for cache)
       cached_hash = lookup_cached_hash(fast_key)
@@ -180,7 +181,7 @@ module DecisionAgent
 
     def compute_canonical_hash(hashable)
       canonical = canonical_json(hashable)
-      Digest::SHA256.new.hexdigest(canonical)
+      Digest::SHA256.hexdigest(canonical)
     end
 
     def cache_hash(fast_key, computed_hash)
