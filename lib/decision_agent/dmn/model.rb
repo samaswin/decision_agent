@@ -55,10 +55,6 @@ module DecisionAgent
         @decision_table = table
       end
 
-      def add_information_requirement(requirement)
-        @information_requirements << requirement
-      end
-
       def freeze
         @id.freeze
         @name.freeze

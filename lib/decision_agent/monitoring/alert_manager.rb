@@ -179,21 +179,6 @@ module DecisionAgent
         end
       end
 
-      def self.decision_anomaly(expected_rate: 100, variance: 0.3)
-        lambda do |stats|
-          total = stats.dig(:decisions, :total) || 0
-          time_range = stats.dig(:summary, :time_range)
-
-          # Simple anomaly detection based on rate
-          return false unless time_range
-
-          lower_bound = expected_rate * (1 - variance)
-          upper_bound = expected_rate * (1 + variance)
-
-          total < lower_bound || total > upper_bound
-        end
-      end
-
       private
 
       def freeze_config

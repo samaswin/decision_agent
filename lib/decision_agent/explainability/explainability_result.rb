@@ -16,10 +16,6 @@ module DecisionAgent
         @rule_traces.select(&:matched)
       end
 
-      def evaluated_rules
-        @rule_traces
-      end
-
       def all_passed_conditions
         @rule_traces.flat_map(&:passed_conditions)
       end

@@ -144,9 +144,7 @@ module DecisionAgent
       hashable = payload.slice(:context, :evaluations, :decision, :confidence, :scoring_strategy)
 
       # Use fast hash (MD5) as cache key to avoid expensive canonicalization on cache hits
-      # Optimized: Use direct JSON.to_json instead of recursive sorting for speed
       # The cache key doesn't need perfect determinism, just good enough to catch duplicates
-      # This avoids the expensive sort_hash_keys recursion on every call
       json_str = hashable.to_json
       fast_key = Digest::MD5.new.hexdigest(json_str)
 
@@ -188,31 +186,6 @@ module DecisionAgent
       # Remove oldest 10% of entries (simple FIFO eviction)
       keys_to_remove = self.class.hash_cache.keys.first(self.class.hash_cache_max_size / 10)
       keys_to_remove.each { |key| self.class.hash_cache.delete(key) }
-    end
-
-    # Fast hash key generation using MD5 (much faster than canonical JSON + SHA256)
-    # Used as cache key to avoid expensive canonicalization on cache hits
-    # MD5 is sufficient for cache keys (collision resistance not critical, speed is)
-    def fast_hash_key(hashable)
-      # Create a deterministic string representation for hashing
-      # Use sorted JSON to ensure determinism (though not RFC 8785 canonical)
-      json_str = sort_hash_keys(hashable).to_json
-      Digest::MD5.hexdigest(json_str)
-    end
-
-    # Recursively sort hash keys for deterministic hashing
-    # This is faster than canonical JSON but still deterministic
-    # Note: This is still used by canonical_json indirectly, but fast_hash_key avoids it
-    def sort_hash_keys(obj)
-      case obj
-      when Hash
-        sorted = obj.sort.to_h
-        sorted.transform_values { |v| sort_hash_keys(v) }
-      when Array
-        obj.map { |v| sort_hash_keys(v) }
-      else
-        obj
-      end
     end
 
     # Uses RFC 8785 (JSON Canonicalization Scheme) for deterministic JSON serialization

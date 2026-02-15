@@ -357,17 +357,6 @@ module DecisionAgent
             body: body
           }
         end
-
-        # Helper to convert parse tree to AST
-        def self.to_ast(parse_tree)
-          new.apply(parse_tree)
-        rescue StandardError => e
-          raise FeelTransformError.new(
-            "Failed to transform parse tree to AST: #{e.message}",
-            parse_tree: parse_tree,
-            error: e
-          )
-        end
       end
     end
   end

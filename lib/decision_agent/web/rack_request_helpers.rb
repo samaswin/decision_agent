@@ -191,16 +191,6 @@ module DecisionAgent
         input.rewind
         body.to_s
       end
-
-      # Helper to parse multipart form data (simplified)
-      def self.parse_multipart(env)
-        content_type = env["CONTENT_TYPE"]
-        return {} unless content_type&.include?("multipart/form-data")
-
-        # Simplified multipart parsing
-        # In production, you might want to use Rack::Multipart or similar
-        {}
-      end
     end
   end
 end

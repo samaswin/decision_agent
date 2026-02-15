@@ -98,23 +98,6 @@ module DecisionAgent
         )
       end
 
-      def find_first_matching_rule(context, explainability_result = nil)
-        rules = @ruleset["rules"] || []
-
-        rules.find do |rule|
-          if_clause = rule["if"]
-          next false unless if_clause
-
-          # If explainability is already collected, use the trace data
-          if explainability_result
-            rule_trace = explainability_result.rule_traces.find { |rt| rt.rule_id == (rule["id"] || "rule_#{rules.index(rule)}") }
-            rule_trace&.matched
-          else
-            Dsl::ConditionEvaluator.evaluate(if_clause, context)
-          end
-        end
-      end
-
       # Deep freeze helper method
       def deep_freeze(obj)
         case obj

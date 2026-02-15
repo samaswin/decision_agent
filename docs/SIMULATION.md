@@ -1070,12 +1070,6 @@ production_contexts.each do |context|
   # Log mismatches for analysis
   log_mismatch(result) unless result[:matches]
 end
-
-# Analyze shadow test results
-summary = shadow_engine.get_summary(new_version_id)
-if summary[:match_rate] > 0.95
-  puts "Safe to deploy - high match rate"
-end
 ```
 
 ### 4. Leverage Sensitivity Analysis
