@@ -233,9 +233,6 @@ AlertManager.high_latency(threshold_ms: 1000)
 
 # Error spike (default: 10 errors)
 AlertManager.error_spike(threshold: 10, time_window: 300)
-
-# Decision anomaly (rate-based)
-AlertManager.decision_anomaly(expected_rate: 100, variance: 0.3)
 ```
 
 ## Real-Time Dashboard

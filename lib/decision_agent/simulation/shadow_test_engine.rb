@@ -145,21 +145,6 @@ module DecisionAgent
         end
       end
 
-      # Get shadow test summary statistics
-      # @param shadow_version [String, Integer, Hash] Shadow version ID
-      # @return [Hash] Summary statistics
-      def get_summary(_shadow_version)
-        # In a real implementation, this would query stored results
-        # For now, return empty summary
-        {
-          total_tests: 0,
-          matches: 0,
-          mismatches: 0,
-          match_rate: 0.0,
-          average_confidence_delta: 0.0
-        }
-      end
-
       private
 
       def build_shadow_agent(shadow_version)
@@ -246,7 +231,7 @@ module DecisionAgent
 
       def dequeue_context(queue)
         queue.pop(true)
-      rescue StandardError
+      rescue ThreadError
         nil
       end
 

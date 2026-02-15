@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 module DecisionAgent
+  # Result of {Agent#decide}: the chosen decision, confidence, explanations, and audit data.
   class Decision
     attr_reader :decision, :confidence, :explanations, :evaluations, :audit_payload
 
@@ -42,6 +43,10 @@ module DecisionAgent
       }.compact
     end
 
+    # Returns the decision as a hash (explainability-shaped plus confidence, evaluations, audit).
+    #
+    # @return [Hash] Symbol-keyed hash with :decision, :because, :failed_conditions, :confidence,
+    #   :explanations, :evaluations, :audit_payload, :explainability
     def to_h
       # Structure decision result as explainability by default
       # This makes explainability the primary format for decision results
@@ -126,6 +131,8 @@ module DecisionAgent
 
     public
 
+    # @param other [Object] Object to compare
+    # @return [Boolean] true if other is a Decision with same decision, confidence, explanations, evaluations
     def ==(other)
       other.is_a?(Decision) &&
         @decision == other.decision &&
@@ -137,8 +144,8 @@ module DecisionAgent
     private
 
     def validate_confidence!(confidence)
-      c = confidence.to_f
-      raise InvalidConfidenceError, confidence unless c.between?(0.0, 1.0)
+      confidence_value = confidence.to_f
+      raise InvalidConfidenceError, confidence unless confidence_value.between?(0.0, 1.0)
     end
 
     def deep_freeze(obj)

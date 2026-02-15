@@ -155,7 +155,7 @@ module DecisionAgent
             loop do
               scenario = begin
                 queue.pop(true)
-              rescue StandardError
+              rescue ThreadError
                 nil
               end
               break unless scenario
@@ -230,7 +230,8 @@ module DecisionAgent
         data
       rescue JSON::ParserError
         { completed_scenario_ids: [], last_updated: nil }
-      rescue StandardError
+      rescue StandardError => e
+        warn "[DecisionAgent] Failed to load checkpoint file: #{e.message}"
         { completed_scenario_ids: [], last_updated: nil }
       end
 

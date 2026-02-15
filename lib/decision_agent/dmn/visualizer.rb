@@ -65,8 +65,8 @@ module DecisionAgent
         svg = [
           %(<svg xmlns="http://www.w3.org/2000/svg" width="#{width}" height="#{height}" viewBox="0 0 #{width} #{height}">),
           "<defs>",
-          '  <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">',
-          '    <polygon points="0 0, 10 3, 0 6" fill="#666" />',
+          %(  <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">),
+          %(    <polygon points="0 0, 10 3, 0 6" fill="#666" />),
           "  </marker>",
           "</defs>",
           "<g>"
@@ -264,8 +264,8 @@ module DecisionAgent
         svg = [
           %(<svg xmlns="http://www.w3.org/2000/svg" width="#{width}" height="#{height}" viewBox="0 0 #{width} #{height}">),
           "<defs>",
-          '  <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">',
-          '    <polygon points="0 0, 10 3, 0 6" fill="#666" />',
+          %(  <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">),
+          %(    <polygon points="0 0, 10 3, 0 6" fill="#666" />),
           "  </marker>",
           "</defs>",
           "<g>"
@@ -288,8 +288,9 @@ module DecisionAgent
         # Use topological sort to arrange nodes in layers
         begin
           order = @graph.topological_order
-        rescue StandardError
-          # If circular, just use the order as-is
+        rescue StandardError => e
+          # If circular dependency detected, fall back to unordered keys
+          warn "[DecisionAgent] Topological sort failed (possible circular dependency): #{e.message}"
           order = @graph.decisions.keys
         end
 

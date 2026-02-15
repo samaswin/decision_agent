@@ -404,7 +404,7 @@ module DecisionAgent
             loop do
               context = begin
                 queue.pop(true)
-              rescue StandardError
+              rescue ThreadError
                 nil
               end
               break unless context

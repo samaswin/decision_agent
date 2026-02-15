@@ -105,15 +105,13 @@ module DecisionAgent
             any_condition_evaluated = true
 
             return traverse(child, context) if result
-            # Condition matched, continue down this branch
 
-            # Condition evaluated to false - check if this child has a false branch
-            # If child has multiple leaf children with no conditions, take the second one
-            if !child.leaf? && child.children.all? { |c| c.condition.nil? && c.leaf? } && child.children.size > 1
-              return child.children[1].decision
-            end
-          rescue StandardError
+            # Condition evaluated to false - check for a false branch
+            false_branch = false_branch_decision(child)
+            return false_branch if false_branch
+          rescue StandardError => e
             # If condition evaluation fails, skip this branch
+            warn "[DecisionAgent] Decision tree condition evaluation failed: #{e.message}"
             next
           end
         end
@@ -127,6 +125,16 @@ module DecisionAgent
 
         # No match found
         nil
+      end
+
+      # Check if a child node that evaluated to false has an explicit false branch
+      # (multiple leaf children with no conditions, take the second one)
+      def false_branch_decision(child)
+        return nil if child.leaf?
+        return nil unless child.children.size > 1
+        return nil unless child.children.all? { |c| c.condition.nil? && c.leaf? }
+
+        child.children[1].decision
       end
 
       def self.build_node(hash)

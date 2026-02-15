@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "openssl"
+
 module DecisionAgent
   module ABTesting
     # Represents an A/B test configuration for comparing rule versions
@@ -43,7 +45,7 @@ module DecisionAgent
 
         if user_id
           # Consistent hashing: same user always gets same variant
-          hash_value = Digest::SHA256.hexdigest("#{@id}:#{user_id}").to_i(16)
+          hash_value = OpenSSL::Digest::SHA256.hexdigest("#{@id}:#{user_id}").to_i(16)
           percentage = hash_value % 100
         else
           # Random assignment

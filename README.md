@@ -130,7 +130,7 @@ decision_agent web
 
 Open [http://localhost:4567](http://localhost:4567) in your browser.
 
-> **Coming Soon:** Decision tree builder - Visual interface for building and managing decision trees.
+The Web UI includes a **DMN visual modeler** at `/dmn/editor` for building and editing decision tables.
 
 ### Integration
 
@@ -218,31 +218,32 @@ DecisionAgent provides comprehensive simulation capabilities to test rule change
 
 ```ruby
 require 'decision_agent/simulation/replay_engine'
+require 'decision_agent/simulation/what_if_analyzer'
+require 'decision_agent/simulation/impact_analyzer'
 
 # Replay historical decisions with new rules
 replay_engine = DecisionAgent::Simulation::ReplayEngine.new(
   agent: agent,
   version_manager: version_manager
 )
-
 results = replay_engine.replay(historical_data: "decisions.csv")
 
-# What-if analysis
+# What-if analysis (scenarios = array of context hashes)
 whatif = DecisionAgent::Simulation::WhatIfAnalyzer.new(agent: agent)
 analysis = whatif.analyze(
-  base_context: { credit_score: 700, amount: 50000 },
   scenarios: [
-    { credit_score: 750 },
-    { credit_score: 650 }
+    { credit_score: 700, amount: 50000 },
+    { credit_score: 750, amount: 50000 },
+    { credit_score: 650, amount: 50000 }
   ]
 )
 
-# Impact analysis
-impact = DecisionAgent::Simulation::ImpactAnalyzer.new
-comparison = impact.compare(
-  baseline: baseline_evaluator,
-  proposed: proposed_evaluator,
-  contexts: test_contexts
+# Impact analysis (compare two rule versions on test data)
+impact = DecisionAgent::Simulation::ImpactAnalyzer.new(version_manager: version_manager)
+comparison = impact.analyze(
+  baseline_version: baseline_version_id,
+  proposed_version: proposed_version_id,
+  test_data: test_contexts
 )
 ```
 
@@ -298,23 +299,22 @@ Test rules against large datasets with comprehensive analysis:
 
 ```ruby
 require 'decision_agent/testing/batch_test_runner'
+require 'decision_agent/testing/batch_test_importer'
 
-runner = DecisionAgent::Testing::BatchTestRunner.new(agent: agent)
+runner = DecisionAgent::Testing::BatchTestRunner.new(agent)
 
-# Import from CSV or Excel
+# Import from CSV or Excel (context columns default to all except id/expected_*)
 importer = DecisionAgent::Testing::BatchTestImporter.new
-scenarios = importer.import_csv("test_data.csv", {
-  context_fields: ["credit_score", "amount"],
-  expected_fields: ["expected_decision"]
-})
+scenarios = importer.import_csv("test_data.csv")
 
 # Run batch test
-results = runner.run(scenarios: scenarios)
+results = runner.run(scenarios)
 
-puts "Total: #{results[:total]}"
-puts "Passed: #{results[:passed]}"
-puts "Failed: #{results[:failed]}"
-puts "Coverage: #{results[:coverage]}"
+stats = runner.statistics
+puts "Total: #{stats[:total]}"
+puts "Passed: #{stats[:successful]}"
+puts "Failed: #{stats[:failed]}"
+puts "Success rate: #{(stats[:success_rate] * 100).round(2)}%"
 ```
 
 **Features:**
@@ -332,19 +332,23 @@ See [Batch Testing Guide](docs/BATCH_TESTING.md) for complete documentation.
 Compare rule versions with statistical analysis:
 
 ```ruby
-require 'decision_agent/testing/ab_test_manager'
+require 'decision_agent/ab_testing/ab_test_manager'
 
-ab_manager = DecisionAgent::Testing::AbTestManager.new(version_manager: version_manager)
+ab_manager = DecisionAgent::ABTesting::ABTestManager.new(version_manager: version_manager)
 
 test = ab_manager.create_test(
   name: "loan_approval_v2",
-  champion_version: champion_version_id,
-  challenger_version: challenger_version_id,
-  traffic_split: 0.5
+  champion_version_id: champion_version_id,
+  challenger_version_id: challenger_version_id,
+  traffic_split: { champion: 90, challenger: 10 }
 )
 
-results = ab_manager.run_test(test_id: test.id, contexts: test_contexts)
-ab_manager.analyze_results(test_id: test.id)
+# Assign variant per request, then record decisions; when done, get results
+assignment = ab_manager.assign_variant(test_id: test.id, user_id: "user_123")
+# ... run agent with assignment[:version_id], then:
+ab_manager.record_decision(assignment_id: assignment[:assignment_id], decision: "approve", confidence: 0.9)
+
+results = ab_manager.get_results(test.id)
 ```
 
 **Features:**
@@ -446,24 +450,15 @@ rake benchmark:regression # Compare against baseline
 
 ### Latest Benchmark Results
 
-**Last Updated:** 2026-01-06T04:03:29Z
+Run `rake benchmark:regression` to generate results for your environment. Example (Ruby 3.3, typical hardware):
 
-#### Performance Comparison
+| Metric | Typical range |
+|--------|----------------|
+| Basic throughput | ~9,000+ decisions/sec |
+| Basic latency | ~0.1 ms |
+| Multi-threaded (50 threads) | ~8,500+ decisions/sec |
 
-| Metric | Latest (2026-01-06) | Previous (2026-01-06) | Change |
-|--------|--------------------------------------------------|------------------------------------------------------|--------|
-| Basic Throughput | 8966.04 decisions/sec | 9751.42 decisions/sec | ↓ 8.05% (degraded) |
-| Basic Latency | 0.1115 ms | 0.1025 ms | ↑ 8.78% (degraded) |
-| Multi-threaded (50 threads) Throughput | 8560.69 decisions/sec | 8849.86 decisions/sec | ↓ 3.27% (degraded) |
-| Multi-threaded (50 threads) Latency | 0.1168 ms | 0.113 ms | ↑ 3.36% (degraded) |
-
-**Environment:**
-- Ruby Version: 3.3.5
-- Hardware: x86_64
-- OS: Darwin
-- Git Commit: `aba46af5`
-
-> 💡 **Note:** Run `rake benchmark:regression` to generate new benchmark results. This section is automatically updated with the last 2 benchmark runs.
+> 💡 **Note:** See [Benchmarks Guide](benchmarks/README.md) and run `rake benchmark:all` or `rake benchmark:regression` for current numbers.
 ## Contributing
 
 1. Fork the repository
@@ -472,7 +467,7 @@ rake benchmark:regression # Compare against baseline
 4. Add tests (maintain 90%+ coverage)
 5. Run tests across all Ruby versions: `./scripts/test_all_ruby_versions.sh`
 6. Run benchmarks across all Ruby versions: `./scripts/benchmark_all_ruby_versions.sh`
-6. Submit a pull request
+7. Submit a pull request
 
 See [Development Setup Guide](docs/DEVELOPMENT_SETUP.md) for detailed setup instructions, testing workflows, and development best practices.
 

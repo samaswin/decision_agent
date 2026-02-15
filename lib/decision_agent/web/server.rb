@@ -255,8 +255,9 @@ module DecisionAgent
               resource_id: resource&.id,
               granted: false
             )
-          rescue StandardError
+          rescue StandardError => e
             # If logging fails, continue with permission denial
+            warn "[DecisionAgent] Failed to log permission denial: #{e.message}"
           end
           ctx.content_type "application/json"
           ctx.halt(403, { error: "Permission denied: #{permission}" }.to_json)
@@ -272,8 +273,9 @@ module DecisionAgent
             resource_id: resource&.id,
             granted: true
           )
-        rescue StandardError
+        rescue StandardError => e
           # If logging fails, continue - permission was granted
+          warn "[DecisionAgent] Failed to log permission grant: #{e.message}"
         end
       end
 
@@ -1180,8 +1182,9 @@ module DecisionAgent
           rescue DecisionAgent::ValidationError => e
             ctx.status(422)
             ctx.json({ error: e.message })
-          rescue StandardError
+          rescue StandardError => e
             # Log the error for debugging but return a safe response
+            warn "[DecisionAgent] Version API error: #{e.message}"
             ctx.status(500)
             ctx.json({ error: "Internal server error" })
           end
@@ -1935,7 +1938,8 @@ module DecisionAgent
         router.get "/simulation" do |ctx|
           sim_file = File.join(Server.public_folder, "simulation.html")
           Server.serve_html_with_base_tag(ctx, sim_file, "Simulation page not found")
-        rescue StandardError
+        rescue StandardError => e
+          warn "[DecisionAgent] Error serving simulation page: #{e.message}"
           ctx.status(404)
           ctx.body("Simulation page not found")
         end
@@ -1944,7 +1948,8 @@ module DecisionAgent
         router.get "/simulation/replay" do |ctx|
           replay_file = File.join(Server.public_folder, "simulation_replay.html")
           Server.serve_html_with_base_tag(ctx, replay_file, "Historical replay page not found")
-        rescue StandardError
+        rescue StandardError => e
+          warn "[DecisionAgent] Error serving replay page: #{e.message}"
           ctx.status(404)
           ctx.body("Historical replay page not found")
         end
@@ -1953,7 +1958,8 @@ module DecisionAgent
         router.get "/simulation/whatif" do |ctx|
           whatif_file = File.join(Server.public_folder, "simulation_whatif.html")
           Server.serve_html_with_base_tag(ctx, whatif_file, "What-if analysis page not found")
-        rescue StandardError
+        rescue StandardError => e
+          warn "[DecisionAgent] Error serving what-if page: #{e.message}"
           ctx.status(404)
           ctx.body("What-if analysis page not found")
         end
@@ -1962,7 +1968,8 @@ module DecisionAgent
         router.get "/simulation/impact" do |ctx|
           impact_file = File.join(Server.public_folder, "simulation_impact.html")
           Server.serve_html_with_base_tag(ctx, impact_file, "Impact analysis page not found")
-        rescue StandardError
+        rescue StandardError => e
+          warn "[DecisionAgent] Error serving impact page: #{e.message}"
           ctx.status(404)
           ctx.body("Impact analysis page not found")
         end
@@ -1971,7 +1978,8 @@ module DecisionAgent
         router.get "/simulation/shadow" do |ctx|
           shadow_file = File.join(Server.public_folder, "simulation_shadow.html")
           Server.serve_html_with_base_tag(ctx, shadow_file, "Shadow testing page not found")
-        rescue StandardError
+        rescue StandardError => e
+          warn "[DecisionAgent] Error serving shadow testing page: #{e.message}"
           ctx.status(404)
           ctx.body("Shadow testing page not found")
         end
@@ -1980,7 +1988,8 @@ module DecisionAgent
         router.get "/auth/login" do |ctx|
           login_file = File.join(Server.public_folder, "login.html")
           Server.serve_html_with_base_tag(ctx, login_file, "Login page not found")
-        rescue StandardError
+        rescue StandardError => e
+          warn "[DecisionAgent] Error serving login page: #{e.message}"
           ctx.status(404)
           ctx.body("Login page not found")
         end
@@ -1989,7 +1998,8 @@ module DecisionAgent
         router.get "/auth/users" do |ctx|
           users_file = File.join(Server.public_folder, "users.html")
           Server.serve_html_with_base_tag(ctx, users_file, "User management page not found")
-        rescue StandardError
+        rescue StandardError => e
+          warn "[DecisionAgent] Error serving users page: #{e.message}"
           ctx.status(404)
           ctx.body("User management page not found")
         end
@@ -2000,7 +2010,8 @@ module DecisionAgent
         router.get "/dmn/editor" do |ctx|
           dmn_file = File.join(Server.public_folder, "dmn-editor.html")
           Server.serve_html_with_base_tag(ctx, dmn_file, "DMN Editor page not found")
-        rescue StandardError
+        rescue StandardError => e
+          warn "[DecisionAgent] Error serving DMN editor page: #{e.message}"
           ctx.status(404)
           ctx.body("DMN Editor page not found")
         end

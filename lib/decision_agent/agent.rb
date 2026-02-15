@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
-require "digest"
 require "json"
 require "json/canonicalization"
+require "openssl"
 
 module DecisionAgent
+  # Agent runs multiple evaluators over a context, scores their evaluations,
+  # and returns a single {Decision} with the chosen outcome and confidence.
   class Agent
     attr_reader :evaluators, :scoring_strategy, :audit_adapter
 
@@ -19,6 +21,10 @@ module DecisionAgent
       attr_reader :hash_cache, :hash_cache_mutex, :hash_cache_max_size
     end
 
+    # @param evaluators [Array<#evaluate>] Objects that respond to #evaluate(context, feedback:)
+    # @param scoring_strategy [Scoring::Base, nil] Strategy to score evaluations (default: WeightedAverage)
+    # @param audit_adapter [Audit::Base, nil] Adapter for recording decisions (default: NullAdapter)
+    # @param validate_evaluations [Boolean, nil] If true, validate evaluations; nil = validate unless production
     def initialize(evaluators:, scoring_strategy: nil, audit_adapter: nil, validate_evaluations: nil)
       @evaluators = Array(evaluators)
       @scoring_strategy = scoring_strategy || Scoring::WeightedAverage.new
@@ -32,6 +38,12 @@ module DecisionAgent
       @evaluators.freeze
     end
 
+    # Runs all evaluators on the context, scores results, and returns a single decision.
+    #
+    # @param context [Context, Hash] Input data; converted to {Context} if a Hash
+    # @param feedback [Hash] Optional feedback passed to each evaluator
+    # @return [Decision] The chosen decision with confidence, explanations, and audit payload
+    # @raise [NoEvaluationsError] when no evaluator returns a valid evaluation
     def decide(context:, feedback: {})
       ctx = context.is_a?(Context) ? context : Context.new(context)
 
@@ -89,7 +101,8 @@ module DecisionAgent
     def collect_evaluations(context, feedback)
       @evaluators.map do |evaluator|
         evaluator.evaluate(context, feedback: feedback)
-      rescue StandardError
+      rescue StandardError => e
+        warn "[DecisionAgent] Evaluator #{evaluator.class} failed: #{e.message}"
         nil
       end.compact
     end
@@ -102,20 +115,20 @@ module DecisionAgent
       explanations << "Decision: #{final_decision} (confidence: #{confidence.round(2)})"
 
       if matching_evals.size == 1
-        eval = matching_evals.first
-        explanations << "#{eval.evaluator_name}: #{eval.reason} (weight: #{eval.weight})"
+        evaluation = matching_evals.first
+        explanations << "#{evaluation.evaluator_name}: #{evaluation.reason} (weight: #{evaluation.weight})"
       elsif matching_evals.size > 1
         explanations << "Based on #{matching_evals.size} evaluators:"
-        matching_evals.each do |eval|
-          explanations << "  - #{eval.evaluator_name}: #{eval.reason} (weight: #{eval.weight})"
+        matching_evals.each do |evaluation|
+          explanations << "  - #{evaluation.evaluator_name}: #{evaluation.reason} (weight: #{evaluation.weight})"
         end
       end
 
       conflicting_evals = evaluations.reject { |e| e.decision == final_decision }
       if conflicting_evals.any?
         explanations << "Conflicting evaluations resolved by #{@scoring_strategy.class.name.split('::').last}:"
-        conflicting_evals.each do |eval|
-          explanations << "  - #{eval.evaluator_name}: suggested '#{eval.decision}' (weight: #{eval.weight})"
+        conflicting_evals.each do |evaluation|
+          explanations << "  - #{evaluation.evaluator_name}: suggested '#{evaluation.decision}' (weight: #{evaluation.weight})"
         end
       end
 
@@ -144,11 +157,10 @@ module DecisionAgent
       hashable = payload.slice(:context, :evaluations, :decision, :confidence, :scoring_strategy)
 
       # Use fast hash (MD5) as cache key to avoid expensive canonicalization on cache hits
-      # Optimized: Use direct JSON.to_json instead of recursive sorting for speed
       # The cache key doesn't need perfect determinism, just good enough to catch duplicates
-      # This avoids the expensive sort_hash_keys recursion on every call
+      # Use OpenSSL::Digest to avoid "Digest::Base cannot be directly inherited" on some Ruby/digest setups
       json_str = hashable.to_json
-      fast_key = Digest::MD5.new.hexdigest(json_str)
+      fast_key = OpenSSL::Digest::MD5.hexdigest(json_str)
 
       # Fast path: check cache without lock first (unsafe read, but acceptable for cache)
       cached_hash = lookup_cached_hash(fast_key)
@@ -169,7 +181,7 @@ module DecisionAgent
 
     def compute_canonical_hash(hashable)
       canonical = canonical_json(hashable)
-      Digest::SHA256.new.hexdigest(canonical)
+      OpenSSL::Digest::SHA256.hexdigest(canonical)
     end
 
     def cache_hash(fast_key, computed_hash)
@@ -188,31 +200,6 @@ module DecisionAgent
       # Remove oldest 10% of entries (simple FIFO eviction)
       keys_to_remove = self.class.hash_cache.keys.first(self.class.hash_cache_max_size / 10)
       keys_to_remove.each { |key| self.class.hash_cache.delete(key) }
-    end
-
-    # Fast hash key generation using MD5 (much faster than canonical JSON + SHA256)
-    # Used as cache key to avoid expensive canonicalization on cache hits
-    # MD5 is sufficient for cache keys (collision resistance not critical, speed is)
-    def fast_hash_key(hashable)
-      # Create a deterministic string representation for hashing
-      # Use sorted JSON to ensure determinism (though not RFC 8785 canonical)
-      json_str = sort_hash_keys(hashable).to_json
-      Digest::MD5.hexdigest(json_str)
-    end
-
-    # Recursively sort hash keys for deterministic hashing
-    # This is faster than canonical JSON but still deterministic
-    # Note: This is still used by canonical_json indirectly, but fast_hash_key avoids it
-    def sort_hash_keys(obj)
-      case obj
-      when Hash
-        sorted = obj.sort.to_h
-        sorted.transform_values { |v| sort_hash_keys(v) }
-      when Array
-        obj.map { |v| sort_hash_keys(v) }
-      else
-        obj
-      end
     end
 
     # Uses RFC 8785 (JSON Canonicalization Scheme) for deterministic JSON serialization

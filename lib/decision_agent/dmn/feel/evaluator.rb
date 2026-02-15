@@ -32,108 +32,15 @@ module DecisionAgent
         # @param field_name [String] The field name being evaluated
         # @param context [Hash] Evaluation context
         # @return [Boolean] Evaluation result
-        # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
         def evaluate(expression, field_name, context)
           return true if expression == "-" # DMN "don't care" marker
 
           # Try Parslet parser first (Phase 2B)
-          if @use_parslet
-            begin
-              expr_key = expression.to_s.strip
-
-              # Check AST cache first
-              ast = @cache_mutex.synchronize do
-                @ast_cache[expr_key]
-              end
-
-              if ast.nil?
-                parse_tree = @parslet_parser.parse(expr_key)
-                ast = @transformer.apply(parse_tree)
-                @cache_mutex.synchronize do
-                  @ast_cache[expr_key] = ast
-                end
-              end
-
-              result = evaluate_ast_node(ast, context)
-              # If result is nil and AST is a simple field reference that doesn't exist in context,
-              # fall back to Phase 2A approach to return condition structure
-              unless result.nil? && ast.is_a?(Hash) && ast[:type] == :field &&
-                     !context.key?(ast[:name]) && !context.key?(ast[:name].to_s) &&
-                     !context.key?(ast[:name].to_sym)
-                return result
-              end
-            # Fall through to Phase 2A
-            rescue Parslet::ParseFailed, FeelParseError, FeelTransformError => e
-              # Fall back to Phase 2A approach
-              warn "Parslet parse failed: #{e.message}, falling back" if ENV["DEBUG_FEEL"]
-            end
-          end
+          parslet_result = try_parslet_evaluate(expression, context) if @use_parslet
+          return parslet_result unless parslet_result == :fallback
 
           # Phase 2A approach: use condition structures
-          # Check cache first (thread-safe)
-          cache_key = "#{expression}::#{field_name}"
-          condition = @cache_mutex.synchronize do
-            @cache[cache_key]
-          end
-
-          return Dsl::ConditionEvaluator.evaluate(condition, context) if condition
-
-          # Parse and translate expression to condition structure
-          expr_str = expression.to_s.strip
-
-          # Check if expression matches any known pattern that can be successfully parsed
-          is_supported = literal?(expr_str) ||
-                         comparison_expression?(expr_str) ||
-                         list_expression?(expr_str) ||
-                         range_expression?(expr_str)
-
-          # For SimpleParser, check if it can actually parse successfully
-          if SimpleParser.can_parse?(expr_str)
-            begin
-              @simple_parser.parse(expr_str)
-              is_supported = true
-            rescue FeelParseError
-              # SimpleParser says it can parse, but actually can't - not supported
-              is_supported = false
-            end
-          end
-          # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
-
-          condition = parse_expression_to_condition(expression, field_name, context)
-
-          # If parse_expression_to_condition returned nil, create default condition structure
-          unless condition.is_a?(Hash)
-            condition = {
-              "field" => field_name,
-              "op" => "eq",
-              "value" => parse_value(expr_str)
-            }
-          end
-
-          # Store in cache (thread-safe)
-          @cache_mutex.synchronize do
-            @cache[cache_key] = condition
-          end
-
-          # For completely unsupported expressions (no patterns matched), return condition structure
-          # This allows fallback to literal equality for unknown syntax
-          return condition unless is_supported
-
-          # Delegate to existing ConditionEvaluator for supported expressions
-          evaluation_result = Dsl::ConditionEvaluator.evaluate(condition, context)
-
-          # If evaluation returns false for a simple equality check and the field doesn't exist in context,
-          # treat as unsupported expression and return condition structure (fallback behavior)
-          if evaluation_result == false && condition["op"] == "eq"
-            field_key = condition["field"]
-            field_exists = context.key?(field_key) || context.key?(field_key.to_s) || context.key?(field_key.to_sym)
-            return condition unless field_exists
-          end
-
-          # If evaluation returns nil, return condition structure as fallback
-          return condition if evaluation_result.nil?
-
-          evaluation_result
+          evaluate_phase2a(expression, field_name, context)
         end
 
         # Parse FEEL expression into operator and value (for internal use by Adapter)
@@ -168,6 +75,93 @@ module DecisionAgent
         end
 
         private
+
+        # Attempt evaluation via Parslet parser (Phase 2B)
+        # Returns :fallback if Parslet cannot handle this expression
+        def try_parslet_evaluate(expression, context)
+          ast = cached_parslet_ast(expression.to_s.strip)
+          result = evaluate_ast_node(ast, context)
+
+          # If result is nil for a missing field reference, fall back to Phase 2A
+          return :fallback if result.nil? && unresolved_field_reference?(ast, context)
+
+          result
+        rescue Parslet::ParseFailed, FeelParseError, FeelTransformError => e
+          warn "Parslet parse failed: #{e.message}, falling back" if ENV["DEBUG_FEEL"]
+          :fallback
+        end
+
+        # Fetch or build Parslet AST with thread-safe caching
+        def cached_parslet_ast(expr_key)
+          ast = @cache_mutex.synchronize { @ast_cache[expr_key] }
+          return ast if ast
+
+          parse_tree = @parslet_parser.parse(expr_key)
+          ast = @transformer.apply(parse_tree)
+          @cache_mutex.synchronize { @ast_cache[expr_key] = ast }
+          ast
+        end
+
+        def unresolved_field_reference?(ast, context)
+          ast.is_a?(Hash) && ast[:type] == :field &&
+            !context.key?(ast[:name]) && !context.key?(ast[:name].to_s) &&
+            !context.key?(ast[:name].to_sym)
+        end
+
+        # Phase 2A evaluation: regex-based patterns with condition structures
+        def evaluate_phase2a(expression, field_name, context)
+          cache_key = "#{expression}::#{field_name}"
+          condition = @cache_mutex.synchronize { @cache[cache_key] }
+          return Dsl::ConditionEvaluator.evaluate(condition, context) if condition
+
+          expr_str = expression.to_s.strip
+          is_supported = expression_supported?(expr_str)
+          condition = build_condition(expression, field_name, expr_str, context)
+
+          @cache_mutex.synchronize { @cache[cache_key] = condition }
+
+          return condition unless is_supported
+
+          evaluate_with_fallback(condition, context)
+        end
+
+        # Check if expression matches any known parseable pattern
+        def expression_supported?(expr_str)
+          supported = literal?(expr_str) || comparison_expression?(expr_str) ||
+                      list_expression?(expr_str) || range_expression?(expr_str)
+
+          return supported unless SimpleParser.can_parse?(expr_str)
+
+          @simple_parser.parse(expr_str)
+          true
+        rescue FeelParseError
+          false
+        end
+
+        # Build a condition structure from expression, with fallback to default equality
+        def build_condition(expression, field_name, expr_str, context)
+          condition = parse_expression_to_condition(expression, field_name, context)
+          return condition if condition.is_a?(Hash)
+
+          { "field" => field_name, "op" => "eq", "value" => parse_value(expr_str) }
+        end
+
+        # Evaluate condition with fallback to condition structure when result is ambiguous
+        def evaluate_with_fallback(condition, context)
+          evaluation_result = Dsl::ConditionEvaluator.evaluate(condition, context)
+
+          return condition if evaluation_result.nil?
+          return condition if equality_on_missing_field?(evaluation_result, condition, context)
+
+          evaluation_result
+        end
+
+        def equality_on_missing_field?(result, condition, context)
+          return false unless result == false && condition["op"] == "eq"
+
+          field_key = condition["field"]
+          !context.key?(field_key) && !context.key?(field_key.to_s) && !context.key?(field_key.to_sym)
+        end
 
         def literal?(expr)
           # Quoted string
@@ -597,20 +591,18 @@ module DecisionAgent
 
         # Evaluate function call
         def evaluate_function_call(node, context)
-          # Extract function name - could be a string or a field node
-          function_name = if node[:name].is_a?(Hash)
-                            if node[:name][:type] == :field
-                              node[:name][:name]
-                            else
-                              node[:name][:name] || node[:name][:identifier] || node[:name].to_s
-                            end
-                          else
-                            node[:name]
-                          end
-
+          function_name = extract_function_name(node[:name])
           args = Array(node[:arguments]).map { |arg| evaluate_ast_node(arg, context) }
 
           Functions.execute(function_name.to_s, args, context)
+        end
+
+        # Extract function name from a string or structured field node
+        def extract_function_name(name_node)
+          return name_node unless name_node.is_a?(Hash)
+          return name_node[:name] if name_node[:type] == :field
+
+          name_node[:name] || name_node[:identifier] || name_node.to_s
         end
 
         # Evaluate property access

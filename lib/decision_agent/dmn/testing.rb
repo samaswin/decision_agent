@@ -227,8 +227,9 @@ module DecisionAgent
             # This would need to be enhanced to track which rule matched
             evaluator.evaluate(context: context)
             # In a full implementation, we'd track the matched rule
-          rescue StandardError
-            # Ignore errors for coverage calculation
+          rescue StandardError => e
+            # Log errors during coverage calculation but continue
+            warn "[DecisionAgent] Coverage evaluation failed for test case: #{e.message}"
           end
         end
 

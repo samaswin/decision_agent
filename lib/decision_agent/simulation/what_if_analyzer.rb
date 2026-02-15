@@ -214,6 +214,9 @@ module DecisionAgent
           execute_parallel(scenarios, analysis_agent, options, mutex) do |result|
             mutex.synchronize { results << result }
           end
+          # Preserve input order: parallel execution appends as threads finish
+          results.sort_by! { |r| r[:_index] }
+          results.each { |r| r.delete(:_index) }
         else
           scenarios.each do |scenario|
             ctx = scenario.is_a?(Context) ? scenario : Context.new(scenario)
@@ -233,14 +236,14 @@ module DecisionAgent
       def execute_parallel(scenarios, analysis_agent, options, _mutex)
         thread_count = [options[:thread_count], scenarios.size].min
         queue = Queue.new
-        scenarios.each { |s| queue << s }
+        scenarios.each_with_index { |s, idx| queue << [s, idx] }
 
         threads = Array.new(thread_count) do
           Thread.new do
             loop do
-              scenario = begin
+              scenario, index = begin
                 queue.pop(true)
-              rescue StandardError
+              rescue ThreadError
                 nil
               end
               break unless scenario
@@ -248,6 +251,7 @@ module DecisionAgent
               ctx = scenario.is_a?(Context) ? scenario : Context.new(scenario)
               decision = analysis_agent.decide(context: ctx)
               result = {
+                _index: index,
                 scenario: ctx.to_h,
                 decision: decision.decision,
                 confidence: decision.confidence,

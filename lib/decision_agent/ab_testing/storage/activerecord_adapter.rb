@@ -88,19 +88,6 @@ module DecisionAgent
         end
         # rubocop:enable Naming/PredicateMethod
 
-        # Get statistics from database
-        def get_test_statistics(test_id)
-          assignments = ::ABTestAssignmentModel.where(ab_test_id: test_id)
-
-          {
-            total_assignments: assignments.count,
-            champion_count: assignments.where(variant: "champion").count,
-            challenger_count: assignments.where(variant: "challenger").count,
-            with_decisions: assignments.where.not(decision_result: nil).count,
-            avg_confidence: assignments.where.not(confidence: nil).average(:confidence)&.to_f
-          }
-        end
-
         private
 
         def to_ab_test(record)
