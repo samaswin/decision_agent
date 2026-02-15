@@ -231,7 +231,7 @@ module DecisionAgent
 
       def dequeue_context(queue)
         queue.pop(true)
-      rescue StandardError
+      rescue ThreadError
         nil
       end
 

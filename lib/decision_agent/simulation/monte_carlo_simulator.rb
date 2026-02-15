@@ -382,7 +382,8 @@ module DecisionAgent
           confidence: decision.confidence,
           explanations: decision.explanations
         }
-      rescue StandardError
+      rescue StandardError => e
+        warn "[DecisionAgent] Monte Carlo iteration failed: #{e.message}"
         nil
       end
 

@@ -46,8 +46,9 @@ module DecisionAgent
         if options[:progress_callback]
           begin
             total_rows = count_csv_rows(file_path, options[:skip_header])
-          rescue StandardError
+          rescue StandardError => e
             # If counting fails, continue without progress tracking
+            warn "[DecisionAgent] Failed to count CSV rows: #{e.message}"
             total_rows = nil
           end
         end
@@ -366,8 +367,9 @@ module DecisionAgent
           count += 1
         end
         count
-      rescue StandardError
+      rescue StandardError => e
         # If we can't count, return nil (progress tracking will be disabled)
+        warn "[DecisionAgent] Failed to count CSV rows for '#{file_path}': #{e.message}"
         nil
       end
     end

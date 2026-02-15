@@ -161,7 +161,8 @@ module DecisionAgent
             else
               false
             end
-          rescue StandardError
+          rescue StandardError => cause_check_error
+            warn "[DecisionAgent] Error checking busy exception cause: #{cause_check_error.message}"
             false
           end || e.message.include?("database is locked") ||
                     e.message.include?("SQLite3::BusyException") ||

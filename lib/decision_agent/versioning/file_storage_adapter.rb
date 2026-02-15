@@ -99,8 +99,9 @@ module DecisionAgent
         # Use index to find rule_id quickly - O(1) instead of O(n)
         begin
           rule_id = get_rule_id_from_index(version_id)
-        rescue StandardError
+        rescue StandardError => e
           # If index lookup fails, version doesn't exist
+          warn "[DecisionAgent] Version index lookup failed for '#{version_id}': #{e.message}"
           return nil
         end
         return nil unless rule_id
@@ -112,8 +113,9 @@ module DecisionAgent
             versions = list_versions_unsafe(rule_id: rule_id)
             versions.find { |v| v[:id] == version_id }
           end
-        rescue StandardError
+        rescue StandardError => e
           # If any error occurs during lookup, treat as version not found
+          warn "[DecisionAgent] Version lookup failed for '#{version_id}': #{e.message}"
           nil
         end
       end
@@ -161,8 +163,9 @@ module DecisionAgent
         # Use index to find rule_id quickly - O(1) instead of O(n)
         begin
           rule_id = get_rule_id_from_index(version_id)
-        rescue StandardError
+        rescue StandardError => e
           # If index lookup fails, version doesn't exist
+          warn "[DecisionAgent] Version index lookup failed for '#{version_id}': #{e.message}"
           raise DecisionAgent::NotFoundError, "Version not found: #{version_id}"
         end
 
@@ -227,15 +230,16 @@ module DecisionAgent
         rescue DecisionAgent::ValidationError, DecisionAgent::NotFoundError
           # Re-raise expected errors
           raise
-        rescue StandardError
+        rescue StandardError => e
           # If any unexpected error occurs during the lock operation, treat as version not found
           # This prevents 500 errors from propagating when version doesn't exist or is in an invalid state
           # This handles ThreadError (deadlocks, recursive locks), SystemCallError (file system issues), etc.
           # This is safe because if the version existed and was valid, we would have found it above
+          warn "[DecisionAgent] Version delete lock operation failed for '#{version_id}': #{e.message}"
           begin
             remove_from_index(version_id)
-          rescue StandardError
-            nil
+          rescue StandardError => cleanup_error
+            warn "[DecisionAgent] Failed to clean up index for '#{version_id}': #{cleanup_error.message}"
           end
           raise DecisionAgent::NotFoundError, "Version not found: #{version_id}"
         end

@@ -288,8 +288,9 @@ module DecisionAgent
         # Use topological sort to arrange nodes in layers
         begin
           order = @graph.topological_order
-        rescue StandardError
-          # If circular, just use the order as-is
+        rescue StandardError => e
+          # If circular dependency detected, fall back to unordered keys
+          warn "[DecisionAgent] Topological sort failed (possible circular dependency): #{e.message}"
           order = @graph.decisions.keys
         end
 

@@ -212,9 +212,9 @@ module DecisionAgent
         when "PRIORITY"
           # Check that outputs have defined allowed values with priorities
           table.outputs.each do |output|
-            unless output.instance_variable_get(:@allowed_values)
-              @warnings << "#{path}: PRIORITY hit policy requires outputs to have defined allowed values"
-            end
+            next if output.instance_variable_get(:@allowed_values)
+
+            @warnings << "#{path}: PRIORITY hit policy requires outputs to have defined allowed values"
           end
         end
       end

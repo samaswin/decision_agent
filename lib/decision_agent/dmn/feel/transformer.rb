@@ -8,6 +8,54 @@ module DecisionAgent
     module Feel
       # Transforms Parslet parse tree into AST
       class Transformer < Parslet::Transform
+        # Extract a context entry key from various node representations
+        def self.extract_entry_key(key_node)
+          return key_node.to_s if key_node.is_a?(Parslet::Slice)
+          return key_node.to_s unless key_node.is_a?(Hash)
+
+          case key_node[:type]
+          when :field      then key_node[:name].to_s
+          when :string     then key_node[:value].to_s
+          when :identifier then key_node[:name].to_s
+          else
+            key_node[:identifier]&.to_s || key_node[:string]&.to_s || key_node.to_s
+          end
+        end
+
+        # Extract a name string from a node that may be a Hash or raw value
+        def self.extract_name(name_node)
+          return name_node.to_s.strip unless name_node.is_a?(Hash)
+          return name_node[:name].to_s.strip if name_node[:type] == :field
+
+          name_node[:identifier]&.to_s&.strip || name_node.to_s
+        end
+
+        # Apply a single postfix operation to the current AST node
+        def self.apply_postfix_op(current, op)
+          return current unless op.is_a?(Hash)
+
+          if op[:property_access]
+            { type: :property_access, object: current, property: op[:property_access][:property][:identifier].to_s }
+          elsif op[:function_call]
+            { type: :function_call, name: current, arguments: op[:function_call][:arguments] || [] }
+          elsif op[:filter]
+            { type: :filter, list: current, condition: op[:filter][:filter] }
+          else
+            current
+          end
+        end
+
+        # Extract variable name from a potentially transformed node
+        def self.extract_variable_name(var_node)
+          if var_node.is_a?(Hash) && var_node[:type] == :field
+            var_node[:name]
+          elsif var_node.is_a?(Hash) && var_node[:identifier]
+            var_node[:identifier].to_s
+          else
+            var_node.to_s
+          end
+        end
+
         # Literals
         rule(null: simple(:_)) { { type: :null, value: nil } }
 
@@ -56,26 +104,7 @@ module DecisionAgent
                           end
 
           pairs = entries_array.map do |entry|
-            # Extract key - could be a transformed field node, string node, or raw value
-            key = if entry[:key].is_a?(Hash)
-                    # Key is a structured node
-                    case entry[:key][:type]
-                    when :field
-                      entry[:key][:name].to_s
-                    when :string
-                      entry[:key][:value].to_s
-                    when :identifier
-                      entry[:key][:name].to_s
-                    else
-                      entry[:key][:identifier]&.to_s || entry[:key][:string]&.to_s || entry[:key].to_s
-                    end
-                  elsif entry[:key].is_a?(Parslet::Slice)
-                    entry[:key].to_s
-                  else
-                    entry[:key].to_s
-                  end
-
-            [key, entry[:value]]
+            [Transformer.extract_entry_key(entry[:key]), entry[:value]]
           end
 
           { type: :context_literal, pairs: pairs }
@@ -112,36 +141,16 @@ module DecisionAgent
                        else [args]
                        end
 
-          func_name = case name
-                      when Hash
-                        # Handle transformed field nodes or raw identifier hashes
-                        if name[:type] == :field
-                          name[:name].to_s.strip
-                        else
-                          name[:identifier]&.to_s&.strip || name.to_s
-                        end
-                      else
-                        name.to_s.strip
-                      end
-
           {
             type: :function_call,
-            name: func_name,
+            name: Transformer.extract_name(name),
             arguments: args_array
           }
         end
 
         # Identifier or function call (just identifier, no arguments)
         rule(identifier_or_call: { name: subtree(:name) }) do
-          # Just an identifier
-          field_name = case name
-                       when Hash
-                         name[:identifier]&.to_s&.strip || name[:type] == :field ? name[:name] : name.to_s
-                       else
-                         name.to_s.strip
-                       end
-
-          { type: :field, name: field_name }
+          { type: :field, name: Transformer.extract_name(name) }
         end
 
         # Comparison operations
@@ -262,35 +271,7 @@ module DecisionAgent
 
         # Postfix operations (property access, function calls, filters)
         rule(postfix: { base: subtree(:base), postfix_ops: subtree(:ops) }) do
-          ops_array = Array(ops)
-          ops_array.reduce(base) do |current, op|
-            case op
-            when Hash
-              if op[:property_access]
-                {
-                  type: :property_access,
-                  object: current,
-                  property: op[:property_access][:property][:identifier].to_s
-                }
-              elsif op[:function_call]
-                {
-                  type: :function_call,
-                  name: current,
-                  arguments: op[:function_call][:arguments] || []
-                }
-              elsif op[:filter]
-                {
-                  type: :filter,
-                  list: current,
-                  condition: op[:filter][:filter]
-                }
-              else
-                current
-              end
-            else
-              current
-            end
-          end
+          Array(ops).reduce(base) { |current, op| Transformer.apply_postfix_op(current, op) }
         end
 
         # If-then-else conditional
@@ -305,19 +286,10 @@ module DecisionAgent
 
         # Quantified expressions
         rule(quantifier: simple(:q), var: subtree(:v), list: subtree(:l), condition: subtree(:c)) do
-          # Variable might be already transformed to a field node or still be an identifier hash
-          var_name = if v.is_a?(Hash) && v[:type] == :field
-                       v[:name]
-                     elsif v.is_a?(Hash) && v[:identifier]
-                       v[:identifier].to_s
-                     else
-                       v.to_s
-                     end
-
           {
             type: :quantified,
             quantifier: q.to_s,
-            variable: var_name,
+            variable: Transformer.extract_variable_name(v),
             list: l,
             condition: c
           }
@@ -325,18 +297,9 @@ module DecisionAgent
 
         # For expression
         rule(var: subtree(:v), list: subtree(:l), return_expr: subtree(:r)) do
-          # Variable might be already transformed to a field node or still be an identifier hash
-          var_name = if v.is_a?(Hash) && v[:type] == :field
-                       v[:name]
-                     elsif v.is_a?(Hash) && v[:identifier]
-                       v[:identifier].to_s
-                     else
-                       v.to_s
-                     end
-
           {
             type: :for,
-            variable: var_name,
+            variable: Transformer.extract_variable_name(v),
             list: l,
             return_expr: r
           }

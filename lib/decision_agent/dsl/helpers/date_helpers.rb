@@ -13,7 +13,8 @@ module DecisionAgent
             year, month, day = date_string.split("-").map(&:to_i)
             begin
               return Time.new(year, month, day)
-            rescue StandardError
+            rescue StandardError => e
+              warn "[DecisionAgent] Failed to parse date '#{date_string}': #{e.message}"
               nil
             end
           end

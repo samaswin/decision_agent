@@ -89,7 +89,8 @@ module DecisionAgent
     def collect_evaluations(context, feedback)
       @evaluators.map do |evaluator|
         evaluator.evaluate(context, feedback: feedback)
-      rescue StandardError
+      rescue StandardError => e
+        warn "[DecisionAgent] Evaluator #{evaluator.class} failed: #{e.message}"
         nil
       end.compact
     end

@@ -251,7 +251,8 @@ module DecisionAgent
           "condition",
           context
         )
-      rescue StandardError
+      rescue StandardError => e
+        warn "[DecisionAgent] FEEL condition evaluation failed: #{e.message}"
         false
       end
     end
@@ -277,13 +278,12 @@ module DecisionAgent
           decision_node = graph.get_decision(decision_id)
 
           # Find all information requirements
-          info_reqs = decision_xml.xpath(".//dmn:informationRequirement")
-          info_reqs.each do |req|
+          decision_xml.xpath(".//dmn:informationRequirement").each do |req|
             required_decision = req.at_xpath(".//dmn:requiredDecision")
-            if required_decision
-              required_id = required_decision["href"]&.sub("#", "")
-              decision_node.add_dependency(required_id) if required_id
-            end
+            next unless required_decision
+
+            required_id = required_decision["href"]&.sub("#", "")
+            decision_node.add_dependency(required_id) if required_id
           end
         end
 
