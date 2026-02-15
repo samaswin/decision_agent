@@ -57,6 +57,16 @@ asdf local ruby 3.2.5
 bundle install
 ```
 
+### 6. Ruby version changes and Bundler
+
+After changing Ruby version (e.g. switching with `asdf local ruby 3.3.x` or upgrading from 3.2 to 3.3):
+
+1. **Run `bundle install`** — On Ruby 3.3, `bundle install` can update platform-specific gems in `Gemfile.lock`; re-running ensures the lockfile matches your current Ruby and platform.
+2. **If you use gems with native extensions (e.g. sqlite3):** run `bundle pristine` or remove the gem cache and run `bundle install` again if you see "incompatible libruby" or load errors after changing Ruby patch version (e.g. 3.3.5 → 3.3.8).
+3. **After `bundle update`:** run `bundle install` and the full test suite to confirm the lockfile and dependencies are consistent.
+
+The project keeps `Gemfile.lock` committed and CI runs on a matrix of Ruby versions (3.0–3.3) for reproducible builds.
+
 ## Development Workflow
 
 ### Running Tests
