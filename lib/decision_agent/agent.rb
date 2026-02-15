@@ -29,6 +29,7 @@ module DecisionAgent
       @evaluators = Array(evaluators)
       @scoring_strategy = scoring_strategy || Scoring::WeightedAverage.new
       @audit_adapter = audit_adapter || Audit::NullAdapter.new
+      @scoring_strategy_name = @scoring_strategy.class.name.split("::").last.freeze
       # Default to validating in development, skip in production for performance
       @validate_evaluations = validate_evaluations.nil? ? (ENV["RAILS_ENV"] != "production") : validate_evaluations
 
@@ -126,7 +127,7 @@ module DecisionAgent
 
       conflicting_evals = evaluations.reject { |e| e.decision == final_decision }
       if conflicting_evals.any?
-        explanations << "Conflicting evaluations resolved by #{@scoring_strategy.class.name.split('::').last}:"
+        explanations << "Conflicting evaluations resolved by #{@scoring_strategy_name}:"
         conflicting_evals.each do |evaluation|
           explanations << "  - #{evaluation.evaluator_name}: suggested '#{evaluation.decision}' (weight: #{evaluation.weight})"
         end

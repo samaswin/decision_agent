@@ -39,14 +39,15 @@ module DecisionAgent
       end
 
       def evaluate(context, feedback: {})
+        ctx = context.is_a?(Context) ? context : Context.new(context)
         hit_policy = @decision.decision_table.hit_policy
 
         # Collect explainability traces
-        explainability_result = collect_explainability(context, hit_policy)
+        explainability_result = collect_explainability(ctx, hit_policy)
 
         # Short-circuit for FIRST and PRIORITY policies
         if %w[FIRST PRIORITY].include?(hit_policy)
-          first_match = find_first_matching_evaluation(context, explainability_result: explainability_result)
+          first_match = find_first_matching_evaluation(ctx, explainability_result: explainability_result)
           return first_match if first_match
 
           # If no match found, return nil (consistent with apply_first_policy behavior)
@@ -54,7 +55,7 @@ module DecisionAgent
         end
 
         # For UNIQUE, ANY, COLLECT - need all matches
-        matching_evaluations = find_all_matching_evaluations(context, explainability_result: explainability_result)
+        matching_evaluations = find_all_matching_evaluations(ctx, explainability_result: explainability_result)
 
         # Apply hit policy to select the appropriate evaluation
         result = apply_hit_policy(matching_evaluations)
@@ -82,13 +83,12 @@ module DecisionAgent
       end
 
       # Collect explainability traces for DMN evaluation
-      def collect_explainability(context, hit_policy)
-        ctx = context.is_a?(Context) ? context : Context.new(context)
+      def collect_explainability(ctx, hit_policy)
         rules = @rules_json["rules"] || []
         rule_traces = []
 
-        rules.each do |rule|
-          rule_id = rule["id"] || "rule_#{rules.index(rule)}"
+        rules.each_with_index do |rule, idx|
+          rule_id = rule["id"] || "rule_#{idx}"
           if_clause = rule["if"]
           next unless if_clause
 
@@ -125,17 +125,17 @@ module DecisionAgent
       end
 
       # Find first matching rule (for short-circuiting)
-      def find_first_matching_evaluation(context, explainability_result: nil, feedback: {})
-        ctx = context.is_a?(Context) ? context : Context.new(context)
+      def find_first_matching_evaluation(ctx, explainability_result: nil, feedback: {})
         rules = @rules_json["rules"] || []
 
-        rules.each do |rule|
+        rules.each_with_index do |rule, idx|
           if_clause = rule["if"]
           next unless if_clause
 
           # If explainability is already collected, use the trace data
           matched = if explainability_result
-                      rule_trace = explainability_result.rule_traces.find { |rt| rt.rule_id == (rule["id"] || "rule_#{rules.index(rule)}") }
+                      rule_id = rule["id"] || "rule_#{idx}"
+                      rule_trace = explainability_result.rule_traces.find { |rt| rt.rule_id == rule_id }
                       rule_trace&.matched
                     else
                       Dsl::ConditionEvaluator.evaluate(if_clause, ctx)
@@ -167,18 +167,18 @@ module DecisionAgent
       end
 
       # Find all matching rules (not just first)
-      def find_all_matching_evaluations(context, explainability_result: nil, feedback: {})
-        ctx = context.is_a?(Context) ? context : Context.new(context)
+      def find_all_matching_evaluations(ctx, explainability_result: nil, feedback: {})
         rules = @rules_json["rules"] || []
         matching = []
 
-        rules.each do |rule|
+        rules.each_with_index do |rule, idx|
           if_clause = rule["if"]
           next unless if_clause
 
           # If explainability is already collected, use the trace data
           matched = if explainability_result
-                      rule_trace = explainability_result.rule_traces.find { |rt| rt.rule_id == (rule["id"] || "rule_#{rules.index(rule)}") }
+                      rule_id = rule["id"] || "rule_#{idx}"
+                      rule_trace = explainability_result.rule_traces.find { |rt| rt.rule_id == rule_id }
                       rule_trace&.matched
                     else
                       Dsl::ConditionEvaluator.evaluate(if_clause, ctx)
