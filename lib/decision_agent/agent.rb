@@ -5,6 +5,8 @@ require "json"
 require "json/canonicalization"
 
 module DecisionAgent
+  # Agent runs multiple evaluators over a context, scores their evaluations,
+  # and returns a single {Decision} with the chosen outcome and confidence.
   class Agent
     attr_reader :evaluators, :scoring_strategy, :audit_adapter
 
@@ -19,6 +21,10 @@ module DecisionAgent
       attr_reader :hash_cache, :hash_cache_mutex, :hash_cache_max_size
     end
 
+    # @param evaluators [Array<#evaluate>] Objects that respond to #evaluate(context, feedback:)
+    # @param scoring_strategy [Scoring::Base, nil] Strategy to score evaluations (default: WeightedAverage)
+    # @param audit_adapter [Audit::Base, nil] Adapter for recording decisions (default: NullAdapter)
+    # @param validate_evaluations [Boolean, nil] If true, validate evaluations; nil = validate unless production
     def initialize(evaluators:, scoring_strategy: nil, audit_adapter: nil, validate_evaluations: nil)
       @evaluators = Array(evaluators)
       @scoring_strategy = scoring_strategy || Scoring::WeightedAverage.new
@@ -32,6 +38,12 @@ module DecisionAgent
       @evaluators.freeze
     end
 
+    # Runs all evaluators on the context, scores results, and returns a single decision.
+    #
+    # @param context [Context, Hash] Input data; converted to {Context} if a Hash
+    # @param feedback [Hash] Optional feedback passed to each evaluator
+    # @return [Decision] The chosen decision with confidence, explanations, and audit payload
+    # @raise [NoEvaluationsError] when no evaluator returns a valid evaluation
     def decide(context:, feedback: {})
       ctx = context.is_a?(Context) ? context : Context.new(context)
 
@@ -103,20 +115,20 @@ module DecisionAgent
       explanations << "Decision: #{final_decision} (confidence: #{confidence.round(2)})"
 
       if matching_evals.size == 1
-        eval = matching_evals.first
-        explanations << "#{eval.evaluator_name}: #{eval.reason} (weight: #{eval.weight})"
+        evaluation = matching_evals.first
+        explanations << "#{evaluation.evaluator_name}: #{evaluation.reason} (weight: #{evaluation.weight})"
       elsif matching_evals.size > 1
         explanations << "Based on #{matching_evals.size} evaluators:"
-        matching_evals.each do |eval|
-          explanations << "  - #{eval.evaluator_name}: #{eval.reason} (weight: #{eval.weight})"
+        matching_evals.each do |evaluation|
+          explanations << "  - #{evaluation.evaluator_name}: #{evaluation.reason} (weight: #{evaluation.weight})"
         end
       end
 
       conflicting_evals = evaluations.reject { |e| e.decision == final_decision }
       if conflicting_evals.any?
         explanations << "Conflicting evaluations resolved by #{@scoring_strategy.class.name.split('::').last}:"
-        conflicting_evals.each do |eval|
-          explanations << "  - #{eval.evaluator_name}: suggested '#{eval.decision}' (weight: #{eval.weight})"
+        conflicting_evals.each do |evaluation|
+          explanations << "  - #{evaluation.evaluator_name}: suggested '#{evaluation.decision}' (weight: #{evaluation.weight})"
         end
       end
 

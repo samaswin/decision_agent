@@ -49,13 +49,13 @@ module DecisionAgent
           delta_lat = ((point2[:lat] - point1[:lat]) * Math::PI) / 180
           delta_lon = ((point2[:lon] - point1[:lon]) * Math::PI) / 180
 
-          a = (Math.sin(delta_lat / 2)**2) +
-              (Math.cos(lat1_rad) * Math.cos(lat2_rad) *
-              (Math.sin(delta_lon / 2)**2))
+          haversine_a = (Math.sin(delta_lat / 2)**2) +
+                        (Math.cos(lat1_rad) * Math.cos(lat2_rad) *
+                         (Math.sin(delta_lon / 2)**2))
 
-          c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+          haversine_c = 2 * Math.atan2(Math.sqrt(haversine_a), Math.sqrt(1 - haversine_a))
 
-          earth_radius_km * c
+          earth_radius_km * haversine_c
         end
 
         def self.point_in_polygon?(point, polygon)

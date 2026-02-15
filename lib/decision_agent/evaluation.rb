@@ -1,9 +1,16 @@
 # frozen_string_literal: true
 
 module DecisionAgent
+  # Single evaluation produced by an evaluator: a suggested decision, weight, reason, and optional metadata.
   class Evaluation
     attr_reader :decision, :weight, :reason, :evaluator_name, :metadata
 
+    # @param decision [String, #to_s] The suggested decision value
+    # @param weight [Numeric] Importance of this evaluation (0.0 to 1.0)
+    # @param reason [String, #to_s] Human-readable reason for the decision
+    # @param evaluator_name [String, #to_s] Name of the evaluator that produced this
+    # @param metadata [Hash] Optional extra data (e.g. explainability)
+    # @raise [InvalidWeightError] when weight is not between 0.0 and 1.0
     def initialize(decision:, weight:, reason:, evaluator_name:, metadata: {})
       validate_weight!(weight)
 
@@ -16,6 +23,7 @@ module DecisionAgent
       freeze
     end
 
+    # @return [Hash] Symbol-keyed hash of decision, weight, reason, evaluator_name, metadata
     def to_h
       {
         decision: @decision,
@@ -26,6 +34,8 @@ module DecisionAgent
       }
     end
 
+    # @param other [Object] Object to compare
+    # @return [Boolean] true if other is an Evaluation with same attributes
     def ==(other)
       other.is_a?(Evaluation) &&
         @decision == other.decision &&
@@ -38,8 +48,8 @@ module DecisionAgent
     private
 
     def validate_weight!(weight)
-      w = weight.to_f
-      raise InvalidWeightError, weight unless w.between?(0.0, 1.0)
+      weight_value = weight.to_f
+      raise InvalidWeightError, weight unless weight_value.between?(0.0, 1.0)
     end
 
     def deep_freeze(obj)

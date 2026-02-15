@@ -65,8 +65,8 @@ module DecisionAgent
         svg = [
           %(<svg xmlns="http://www.w3.org/2000/svg" width="#{width}" height="#{height}" viewBox="0 0 #{width} #{height}">),
           "<defs>",
-          '  <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">',
-          '    <polygon points="0 0, 10 3, 0 6" fill="#666" />',
+          %(  <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">),
+          %(    <polygon points="0 0, 10 3, 0 6" fill="#666" />),
           "  </marker>",
           "</defs>",
           "<g>"
@@ -264,8 +264,8 @@ module DecisionAgent
         svg = [
           %(<svg xmlns="http://www.w3.org/2000/svg" width="#{width}" height="#{height}" viewBox="0 0 #{width} #{height}">),
           "<defs>",
-          '  <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">',
-          '    <polygon points="0 0, 10 3, 0 6" fill="#666" />',
+          %(  <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">),
+          %(    <polygon points="0 0, 10 3, 0 6" fill="#666" />),
           "  </marker>",
           "</defs>",
           "<g>"

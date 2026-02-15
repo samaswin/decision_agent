@@ -476,25 +476,25 @@ module DecisionAgent
       end
 
       def sample_discrete(values, probabilities)
-        r = rand
+        random_val = rand
         cumulative = 0.0
 
         values.each_with_index do |value, i|
           cumulative += probabilities[i]
-          return value if r <= cumulative
+          return value if random_val <= cumulative
         end
 
         values.last
       end
 
       def sample_triangular(min, mode, max)
-        u = rand
-        f = (mode - min).to_f / (max - min)
+        uniform_val = rand
+        fraction = (mode - min).to_f / (max - min)
 
-        if u < f
-          min + Math.sqrt(u * (max - min) * (mode - min))
+        if uniform_val < fraction
+          min + Math.sqrt(uniform_val * (max - min) * (mode - min))
         else
-          max - Math.sqrt((1 - u) * (max - min) * (max - mode))
+          max - Math.sqrt((1 - uniform_val) * (max - min) * (max - mode))
         end
       end
 
