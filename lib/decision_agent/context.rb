@@ -8,10 +8,12 @@ module DecisionAgent
 
     # @param data [Hash, Object] Input data; non-Hash is treated as empty Hash
     def initialize(data)
-      # Create a deep copy before freezing to avoid mutating the original
-      # This is necessary for thread-safety even if it adds some overhead
       data_hash = data.is_a?(Hash) ? data : {}
-      @data = deep_freeze(deep_dup(data_hash))
+      @data = if all_frozen?(data_hash)
+                data_hash
+              else
+                deep_freeze(deep_dup(data_hash))
+              end
     end
 
     # @param key [Object] Key to look up
@@ -43,6 +45,17 @@ module DecisionAgent
     end
 
     private
+
+    def all_frozen?(obj)
+      case obj
+      when Hash
+        obj.frozen? && obj.each_value.all? { |v| all_frozen?(v) }
+      when Array
+        obj.frozen? && obj.all? { |v| all_frozen?(v) }
+      else
+        obj.frozen?
+      end
+    end
 
     def deep_dup(obj)
       case obj
