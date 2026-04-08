@@ -22,6 +22,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New runnable example `examples/dmn_versioning_tags.rb` exercised by `scripts/run_all_examples.rb`.
   - Updated `docs/VERSIONING.md` with a _Version Tags_ section, API reference, and a worked DMN release-lifecycle example.
 
+- **Monitoring Storage: ActiveRecord Adapter** (`lib/decision_agent/monitoring/storage/activerecord_adapter.rb`)
+  - `DecisionAgent::Monitoring::Storage::ActiveRecordAdapter` is now the production-ready persistent adapter for monitoring metrics, storing decisions, evaluations, performance metrics, and errors in any ActiveRecord-supported database (PostgreSQL, MySQL, SQLite).
+  - Implements all nine adapter methods: `record_decision`, `record_evaluation`, `record_performance`, `record_error`, `statistics`, `time_series`, `metrics_count`, `cleanup`, and `available?`.
+  - Database-agnostic time-series bucketing with optimised SQL per adapter (PostgreSQL epoch extraction, MySQL `UNIX_TIMESTAMP`, SQLite `strftime`).
+  - All write operations catch `StandardError` and emit a warning rather than raising, so a database disruption cannot crash the calling agent.
+  - Added dedicated Rails generator `rails generate decision_agent:monitoring_migration` (in addition to the existing `--monitoring` flag on the full install generator). Generates the monitoring migration, four ActiveRecord models, and the cleanup Rake tasks in one step.
+  - New shared examples group `spec/support/shared/monitoring_storage_adapter.rb` with two groups:
+    - `"a concrete monitoring storage adapter"` — behavioural contract for `MemoryAdapter` and `ActiveRecordAdapter`, covering all nine interface methods, metrics_count structure, time_series shape, and cleanup return type.
+    - `"an abstract monitoring storage adapter"` — asserts `NotImplementedError` for every method on `BaseAdapter`, keeping the abstract contract in lockstep with concrete implementations.
+  - `spec/monitoring/storage/monitoring_thread_safety_spec.rb` — 16 threads × 1,000 decisions with no lost writes assertion; mixed-type concurrent writes (16 threads × 100 per type); concurrent read/write correctness.
+  - Performance spec in `spec/monitoring/storage/activerecord_adapter_spec.rb` asserting `record_decision` P95 < 5 ms against in-memory SQLite; results archived under `benchmarks/monitoring_activerecord_record_decision.txt`.
+  - New runnable example `examples/monitoring_activerecord.rb` exercised by `scripts/run_all_examples.rb`.
+  - Updated `docs/PERSISTENT_MONITORING.md` with `decision_agent:monitoring_migration` generator documentation.
+
 ### Changed
 
 ### Fixed

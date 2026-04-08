@@ -2,9 +2,12 @@
 
 require "spec_helper"
 require "decision_agent/monitoring/storage/memory_adapter"
+require "support/shared/monitoring_storage_adapter"
 
 RSpec.describe DecisionAgent::Monitoring::Storage::MemoryAdapter do
   let(:adapter) { described_class.new(window_size: 3600) }
+
+  it_behaves_like "a concrete monitoring storage adapter"
 
   describe ".available?" do
     it "is always available" do
