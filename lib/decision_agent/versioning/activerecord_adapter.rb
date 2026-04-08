@@ -131,6 +131,47 @@ module DecisionAgent
         raise DecisionAgent::NotFoundError, "Version not found: #{version_id}"
       end
 
+      # Create (or update) a named tag pointing to a specific version.
+      # Tags are unique per model; calling this with an existing name re-points the tag.
+      def create_tag(model_id:, version_id:, name:)
+        raise DecisionAgent::ValidationError, "Tag name cannot be blank" if name.nil? || name.to_s.strip.empty?
+        raise DecisionAgent::NotFoundError, "Version not found: #{version_id}" unless get_version(version_id: version_id)
+
+        retry_with_backoff(max_retries: 10) do
+          tag = nil
+          rule_version_tag_class.transaction do
+            existing = rule_version_tag_class.find_by(model_id: model_id, name: name)
+            if existing
+              existing.update!(version_id: version_id)
+              tag = existing.reload
+            else
+              tag = rule_version_tag_class.create!(model_id: model_id, name: name, version_id: version_id)
+            end
+          end
+          serialize_tag(tag)
+        end
+      end
+
+      # Retrieve a tag by name for a given model.
+      def get_tag(model_id:, name:)
+        tag = rule_version_tag_class.find_by(model_id: model_id, name: name)
+        tag ? serialize_tag(tag) : nil
+      end
+
+      # List all tags for a given model, sorted by name.
+      def list_tags(model_id:)
+        rule_version_tag_class.where(model_id: model_id).order(name: :asc).map { |t| serialize_tag(t) }
+      end
+
+      # Delete a tag by name. Returns true if deleted, false if the tag did not exist.
+      def delete_tag(model_id:, name:)
+        tag = rule_version_tag_class.find_by(model_id: model_id, name: name)
+        return false unless tag
+
+        tag.destroy
+        true
+      end
+
       private
 
       def rule_version_class
@@ -140,6 +181,15 @@ module DecisionAgent
         else
           raise DecisionAgent::ConfigurationError,
                 "RuleVersion model not found. Please run the generator to create it."
+        end
+      end
+
+      def rule_version_tag_class
+        if defined?(::RuleVersionTag)
+          ::RuleVersionTag
+        else
+          raise DecisionAgent::ConfigurationError,
+                "RuleVersionTag model not found. Please run the versioning generator to create it."
         end
       end
 
@@ -199,6 +249,14 @@ module DecisionAgent
           created_at: version.created_at,
           changelog: version.changelog,
           status: version.status
+        }
+      end
+
+      def serialize_tag(tag)
+        {
+          name: tag.name,
+          version_id: tag.version_id,
+          created_at: tag.updated_at || tag.created_at
         }
       end
     end

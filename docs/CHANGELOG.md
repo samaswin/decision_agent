@@ -36,6 +36,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New runnable example `examples/monitoring_activerecord.rb` exercised by `scripts/run_all_examples.rb`.
   - Updated `docs/PERSISTENT_MONITORING.md` with `decision_agent:monitoring_migration` generator documentation.
 
+- **Versioning: ActiveRecord Adapter + RBAC Verification** (Phase 3)
+  - Extended `DecisionAgent::Versioning::ActiveRecordAdapter` with all four tag methods: `create_tag`, `get_tag`, `list_tags`, `delete_tag`. Tags are stored in a new `rule_version_tags` table with a unique constraint on `[model_id, name]`. `version_id` is stored without a foreign-key constraint so tags survive version deletion.
+  - Added `rule_version_tag_class` and `serialize_tag` helpers to the adapter (private).
+  - New migration template `versioning_migration.rb` creates both `rule_versions` and `rule_version_tags` tables with all required indexes.
+  - Updated main `migration.rb` template (used by `rails generate decision_agent:install`) to include the `rule_version_tags` table.
+  - New model template `rule_version_tag.rb` with validations (`presence`, `uniqueness` scoped to `model_id`) and a `#version` helper method.
+  - New standalone generator `rails generate decision_agent:versioning_migration` (mirrors `decision_agent:monitoring_migration`). Generates the versioning migration and both models (`RuleVersion`, `RuleVersionTag`).
+  - New spec `spec/versioning/active_record_adapter_spec.rb` — in-memory SQLite setup, full CRUD coverage, `activate_version` atomicity (concurrent thread test ensuring only one active version per rule), `delete_version` refusal for the active version, tag cascade survival, and the full tagging shared-examples contract via `it_behaves_like "a versioning adapter with tag support"`.
+  - Audited Devise, CanCanCan, and Pundit RBAC adapters; all three ship inside the gem with full implementations in `lib/decision_agent/auth/rbac_adapter.rb`.
+  - New spec `spec/auth/rbac_integration_spec.rb` with end-to-end scenarios:
+    - Full permission × role matrix for all 5 built-in roles (`admin`, `editor`, `viewer`, `auditor`, `approver`) against all 7 permissions.
+    - Full `has_role?` × role matrix.
+    - Negative tests: nil/unauthenticated user always returns `false` from `can?`/`has_role?`; `PermissionChecker#require_permission!` raises `PermissionDeniedError` (not `NotImplementedError`) for nil and insufficiently privileged users.
+    - `DeviseCanCanAdapter` end-to-end with a stub user struct + stub Ability class.
+    - `PunditAdapter` end-to-end with a stub resource policy class via `stub_const`.
+    - Integration scenario: Viewer can `:read` but `require_permission!(:approve)` raises; Approver can `:approve` but `require_permission!(:write)` raises; Editor can `:write` but cannot `:approve`.
+  - Updated `docs/RBAC_CONFIGURATION.md` with adapter status matrix, permission × role matrix, and custom adapter plug-in guide.
+
 ### Changed
 
 ### Fixed
