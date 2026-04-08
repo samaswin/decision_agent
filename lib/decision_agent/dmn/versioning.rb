@@ -16,12 +16,17 @@ module DecisionAgent
       end
 
       # Save a DMN model as a new version
-      def save_dmn_version(model:, created_by: "system", changelog: nil)
+      # @param model [Object] The DMN model to save
+      # @param created_by [String] Who is saving this version
+      # @param changelog [String, nil] Human-readable description of what changed
+      # @param tag [String, nil] Optional tag name to apply to the new version at creation time
+      # @return [Hash] The created version
+      def save_dmn_version(model:, created_by: "system", changelog: nil, tag: nil)
         # Export DMN model to XML
         exporter = Exporter.new
         xml_content = exporter.export(model)
 
-        # Save as version
+        # Save as version (with optional tag applied atomically)
         @version_manager.save_version(
           rule_id: model.id,
           rule_content: {
@@ -31,7 +36,8 @@ module DecisionAgent
             namespace: model.namespace
           },
           created_by: created_by,
-          changelog: changelog || "DMN model updated"
+          changelog: changelog || "DMN model updated",
+          tag: tag
         )
       end
 
@@ -136,17 +142,37 @@ module DecisionAgent
         @version_manager.delete_version(version_id: version_id)
       end
 
-      # Tag a DMN version
-      # rubocop:disable Naming/PredicateMethod
-      def tag_dmn_version(version_id:, tag:)
-        _tag = tag # TODO: Implement tag functionality
-        version = @version_manager.get_version(version_id: version_id)
-        return false unless version
-        # rubocop:enable Naming/PredicateMethod
+      # Tag a specific DMN version after the fact.
+      # Creates the tag if it does not exist; re-points it if the name is already in use.
+      # @param model_id [String] The model identifier
+      # @param version_id [String] The version to tag
+      # @param name [String] The tag name (e.g. "release-candidate")
+      # @return [Hash] The tag ({ name:, version_id:, created_at: })
+      def tag_dmn!(model_id:, version_id:, name:)
+        @version_manager.tag!(model_id, version_id, name)
+      end
 
-        # Add tag to metadata (this would need to be implemented in VersionManager)
-        # For now, we'll use changelog to append the tag
-        true
+      # Resolve a tag to its tag hash for the given model.
+      # @param model_id [String] The model identifier
+      # @param name [String] The tag name
+      # @return [Hash, nil] Tag hash or nil if not found
+      def get_dmn_tag(model_id:, name:)
+        @version_manager.get_tag(model_id: model_id, name: name)
+      end
+
+      # List all tags for a DMN model.
+      # @param model_id [String] The model identifier
+      # @return [Array<Hash>] Tag hashes sorted by name
+      def list_dmn_tags(model_id:)
+        @version_manager.list_tags(model_id: model_id)
+      end
+
+      # Delete a tag by name.
+      # @param model_id [String] The model identifier
+      # @param name [String] The tag name
+      # @return [Boolean] True if deleted, false if the tag did not exist
+      def delete_dmn_tag(model_id:, name:)
+        @version_manager.delete_tag(model_id: model_id, name: name)
       end
 
       # Get active DMN version for a model

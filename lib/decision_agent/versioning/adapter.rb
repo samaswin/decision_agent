@@ -82,6 +82,39 @@ module DecisionAgent
         raise NotImplementedError, "#{self.class} must implement #delete_version"
       end
 
+      # Create (or update) a named tag pointing to a specific version.
+      # Tags are unique per model; calling this with an existing name re-points the tag.
+      # @param model_id [String] The rule/model identifier
+      # @param version_id [String] The version to tag
+      # @param name [String] The tag name (e.g. "release-candidate")
+      # @return [Hash] The created/updated tag ({ name:, version_id:, created_at: })
+      def create_tag(model_id:, version_id:, name:)
+        raise NotImplementedError, "#{self.class} must implement #create_tag"
+      end
+
+      # Retrieve a tag by name for a given model.
+      # @param model_id [String] The rule/model identifier
+      # @param name [String] The tag name
+      # @return [Hash, nil] The tag hash or nil if not found
+      def get_tag(model_id:, name:)
+        raise NotImplementedError, "#{self.class} must implement #get_tag"
+      end
+
+      # List all tags for a given model.
+      # @param model_id [String] The rule/model identifier
+      # @return [Array<Hash>] Array of tag hashes, sorted by name
+      def list_tags(model_id:)
+        raise NotImplementedError, "#{self.class} must implement #list_tags"
+      end
+
+      # Delete a tag by name.
+      # @param model_id [String] The rule/model identifier
+      # @param name [String] The tag name
+      # @return [Boolean] True if deleted, false if tag did not exist
+      def delete_tag(model_id:, name:)
+        raise NotImplementedError, "#{self.class} must implement #delete_tag"
+      end
+
       private
 
       # Calculate differences between two content hashes

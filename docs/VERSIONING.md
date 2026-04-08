@@ -9,6 +9,7 @@ DecisionAgent includes a comprehensive versioning system for tracking rule chang
 - [Installation](#installation)
 - [Usage](#usage)
 - [DMN Versioning](#dmn-versioning)
+- [Version Tags](#version-tags)
 - [Status Management](#status-management)
 - [Thread Safety & Concurrency](#thread-safety--concurrency)
 - [Web UI](#web-ui)
@@ -29,6 +30,7 @@ DecisionAgent includes a comprehensive versioning system for tracking rule chang
 ✅ **Audit Trail** - Track who made changes and when
 ✅ **Web UI** - Visual interface for version management
 ✅ **DMN Support** - Version DMN decision models alongside JSON rules
+✅ **Version Tags** - Named, immutable pointers to important versions (e.g. `"release-candidate"`)
 ✅ **Status Management** - Draft, active, and archived statuses
 ✅ **Thread-Safe** - Safe for concurrent access with proper locking
 ✅ **A/B Testing Integration** - Seamlessly works with A/B testing features
@@ -352,6 +354,122 @@ DMN versions are stored with a special format marker:
 ```
 
 This allows the system to distinguish DMN models from JSON rules and apply appropriate parsing logic.
+
+## Version Tags
+
+Tags are named, immutable pointers to a specific version of a model. Unlike version numbers (which auto-increment), tags give human-readable names to important snapshots — e.g. `"release-candidate"`, `"stable"`, or `"2026-q1"`.
+
+### Tag Semantics
+
+- **Unique per model** — each model has its own tag namespace; tag names do not clash across models.
+- **Mutable pointer** — re-tagging with the same name re-points the tag to the new version (the tag record is replaced, not duplicated).
+- **Non-destructive** — tagging never alters the content or status of any version. The canonical content hash remains bit-identical before and after a tag operation.
+- **Survives version deletion** — if the version a tag points to is later deleted, the tag continues to exist (though `get_version` for its `version_id` will return `nil`).
+
+### Tagging at Creation Time
+
+Pass `tag:` to `save_version` (or `save_dmn_version`) to apply a tag atomically with version creation:
+
+```ruby
+version_manager = DecisionAgent::Versioning::VersionManager.new
+
+version = version_manager.save_version(
+  rule_id:      "loan_rules",
+  rule_content: { format: "json", rules: [] },
+  created_by:   "deploy_bot",
+  changelog:    "Initial rollout",
+  tag:          "stable"
+)
+# The "stable" tag now points to this version.
+```
+
+For DMN models via `DmnVersionManager`:
+
+```ruby
+dmn_manager = DecisionAgent::Dmn::DmnVersionManager.new
+model = DecisionAgent::Dmn::Model.new(id: "loan_eligibility", name: "Loan Eligibility")
+
+v1 = dmn_manager.save_dmn_version(model: model, changelog: "Initial draft", tag: "draft")
+```
+
+### Tagging After the Fact
+
+Use `tag!` on `VersionManager` (or `tag_dmn!` on `DmnVersionManager`) to tag a version that already exists:
+
+```ruby
+# VersionManager
+version_manager.tag!("loan_rules", version[:id], "release-candidate")
+
+# DmnVersionManager
+dmn_manager.tag_dmn!(model_id: "loan_eligibility", version_id: v2[:id], name: "release-candidate")
+```
+
+Calling `tag!` again with the same name re-points the tag:
+
+```ruby
+# v1 was "release-candidate"; after this call v2 is "release-candidate"
+version_manager.tag!("loan_rules", v2[:id], "release-candidate")
+```
+
+### Resolving a Tag
+
+```ruby
+tag = version_manager.get_tag(model_id: "loan_rules", name: "release-candidate")
+# => { name: "release-candidate", version_id: "loan_rules_v2", created_at: "2026-04-08T..." }
+
+# Then load the version:
+version = version_manager.get_version(version_id: tag[:version_id])
+```
+
+### Listing Tags
+
+```ruby
+tags = version_manager.list_tags(model_id: "loan_rules")
+# => [
+#      { name: "draft",             version_id: "loan_rules_v1", created_at: "..." },
+#      { name: "release-candidate", version_id: "loan_rules_v2", created_at: "..." }
+#    ]
+```
+
+Tags are returned sorted alphabetically by name.
+
+### Deleting a Tag
+
+```ruby
+deleted = version_manager.delete_tag(model_id: "loan_rules", name: "draft")
+# => true   (false if the tag did not exist)
+```
+
+### Worked Example: DMN Release Lifecycle
+
+```ruby
+require "decision_agent"
+require "decision_agent/dmn/versioning"
+require "decision_agent/dmn/model"
+
+dmn_manager = DecisionAgent::Dmn::DmnVersionManager.new
+model = DecisionAgent::Dmn::Model.new(id: "eligibility", name: "Eligibility")
+
+# Step 1 — first version, tagged as "draft"
+v1 = dmn_manager.save_dmn_version(model: model, changelog: "Initial draft", tag: "draft")
+
+# Step 2 — second version; promote to release-candidate after review
+v2 = dmn_manager.save_dmn_version(model: model, changelog: "After review")
+dmn_manager.tag_dmn!(model_id: model.id, version_id: v2[:id], name: "release-candidate")
+
+# Step 3 — hotfix; re-point release-candidate to the fixed version
+v3 = dmn_manager.save_dmn_version(model: model, changelog: "Fixed edge case")
+dmn_manager.tag_dmn!(model_id: model.id, version_id: v3[:id], name: "release-candidate")
+
+# Resolve — always returns v3
+tag = dmn_manager.get_dmn_tag(model_id: model.id, name: "release-candidate")
+puts tag[:version_id]  # => "eligibility_v3"
+
+# Clean up the draft tag once shipping is confirmed
+dmn_manager.delete_dmn_tag(model_id: model.id, name: "draft")
+```
+
+See also: [`examples/dmn_versioning_tags.rb`](../examples/dmn_versioning_tags.rb) for a runnable version of this workflow.
 
 ## Status Management
 

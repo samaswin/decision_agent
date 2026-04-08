@@ -18,8 +18,9 @@ module DecisionAgent
       # @param rule_content [Hash] The rule definition
       # @param created_by [String] User who created this version
       # @param changelog [String] Description of changes
+      # @param tag [String, nil] Optional tag name to apply to the new version at creation time
       # @return [Hash] The created version
-      def save_version(rule_id:, rule_content:, created_by: "system", changelog: nil)
+      def save_version(rule_id:, rule_content:, created_by: "system", changelog: nil, tag: nil)
         validate_rule_content!(rule_content)
 
         metadata = {
@@ -27,11 +28,15 @@ module DecisionAgent
           changelog: changelog || generate_default_changelog(rule_id)
         }
 
-        @adapter.create_version(
+        version = @adapter.create_version(
           rule_id: rule_id,
           content: rule_content,
           metadata: metadata
         )
+
+        tag!(rule_id, version[:id], tag) if tag
+
+        version
       end
 
       # Get all versions for a rule
@@ -105,6 +110,39 @@ module DecisionAgent
       # @return [Boolean] True if deleted successfully
       def delete_version(version_id:)
         @adapter.delete_version(version_id: version_id)
+      end
+
+      # Tag a specific version after the fact.
+      # Creates the tag if it does not exist; re-points it if the name is already used.
+      # @param model_id [String] The rule/model identifier
+      # @param version_id [String] The version to tag
+      # @param name [String] The tag name
+      # @return [Hash] The tag ({ name:, version_id:, created_at: })
+      def tag!(model_id, version_id, name)
+        @adapter.create_tag(model_id: model_id, version_id: version_id, name: name)
+      end
+
+      # Resolve a tag to its version hash, or nil if the tag does not exist.
+      # @param model_id [String] The rule/model identifier
+      # @param name [String] The tag name
+      # @return [Hash, nil] Tag hash or nil
+      def get_tag(model_id:, name:)
+        @adapter.get_tag(model_id: model_id, name: name)
+      end
+
+      # List all tags for a model.
+      # @param model_id [String] The rule/model identifier
+      # @return [Array<Hash>] Tag hashes sorted by name
+      def list_tags(model_id:)
+        @adapter.list_tags(model_id: model_id)
+      end
+
+      # Delete a tag by name.
+      # @param model_id [String] The rule/model identifier
+      # @param name [String] The tag name
+      # @return [Boolean] True if deleted, false if the tag did not exist
+      def delete_tag(model_id:, name:)
+        @adapter.delete_tag(model_id: model_id, name: name)
       end
 
       private

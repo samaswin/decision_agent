@@ -159,6 +159,45 @@ module DecisionAgent
         end
       end
 
+      def create_tag(model_id:, version_id:, name:)
+        raise DecisionAgent::ValidationError, "Tag name cannot be blank" if name.nil? || name.to_s.strip.empty?
+
+        # Validate the version exists
+        version = get_version(version_id: version_id)
+        raise DecisionAgent::NotFoundError, "Version not found: #{version_id}" unless version
+
+        with_rule_lock(model_id) do
+          tags = read_tags_unsafe(model_id)
+          tag = { name: name, version_id: version_id, created_at: Time.now.utc.iso8601 }
+          tags[name] = tag
+          write_tags_unsafe(model_id, tags)
+          tag
+        end
+      end
+
+      def get_tag(model_id:, name:)
+        with_rule_lock(model_id) do
+          read_tags_unsafe(model_id)[name]
+        end
+      end
+
+      def list_tags(model_id:)
+        with_rule_lock(model_id) do
+          read_tags_unsafe(model_id).values.sort_by { |t| t[:name] }
+        end
+      end
+
+      def delete_tag(model_id:, name:)
+        with_rule_lock(model_id) do
+          tags = read_tags_unsafe(model_id)
+          return false unless tags.key?(name)
+
+          tags.delete(name)
+          write_tags_unsafe(model_id, tags)
+          true
+        end
+      end
+
       def delete_version(version_id:)
         # Use index to find rule_id quickly - O(1) instead of O(n)
         begin
@@ -365,6 +404,33 @@ module DecisionAgent
         @version_index_lock.synchronize do
           @version_index.delete(version_id)
         end
+      end
+
+      # Tags helpers — called while the rule lock is already held (unsafe = no extra lock)
+
+      def tags_filepath(model_id)
+        rule_dir = File.join(@storage_path, sanitize_filename(model_id))
+        FileUtils.mkdir_p(rule_dir)
+        File.join(rule_dir, "_tags.json")
+      end
+
+      def read_tags_unsafe(model_id)
+        path = tags_filepath(model_id)
+        return {} unless File.exist?(path)
+
+        JSON.parse(File.read(path), symbolize_names: false)
+            .transform_values { |t| t.transform_keys(&:to_sym) }
+      rescue JSON::ParserError
+        {}
+      end
+
+      def write_tags_unsafe(model_id, tags)
+        path = tags_filepath(model_id)
+        temp = "#{path}.tmp.#{Process.pid}.#{Thread.current.object_id}"
+        File.write(temp, JSON.pretty_generate(tags))
+        File.rename(temp, path)
+      ensure
+        FileUtils.rm_f(temp)
       end
     end
   end

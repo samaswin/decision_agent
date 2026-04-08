@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **DMN Versioning Tag Support** (`lib/decision_agent/dmn/versioning.rb`, `lib/decision_agent/versioning/`)
+  - Tags are named, immutable pointers to a specific version of a model (unique per model, mutable pointer semantics).
+  - Extended `Versioning::Adapter` with four new abstract methods: `create_tag`, `get_tag`, `list_tags`, `delete_tag`. All concrete adapters must implement them; the abstract base raises `NotImplementedError`.
+  - Implemented all four tag methods in `FileStorageAdapter`. Tags are persisted in a `_tags.json` file per rule directory, protected by the existing per-rule mutex for thread safety. Writes use the same atomic temp-rename pattern used for version files.
+  - `VersionManager` gained a `tag!(model_id, version_id, name)` method for tagging after the fact, plus `get_tag`, `list_tags`, and `delete_tag` delegating to the adapter.
+  - `VersionManager#save_version` accepts an optional `tag:` keyword argument so a tag can be applied atomically at creation time.
+  - Replaced the stub `DmnVersionManager#tag_dmn_version` (which discarded its argument with `_tag = tag`) with real implementations: `tag_dmn!`, `get_dmn_tag`, `list_dmn_tags`, `delete_dmn_tag`. `save_dmn_version` also accepts `tag:`.
+  - New shared examples group `spec/support/shared/versioning_adapter_tagging.rb` covering happy path, re-tagging, blank-name validation, non-existent version, unicode names, deleted-version survival, cross-model isolation, list ordering, determinism, and delete semantics. Phase 3+ adapters inherit this coverage for free via `it_behaves_like`.
+  - New spec file `spec/dmn/versioning_spec.rb` with unit and integration specs for the DMN tag API, including the full create→tag→re-tag→resolve lifecycle.
+  - Extended `spec/versioning/adapter_spec.rb` with `NotImplementedError` assertions for the four new abstract tag methods.
+  - New runnable example `examples/dmn_versioning_tags.rb` exercised by `scripts/run_all_examples.rb`.
+  - Updated `docs/VERSIONING.md` with a _Version Tags_ section, API reference, and a worked DMN release-lifecycle example.
+
 ### Changed
 
 ### Fixed
