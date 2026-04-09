@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `VersionManager` gained a `tag!(model_id, version_id, name)` method for tagging after the fact, plus `get_tag`, `list_tags`, and `delete_tag` delegating to the adapter.
   - `VersionManager#save_version` accepts an optional `tag:` keyword argument so a tag can be applied atomically at creation time.
   - Replaced the stub `DmnVersionManager#tag_dmn_version` (which discarded its argument with `_tag = tag`) with real implementations: `tag_dmn!`, `get_dmn_tag`, `list_dmn_tags`, `delete_dmn_tag`. `save_dmn_version` also accepts `tag:`.
-  - New shared examples group `spec/support/shared/versioning_adapter_tagging.rb` covering happy path, re-tagging, blank-name validation, non-existent version, unicode names, deleted-version survival, cross-model isolation, list ordering, determinism, and delete semantics. Phase 3+ adapters inherit this coverage for free via `it_behaves_like`.
+  - New shared examples group `spec/support/shared/versioning_adapter_tagging.rb` covering happy path, re-tagging, blank-name validation, non-existent version, unicode names, deleted-version survival, cross-model isolation, list ordering, determinism, and delete semantics. Concrete adapters inherit this coverage for free via `it_behaves_like`.
   - New spec file `spec/dmn/versioning_spec.rb` with unit and integration specs for the DMN tag API, including the full create→tag→re-tag→resolve lifecycle.
   - Extended `spec/versioning/adapter_spec.rb` with `NotImplementedError` assertions for the four new abstract tag methods.
   - New runnable example `examples/dmn_versioning_tags.rb` exercised by `scripts/run_all_examples.rb`.
@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added MIME type validation to `POST /api/testing/batch/import`: unsupported file extensions (anything other than `.csv`, `.xlsx`, `.xls`) now return HTTP 422 with a clear error message before any file processing occurs.
   - Fixed null-reference bug in `dmn-editor.js`: `addDecision` now guards against `state.currentModel` being `null` (mirrors the guard pattern already present on all other mutation functions).
   - Added JS null-guard static analysis specs asserting that every direct property access on `state.currentModel` and `state.currentDecision` in `dmn-editor.js` is preceded by a null-check within 25 lines, so the guard pattern is enforced at CI time.
+
+- **Documentation and Roadmap Cleanup**
+  - Created `docs/ROADMAP.md` with three sections: Shipped (all 1.2.0 and pre-1.2.0 features), In Progress, and Deferred (post-1.2.0 items). Every entry links to the authoritative doc/spec/example.
+  - Updated `docs/PERFORMANCE_AND_THREAD_SAFETY.md`: replaced stale "Planned for v0.3.0" section with accurate "Shipped in 1.2.0" (ActiveRecord connection pooling, performance telemetry via monitoring) and "Deferred" (ReadWriteLock for FileAdapter) sections. Bumped version footer to 1.2.0 and added v1.1.x → v1.2.0 migration note.
+  - Updated `README.md`: corrected throughput claim from "10,000+" to "8,000–9,000+ decisions/second (hardware-dependent)" to match documented benchmarks; added `[Roadmap](docs/ROADMAP.md)` link to the Reference section.
 
 - **Versioning: ActiveRecord Adapter + RBAC Verification**
   - Extended `DecisionAgent::Versioning::ActiveRecordAdapter` with all four tag methods: `create_tag`, `get_tag`, `list_tags`, `delete_tag`. Tags are stored in a new `rule_version_tags` table with a unique constraint on `[model_id, name]`. `version_id` is stored without a foreign-key constraint so tags survive version deletion.

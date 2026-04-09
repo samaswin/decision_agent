@@ -118,7 +118,7 @@ See [Code Examples](docs/CODE_EXAMPLES.md) for more comprehensive examples.
 - **Grafana Integration** - Pre-built dashboards and alert rules
 - **Version Control** - Full rule version control, rollback, and history ([Versioning Guide](docs/VERSIONING.md))
 - **Thread-Safe** - Safe for multi-threaded servers and background jobs
-- **High Performance** - 10,000+ decisions/second, ~0.1ms latency
+- **High Performance** - 8,000–9,000+ decisions/second, ~0.1ms latency (hardware-dependent; see [benchmarks](docs/PERFORMANCE_AND_THREAD_SAFETY.md))
 
 ## Web UI - Visual Rule Builder
 
@@ -413,6 +413,7 @@ See [A/B Testing Guide](docs/AB_TESTING.md) for complete documentation.
 ### Reference
 - [API Contract](docs/API_CONTRACT.md) - Full API reference
 - [Changelog](docs/CHANGELOG.md) - Version history
+- [Roadmap](docs/ROADMAP.md) - Shipped, in-progress, and deferred features
 - [Code Coverage Report](coverage.md) - Test coverage statistics
 
 ### More Resources
@@ -423,7 +424,7 @@ See [A/B Testing Guide](docs/AB_TESTING.md) for complete documentation.
 
 DecisionAgent is designed to be **thread-safe and FAST** for use in multi-threaded environments:
 
-- **10,000+ decisions/second** throughput
+- **8,000–9,000+ decisions/second** throughput (hardware-dependent)
 - **~0.1ms average latency** per decision
 - **Zero performance overhead** from thread-safety
 - **Linear scalability** with thread count
