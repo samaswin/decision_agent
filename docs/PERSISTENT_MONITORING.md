@@ -16,16 +16,24 @@ DecisionAgent supports persistent database storage for monitoring metrics, enabl
 
 ### 1. Generate Models and Migrations
 
-Run the generator with the `--monitoring` flag:
+**Option A — Dedicated monitoring generator (recommended for monitoring-only setup):**
+
+```bash
+rails generate decision_agent:monitoring_migration
+```
+
+**Option B — Full install generator with `--monitoring` flag:**
 
 ```bash
 rails generate decision_agent:install --monitoring
 ```
 
-This creates:
+Both options create the same artefacts:
 - **Models**: `DecisionLog`, `EvaluationMetric`, `PerformanceMetric`, `ErrorMetric`
 - **Migration**: Database tables with proper indexes
 - **Rake Tasks**: Cleanup and stats tasks
+
+Use Option A when you only need monitoring persistence and do not require the full DecisionAgent rule/version schema. Use Option B when setting up DecisionAgent for the first time in a Rails app.
 
 ### 2. Run Migrations
 

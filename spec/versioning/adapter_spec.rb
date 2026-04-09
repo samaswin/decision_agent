@@ -152,5 +152,29 @@ RSpec.describe DecisionAgent::Versioning::Adapter do
         abstract_adapter.delete_version(version_id: "test")
       end.to raise_error(NotImplementedError)
     end
+
+    it "raises NotImplementedError for create_tag" do
+      expect do
+        abstract_adapter.create_tag(model_id: "m", version_id: "v", name: "t")
+      end.to raise_error(NotImplementedError)
+    end
+
+    it "raises NotImplementedError for get_tag" do
+      expect do
+        abstract_adapter.get_tag(model_id: "m", name: "t")
+      end.to raise_error(NotImplementedError)
+    end
+
+    it "raises NotImplementedError for list_tags" do
+      expect do
+        abstract_adapter.list_tags(model_id: "m")
+      end.to raise_error(NotImplementedError)
+    end
+
+    it "raises NotImplementedError for delete_tag" do
+      expect do
+        abstract_adapter.delete_tag(model_id: "m", name: "t")
+      end.to raise_error(NotImplementedError)
+    end
   end
 end

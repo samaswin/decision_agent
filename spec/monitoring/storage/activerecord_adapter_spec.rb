@@ -3,6 +3,7 @@
 require "spec_helper"
 require "active_record"
 require "decision_agent/monitoring/storage/activerecord_adapter"
+require "support/shared/monitoring_storage_adapter"
 
 RSpec.describe DecisionAgent::Monitoring::Storage::ActiveRecordAdapter do
   # Setup in-memory SQLite database for testing
@@ -142,6 +143,8 @@ RSpec.describe DecisionAgent::Monitoring::Storage::ActiveRecordAdapter do
   end
 
   let(:adapter) { described_class.new }
+
+  it_behaves_like "a concrete monitoring storage adapter"
 
   describe ".available?" do
     it "returns true when ActiveRecord and models are defined" do
@@ -493,6 +496,55 @@ RSpec.describe DecisionAgent::Monitoring::Storage::ActiveRecordAdapter do
   describe "#initialize" do
     it "validates required models exist" do
       expect { described_class.new }.not_to raise_error
+    end
+  end
+
+  # ── Performance benchmark ────────────────────────────────────────────────────
+  # Assert that record_decision P95 latency stays below 5 ms against in-memory
+  # SQLite. Results are written to benchmarks/ so benchmark:regression can
+  # surface regressions across phases.
+
+  describe "performance" do
+    let(:sample_size) { 200 }
+    let(:p95_threshold_ms) { 5.0 }
+
+    it "records a decision in under #{5.0} ms (P95) on in-memory SQLite" do
+      durations_ms = sample_size.times.map do
+        start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        adapter.record_decision(
+          "perf_bench",
+          { user_id: rand(10_000) },
+          confidence:        rand,
+          evaluations_count: 1,
+          duration_ms:       rand(100),
+          status:            "success"
+        )
+        (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000
+      end
+
+      sorted    = durations_ms.sort
+      p50       = sorted[(sample_size * 0.50).ceil - 1].round(3)
+      p95       = sorted[(sample_size * 0.95).ceil - 1].round(3)
+      p99       = sorted[(sample_size * 0.99).ceil - 1].round(3)
+      avg       = (durations_ms.sum / sample_size).round(3)
+
+      # Archive to benchmarks/ so benchmark:regression can compare across phases
+      benchmark_dir  = File.expand_path("../../../benchmarks", __dir__)
+      benchmark_file = File.join(benchmark_dir, "monitoring_activerecord_record_decision.txt")
+      FileUtils.mkdir_p(benchmark_dir)
+      File.write(benchmark_file, <<~TXT)
+        # monitoring ActiveRecordAdapter#record_decision — in-memory SQLite
+        # Generated: #{Time.now.iso8601}
+        # Sample size: #{sample_size}
+        avg_ms=#{avg}
+        p50_ms=#{p50}
+        p95_ms=#{p95}
+        p99_ms=#{p99}
+      TXT
+
+      expect(p95).to be < p95_threshold_ms,
+        "record_decision P95 was #{p95} ms — exceeds #{p95_threshold_ms} ms threshold " \
+        "(p50=#{p50} ms, p99=#{p99} ms, avg=#{avg} ms)"
     end
   end
 end

@@ -5,6 +5,72 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **DMN Versioning Tag Support** (`lib/decision_agent/dmn/versioning.rb`, `lib/decision_agent/versioning/`)
+  - Tags are named, immutable pointers to a specific version of a model (unique per model, mutable pointer semantics).
+  - Extended `Versioning::Adapter` with four new abstract methods: `create_tag`, `get_tag`, `list_tags`, `delete_tag`. All concrete adapters must implement them; the abstract base raises `NotImplementedError`.
+  - Implemented all four tag methods in `FileStorageAdapter`. Tags are persisted in a `_tags.json` file per rule directory, protected by the existing per-rule mutex for thread safety. Writes use the same atomic temp-rename pattern used for version files.
+  - `VersionManager` gained a `tag!(model_id, version_id, name)` method for tagging after the fact, plus `get_tag`, `list_tags`, and `delete_tag` delegating to the adapter.
+  - `VersionManager#save_version` accepts an optional `tag:` keyword argument so a tag can be applied atomically at creation time.
+  - Replaced the stub `DmnVersionManager#tag_dmn_version` (which discarded its argument with `_tag = tag`) with real implementations: `tag_dmn!`, `get_dmn_tag`, `list_dmn_tags`, `delete_dmn_tag`. `save_dmn_version` also accepts `tag:`.
+  - New shared examples group `spec/support/shared/versioning_adapter_tagging.rb` covering happy path, re-tagging, blank-name validation, non-existent version, unicode names, deleted-version survival, cross-model isolation, list ordering, determinism, and delete semantics. Concrete adapters inherit this coverage for free via `it_behaves_like`.
+  - New spec file `spec/dmn/versioning_spec.rb` with unit and integration specs for the DMN tag API, including the full create→tag→re-tag→resolve lifecycle.
+  - Extended `spec/versioning/adapter_spec.rb` with `NotImplementedError` assertions for the four new abstract tag methods.
+  - New runnable example `examples/dmn_versioning_tags.rb` exercised by `scripts/run_all_examples.rb`.
+  - Updated `docs/VERSIONING.md` with a _Version Tags_ section, API reference, and a worked DMN release-lifecycle example.
+
+- **Monitoring Storage: ActiveRecord Adapter** (`lib/decision_agent/monitoring/storage/activerecord_adapter.rb`)
+  - `DecisionAgent::Monitoring::Storage::ActiveRecordAdapter` is now the production-ready persistent adapter for monitoring metrics, storing decisions, evaluations, performance metrics, and errors in any ActiveRecord-supported database (PostgreSQL, MySQL, SQLite).
+  - Implements all nine adapter methods: `record_decision`, `record_evaluation`, `record_performance`, `record_error`, `statistics`, `time_series`, `metrics_count`, `cleanup`, and `available?`.
+  - Database-agnostic time-series bucketing with optimised SQL per adapter (PostgreSQL epoch extraction, MySQL `UNIX_TIMESTAMP`, SQLite `strftime`).
+  - All write operations catch `StandardError` and emit a warning rather than raising, so a database disruption cannot crash the calling agent.
+  - Added dedicated Rails generator `rails generate decision_agent:monitoring_migration` (in addition to the existing `--monitoring` flag on the full install generator). Generates the monitoring migration, four ActiveRecord models, and the cleanup Rake tasks in one step.
+  - New shared examples group `spec/support/shared/monitoring_storage_adapter.rb` with two groups:
+    - `"a concrete monitoring storage adapter"` — behavioural contract for `MemoryAdapter` and `ActiveRecordAdapter`, covering all nine interface methods, metrics_count structure, time_series shape, and cleanup return type.
+    - `"an abstract monitoring storage adapter"` — asserts `NotImplementedError` for every method on `BaseAdapter`, keeping the abstract contract in lockstep with concrete implementations.
+  - `spec/monitoring/storage/monitoring_thread_safety_spec.rb` — 16 threads × 1,000 decisions with no lost writes assertion; mixed-type concurrent writes (16 threads × 100 per type); concurrent read/write correctness.
+  - Performance spec in `spec/monitoring/storage/activerecord_adapter_spec.rb` asserting `record_decision` P95 < 5 ms against in-memory SQLite; results archived under `benchmarks/monitoring_activerecord_record_decision.txt`.
+  - New runnable example `examples/monitoring_activerecord.rb` exercised by `scripts/run_all_examples.rb`.
+  - Updated `docs/PERSISTENT_MONITORING.md` with `decision_agent:monitoring_migration` generator documentation.
+
+- **Web UI Hardening**
+  - Added request-level smoke spec `spec/web/server_smoke_spec.rb` that boots the Rack app, GETs every UI page (`/`, `/testing/batch`, `/simulation`, `/simulation/replay`, `/simulation/whatif`, `/simulation/impact`, `/simulation/shadow`, `/auth/login`, `/auth/users`, `/dmn/editor`) and every referenced asset, asserting HTTP 200 and the correct `Content-Type`.
+  - Added MIME type validation to `POST /api/testing/batch/import`: unsupported file extensions (anything other than `.csv`, `.xlsx`, `.xls`) now return HTTP 422 with a clear error message before any file processing occurs.
+  - Fixed null-reference bug in `dmn-editor.js`: `addDecision` now guards against `state.currentModel` being `null` (mirrors the guard pattern already present on all other mutation functions).
+  - Added JS null-guard static analysis specs asserting that every direct property access on `state.currentModel` and `state.currentDecision` in `dmn-editor.js` is preceded by a null-check within 25 lines, so the guard pattern is enforced at CI time.
+
+- **Documentation and Roadmap Cleanup**
+  - Created `docs/ROADMAP.md` with three sections: Shipped (all 1.2.0 and pre-1.2.0 features), In Progress, and Deferred (post-1.2.0 items). Every entry links to the authoritative doc/spec/example.
+  - Updated `docs/PERFORMANCE_AND_THREAD_SAFETY.md`: replaced stale "Planned for v0.3.0" section with accurate "Shipped in 1.2.0" (ActiveRecord connection pooling, performance telemetry via monitoring) and "Deferred" (ReadWriteLock for FileAdapter) sections. Bumped version footer to 1.2.0 and added v1.1.x → v1.2.0 migration note.
+  - Updated `README.md`: corrected throughput claim from "10,000+" to "8,000–9,000+ decisions/second (hardware-dependent)" to match documented benchmarks; added `[Roadmap](docs/ROADMAP.md)` link to the Reference section.
+
+- **Versioning: ActiveRecord Adapter + RBAC Verification**
+  - Extended `DecisionAgent::Versioning::ActiveRecordAdapter` with all four tag methods: `create_tag`, `get_tag`, `list_tags`, `delete_tag`. Tags are stored in a new `rule_version_tags` table with a unique constraint on `[model_id, name]`. `version_id` is stored without a foreign-key constraint so tags survive version deletion.
+  - Added `rule_version_tag_class` and `serialize_tag` helpers to the adapter (private).
+  - New migration template `versioning_migration.rb` creates both `rule_versions` and `rule_version_tags` tables with all required indexes.
+  - Updated main `migration.rb` template (used by `rails generate decision_agent:install`) to include the `rule_version_tags` table.
+  - New model template `rule_version_tag.rb` with validations (`presence`, `uniqueness` scoped to `model_id`) and a `#version` helper method.
+  - New standalone generator `rails generate decision_agent:versioning_migration` (mirrors `decision_agent:monitoring_migration`). Generates the versioning migration and both models (`RuleVersion`, `RuleVersionTag`).
+  - New spec `spec/versioning/active_record_adapter_spec.rb` — in-memory SQLite setup, full CRUD coverage, `activate_version` atomicity (concurrent thread test ensuring only one active version per rule), `delete_version` refusal for the active version, tag cascade survival, and the full tagging shared-examples contract via `it_behaves_like "a versioning adapter with tag support"`.
+  - Audited Devise, CanCanCan, and Pundit RBAC adapters; all three ship inside the gem with full implementations in `lib/decision_agent/auth/rbac_adapter.rb`.
+  - New spec `spec/auth/rbac_integration_spec.rb` with end-to-end scenarios:
+    - Full permission × role matrix for all 5 built-in roles (`admin`, `editor`, `viewer`, `auditor`, `approver`) against all 7 permissions.
+    - Full `has_role?` × role matrix.
+    - Negative tests: nil/unauthenticated user always returns `false` from `can?`/`has_role?`; `PermissionChecker#require_permission!` raises `PermissionDeniedError` (not `NotImplementedError`) for nil and insufficiently privileged users.
+    - `DeviseCanCanAdapter` end-to-end with a stub user struct + stub Ability class.
+    - `PunditAdapter` end-to-end with a stub resource policy class via `stub_const`.
+    - Integration scenario: Viewer can `:read` but `require_permission!(:approve)` raises; Approver can `:approve` but `require_permission!(:write)` raises; Editor can `:write` but cannot `:approve`.
+  - Updated `docs/RBAC_CONFIGURATION.md` with adapter status matrix, permission × role matrix, and custom adapter plug-in guide.
+
+### Changed
+
+### Fixed
+
+---
+
 ## [1.1.0] - 2026-02-15
 
 ### Fixed

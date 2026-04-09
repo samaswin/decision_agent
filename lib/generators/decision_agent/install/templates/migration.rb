@@ -35,5 +35,19 @@ class CreateDecisionAgentTables < ActiveRecord::Migration[7.0]
     #           unique: true,
     #           where: "status = 'active'",
     #           name: 'index_rule_versions_one_active_per_rule'
+
+    # Version tags table — named pointers to specific versions (unique per model + name)
+    # NOTE: version_id is intentionally NOT a foreign key so tags survive version deletion
+    create_table :rule_version_tags do |t|
+      t.string :model_id, null: false
+      t.string :name, null: false
+      t.bigint :version_id, null: false
+      t.timestamps
+    end
+
+    # ✅ CRITICAL: Unique constraint — one tag name per model
+    add_index :rule_version_tags, %i[model_id name], unique: true
+    # Index for efficient tag listing per model
+    add_index :rule_version_tags, :model_id
   end
 end

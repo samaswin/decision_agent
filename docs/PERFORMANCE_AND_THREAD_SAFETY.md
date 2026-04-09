@@ -300,6 +300,16 @@ puts "#{(1000 / time).round} decisions/second"
 **Breaking Changes:**
 - None. If you weren't mutating objects (which was never supported), your code works unchanged.
 
+### From v1.1.x to v1.2.0
+
+**No changes required.** Adapter additions (ActiveRecord monitoring, ActiveRecord versioning) are opt-in. Existing in-memory and file-backed setups are unaffected.
+
+**What Changed:**
+- `ActiveRecordAdapter` available for monitoring storage and versioning (opt-in).
+- DMN versioning now supports named tags (`tag!`, `get_tag`, `list_tags`, `delete_tag`).
+- RBAC adapters (Devise, CanCanCan, Pundit) fully implemented and spec-covered.
+- Web UI hardened: absolute asset paths, null-guards in `dmn-editor.js`, MIME validation on upload endpoints.
+
 ## Validation
 
 ### Optional Validation for Performance
@@ -384,22 +394,22 @@ alert if throughput < 5_000  # Performance regression threshold
 
 ## Future Enhancements
 
-### Planned for v0.3.0
+### Shipped in 1.2.0
+
+1. **ActiveRecord Adapter — Connection Pooling via ActiveRecord** (Phase 2 & 3)
+   - `DecisionAgent::Monitoring::Storage::ActiveRecordAdapter` and `DecisionAgent::Versioning::ActiveRecordAdapter` leverage ActiveRecord's built-in connection pool.
+   - No custom pool management required; pool size is configured through standard `database.yml` / `establish_connection` settings.
+
+2. **Performance Telemetry — Persistent Monitoring** (Phase 2)
+   - `ActiveRecordAdapter` records per-decision latency and exposes `time_series` and `statistics` methods.
+   - `rake benchmark:regression` and the benchmarks archive (`benchmarks/`) provide automated regression detection.
+
+### Deferred (post-1.2.0)
 
 1. **ReadWriteLock for FileAdapter**
-   - Allow concurrent reads
-   - Lock only on writes
-   - Better scalability for high read/write ratios
-
-2. **Connection Pooling**
-   - For database-backed adapters
-   - Thread-local connections
-   - Configurable pool size
-
-3. **Performance Telemetry**
-   - Built-in metrics collection
-   - Decision latency tracking
-   - Thread contention monitoring
+   - Allow concurrent reads with a lock only on writes.
+   - Improves scalability for high read/write ratios on the file-backed adapter.
+   - Tracked in [ROADMAP.md](ROADMAP.md) under Deferred.
 
 ## References
 
@@ -410,7 +420,7 @@ alert if throughput < 5_000  # Performance regression threshold
 
 ## Conclusion
 
-**DecisionAgent v0.2.0 is production-ready for high-throughput, multi-threaded applications.**
+**DecisionAgent v1.2.0 is production-ready for high-throughput, multi-threaded applications.**
 
 Key achievements:
 - ✅ 7,500-9,000+ decisions/second throughput (hardware-dependent, validation disabled)
@@ -434,8 +444,8 @@ Thread-safety is achieved through immutability, not locking. This means:
 
 ---
 
-**Version:** 0.2.0
-**Last Updated:** 2026-01-03
+**Version:** 1.2.0
+**Last Updated:** 2026-04-09
 **Latest Benchmark Date:** 2026-01-03 (Intel i7-7820HQ @ 2.90GHz)
 **Previous Benchmark Date:** 2025-12-30 (Intel i7-7820HQ @ 2.90GHz)
 **Hardware Tested:** Intel i7-7820HQ (2017), Apple M1/M2 (2020-2023)

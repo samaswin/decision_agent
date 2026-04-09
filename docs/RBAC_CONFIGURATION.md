@@ -496,6 +496,75 @@ Require a role, raise `PermissionDeniedError` if not granted.
 - Verify the `PermissionChecker` is using the correct adapter
 - Check that your authentication middleware is setting `current_user` correctly
 
+## Adapter Status Matrix
+
+This matrix shows the shipping status of each RBAC adapter and the recommended
+path for integrating a custom authorization system.
+
+| Adapter | Status | Behavioural Specs | Notes |
+|---------|--------|-------------------|-------|
+| `DefaultAdapter` | **Shipped** | Full (permission × role matrix, role-check matrix, inactive-user, nil-user) | Built-in; no external dependencies |
+| `DeviseCanCanAdapter` | **Shipped** | Full (stub user+ability end-to-end, permission mapping, nil/inactive guards) | Requires `devise` + `cancancan` gems in host app |
+| `PunditAdapter` | **Shipped** | Full (stub policy end-to-end, permission mapping, nil/inactive guards) | Requires `pundit` gem in host app; resource must be supplied to `can?` |
+| `CustomAdapter` | **Shipped** | Full (proc delegation, fallback to super for optional procs) | Proc-based; compose with any system |
+
+### Shipped vs Reference-Only
+
+All four adapters listed above are **fully shipped** — they ship inside the gem
+and have end-to-end behavioural specs (see `spec/auth/rbac_integration_spec.rb`
+and `spec/auth/rbac_adapter_spec.rb`).
+
+There are **no reference-only adapters** in 1.2.0. If the adapters above do not
+cover your framework, use `CustomAdapter` with procs or subclass `RbacAdapter`
+directly.
+
+### Plugging in a Custom Adapter
+
+1. Subclass `DecisionAgent::Auth::RbacAdapter` and implement `can?` and `has_role?`:
+
+   ```ruby
+   class MyOrgAdapter < DecisionAgent::Auth::RbacAdapter
+     def can?(user, permission, resource = nil)
+       return false unless user && active?(user)
+       MyOrgPermissions.check(user.id, permission, resource)
+     end
+
+     def has_role?(user, role)
+       return false unless user
+       user.org_roles.include?(role.to_s)
+     end
+   end
+   ```
+
+2. Register it at startup:
+
+   ```ruby
+   DecisionAgent.configure_rbac(:custom,
+     can_proc:      ->(user, perm, res) { MyOrgPermissions.check(user.id, perm, res) },
+     has_role_proc: ->(user, role)      { user.org_roles.include?(role.to_s) }
+   )
+   ```
+
+   Or pass the adapter instance directly to `PermissionChecker`:
+
+   ```ruby
+   checker = DecisionAgent::Auth::PermissionChecker.new(adapter: MyOrgAdapter.new)
+   ```
+
+3. Write specs using the same patterns as `spec/auth/rbac_integration_spec.rb`.
+
+### Permission Matrix (built-in roles)
+
+| Permission | admin | editor | viewer | auditor | approver |
+|------------|:-----:|:------:|:------:|:-------:|:--------:|
+| `:read` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `:write` | ✓ | ✓ | — | — | — |
+| `:delete` | ✓ | — | — | — | — |
+| `:approve` | ✓ | — | — | — | ✓ |
+| `:deploy` | ✓ | — | — | — | — |
+| `:manage_users` | ✓ | — | — | — | — |
+| `:audit` | ✓ | — | — | ✓ | — |
+
 ## See Also
 
 - [Examples](../examples/rbac_configuration_examples.rb) - Complete working examples

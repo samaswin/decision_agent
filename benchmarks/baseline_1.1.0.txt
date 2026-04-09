@@ -1,0 +1,69 @@
+# DecisionAgent 1.1.0 — Benchmark Baseline
+#
+# Captured: 2026-04-08
+# Branch:   main (commit 6fede71)
+# Purpose:  Reference baseline for 1.2.0 regression comparison (rake benchmark:regression)
+#
+# NOTE: This baseline was assembled from the documented expected-performance figures
+# in benchmarks/README.md because the local environment (Ruby 2.7 / missing gems)
+# cannot execute `bundle exec rake benchmark:all`. The numbers below represent the
+# values the suite was tuned against on Intel i7-7820HQ @ 2.90GHz with Ruby 3.3.
+# Re-run `rake benchmark:baseline` in a supported environment (Ruby 3.0–3.3) and
+# commit the resulting JSON files under benchmarks/baselines/ to replace this file
+# with machine-captured data before Phase 6 regression verification.
+
+## Basic Decision Benchmark
+
+single_condition_throughput:      8500  decisions/sec
+multi_condition_throughput:       7200  decisions/sec
+large_ruleset_100_throughput:     5000  decisions/sec
+single_condition_latency_ms:      0.118
+multi_condition_latency_ms:       0.139
+large_ruleset_100_latency_ms:     0.200
+
+## Thread-Safety Benchmark
+
+single_thread_throughput:         7800  decisions/sec
+thread_10_throughput:            15200  decisions/sec
+thread_50_throughput:            35000  decisions/sec
+thread_100_throughput:           60000  decisions/sec
+immutability_overhead_pct:        1.8   %
+
+## Evaluator Comparison
+
+json_init_ms:                     0.5
+dmn_init_ms:                      2.5
+json_eval_ms:                     0.13
+dmn_eval_first_ms:                0.14
+dmn_overhead_pct:                 7.7   %
+
+## Operator Performance (relative to basic ~8500 decisions/sec baseline)
+
+basic_operators_throughput:       8500  decisions/sec
+string_operators_throughput:      7800  decisions/sec
+numeric_operators_throughput:     8200  decisions/sec
+date_operators_throughput:        7900  decisions/sec
+geospatial_operators_throughput:  6500  decisions/sec
+collection_operators_throughput:  7000  decisions/sec
+
+## Memory Benchmark
+
+memory_per_decision_kb:           2.5
+peak_memory_10k_mb:              25.0
+allocations_per_decision:        150
+gc_overhead_pct:                  1.0
+
+## Batch Throughput
+
+loan_approval_simple_throughput:  8000  decisions/sec
+loan_approval_complex_throughput: 4500  decisions/sec
+fraud_detection_throughput:       6200  decisions/sec
+large_ruleset_200_throughput:     3500  decisions/sec
+
+## Coverage Baseline (from coverage.md captured 2026-01-06)
+
+total_line_coverage_pct:         86.28
+total_files:                     90
+total_relevant_lines:            8623
+lines_covered:                   7440
+lines_missed:                    1183

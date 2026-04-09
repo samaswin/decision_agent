@@ -1,6 +1,9 @@
 require "spec_helper"
+require "support/shared/monitoring_storage_adapter"
 
 RSpec.describe DecisionAgent::Monitoring::Storage::BaseAdapter do
+  it_behaves_like "an abstract monitoring storage adapter"
+
   let(:adapter) { described_class.new }
 
   describe "abstract methods" do
