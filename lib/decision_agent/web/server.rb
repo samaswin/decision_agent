@@ -1210,6 +1210,14 @@ module DecisionAgent
             filename = file_param[:filename] || file_param["filename"] || "uploaded_file"
             file_extension = File.extname(filename).downcase
 
+            # Validate file type before processing
+            allowed_extensions = %w[.csv .xlsx .xls]
+            unless allowed_extensions.include?(file_extension)
+              ctx.status(422)
+              ctx.json({ error: "Unsupported file type '#{file_extension}'. Allowed types: .csv, .xlsx, .xls" })
+              next
+            end
+
             # Create temporary file
             temp_file = Tempfile.new(["batch_test", file_extension])
             temp_file.binmode

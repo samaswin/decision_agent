@@ -36,7 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New runnable example `examples/monitoring_activerecord.rb` exercised by `scripts/run_all_examples.rb`.
   - Updated `docs/PERSISTENT_MONITORING.md` with `decision_agent:monitoring_migration` generator documentation.
 
-- **Versioning: ActiveRecord Adapter + RBAC Verification** (Phase 3)
+- **Web UI Hardening**
+  - Added request-level smoke spec `spec/web/server_smoke_spec.rb` that boots the Rack app, GETs every UI page (`/`, `/testing/batch`, `/simulation`, `/simulation/replay`, `/simulation/whatif`, `/simulation/impact`, `/simulation/shadow`, `/auth/login`, `/auth/users`, `/dmn/editor`) and every referenced asset, asserting HTTP 200 and the correct `Content-Type`.
+  - Added MIME type validation to `POST /api/testing/batch/import`: unsupported file extensions (anything other than `.csv`, `.xlsx`, `.xls`) now return HTTP 422 with a clear error message before any file processing occurs.
+  - Fixed null-reference bug in `dmn-editor.js`: `addDecision` now guards against `state.currentModel` being `null` (mirrors the guard pattern already present on all other mutation functions).
+  - Added JS null-guard static analysis specs asserting that every direct property access on `state.currentModel` and `state.currentDecision` in `dmn-editor.js` is preceded by a null-check within 25 lines, so the guard pattern is enforced at CI time.
+
+- **Versioning: ActiveRecord Adapter + RBAC Verification**
   - Extended `DecisionAgent::Versioning::ActiveRecordAdapter` with all four tag methods: `create_tag`, `get_tag`, `list_tags`, `delete_tag`. Tags are stored in a new `rule_version_tags` table with a unique constraint on `[model_id, name]`. `version_id` is stored without a foreign-key constraint so tags survive version deletion.
   - Added `rule_version_tag_class` and `serialize_tag` helpers to the adapter (private).
   - New migration template `versioning_migration.rb` creates both `rule_versions` and `rule_version_tags` tables with all required indexes.
