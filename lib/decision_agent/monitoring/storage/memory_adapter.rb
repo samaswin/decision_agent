@@ -97,7 +97,7 @@ module DecisionAgent
         def time_series(metric_type, bucket_size: 60, time_range: 3600)
           synchronize do
             cutoff = Time.now - time_range
-            metrics = @metrics[metric_type].select { |m| m[:timestamp] >= cutoff }
+            metrics = (@metrics[metric_type] || []).select { |m| m[:timestamp] >= cutoff }
 
             buckets = Hash.new(0)
             metrics.each do |metric|

@@ -22,9 +22,9 @@ module DecisionAgent
       # @param tag [String, nil] Optional tag name to apply to the new version at creation time
       # @return [Hash] The created version
       def save_dmn_version(model:, created_by: "system", changelog: nil, tag: nil)
-        # Export DMN model to XML
+        # Serialize the in-memory DMN model to XML (no DB lookup needed)
         exporter = Exporter.new
-        xml_content = exporter.export(model)
+        xml_content = exporter.serialize_model(model)
 
         # Save as version (with optional tag applied atomically)
         @version_manager.save_version(

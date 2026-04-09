@@ -13,6 +13,11 @@ module DecisionAgent
         @ruleset_name = @ruleset["ruleset"] || "unknown"
         @name = name || "JsonRuleEvaluator(#{@ruleset_name})"
 
+        # Pre-build O(1) rule lookup map keyed by rule_id
+        @rules_by_id = (@ruleset["rules"] || []).each_with_index.to_h do |rule, i|
+          [rule["id"] || "rule_#{i}", rule]
+        end.freeze
+
         # Freeze ruleset to ensure thread-safety
         deep_freeze(@ruleset)
         @rules_json.freeze
@@ -30,9 +35,8 @@ module DecisionAgent
         matched_rule_trace = explainability_result&.matched_rules&.first
         return nil unless matched_rule_trace
 
-        # Find the original rule to get the then clause
-        rules = @ruleset["rules"] || []
-        matched_rule = rules.find { |r| (r["id"] || "rule_#{rules.index(r)}") == matched_rule_trace.rule_id }
+        # Find the original rule to get the then clause (O(1) lookup)
+        matched_rule = @rules_by_id[matched_rule_trace.rule_id]
         return nil unless matched_rule
 
         then_clause = matched_rule["then"]
@@ -61,8 +65,8 @@ module DecisionAgent
         rules = @ruleset["rules"] || []
         rule_traces = []
 
-        rules.each do |rule|
-          rule_id = rule["id"] || "rule_#{rules.index(rule)}"
+        rules.each_with_index do |rule, i|
+          rule_id = rule["id"] || "rule_#{i}"
           if_clause = rule["if"]
           next unless if_clause
 

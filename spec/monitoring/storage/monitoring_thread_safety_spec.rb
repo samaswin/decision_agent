@@ -20,16 +20,26 @@ RSpec.describe "Monitoring storage thread safety" do
 
   before(:all) do
     ActiveRecord::Base.establish_connection(
-      adapter:  "sqlite3",
-      database: "file:monitoring_thread_safety?mode=memory&cache=shared",
-      flags:    SQLite3::Constants::Open::URI | SQLite3::Constants::Open::READWRITE | SQLite3::Constants::Open::CREATE
+      adapter:          "sqlite3",
+      database:         "file:monitoring_thread_safety?mode=memory&cache=shared",
+      flags:            SQLite3::Constants::Open::URI | SQLite3::Constants::Open::READWRITE | SQLite3::Constants::Open::CREATE,
+      pool:             32,
+      checkout_timeout: 15
     )
 
     ActiveRecord::Base.connection.execute("PRAGMA journal_mode=WAL")
-    ActiveRecord::Base.connection.execute("PRAGMA busy_timeout=10000")
+    # Release the main thread's connection back to the pool so we can
+    # checkout all 32 slots below without hitting the pool limit.
+    ActiveRecord::Base.connection_pool.release_connection
 
-    # Allow enough connections for 16 threads plus headroom
-    ActiveRecord::Base.connection_pool.instance_variable_set(:@size, 32)
+    # Pre-warm all pool connections and set busy_timeout on each so that
+    # concurrent threads wait instead of immediately raising SQLITE_BUSY.
+    connections = 32.times.map { ActiveRecord::Base.connection_pool.checkout }
+    connections.each do |conn|
+      conn.execute("PRAGMA journal_mode=WAL")
+      conn.execute("PRAGMA busy_timeout=10000")
+    end
+    connections.each { |conn| ActiveRecord::Base.connection_pool.checkin(conn) }
 
     ActiveRecord::Schema.define do
       create_table :ts_decision_logs, force: true do |t|

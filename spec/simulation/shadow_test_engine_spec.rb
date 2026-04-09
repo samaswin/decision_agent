@@ -40,6 +40,7 @@ RSpec.describe DecisionAgent::Simulation::ShadowTestEngine do
 
       # Define RuleVersion model if not already defined
       Object.const_set(:RuleVersion, Class.new(ActiveRecord::Base)) unless defined?(RuleVersion)
+      RuleVersion.reset_column_information
     end
   end
 

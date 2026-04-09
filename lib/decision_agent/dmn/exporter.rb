@@ -13,6 +13,27 @@ module DecisionAgent
         @version_manager = version_manager || Versioning::VersionManager.new
       end
 
+      # Serialize an in-memory DMN Model object to DMN XML.
+      # Unlike #export, this does NOT look up any stored version — it converts
+      # the live model directly.  Use this when saving a new version.
+      # @param model [DecisionAgent::Dmn::Model]
+      # @return [String] DMN XML
+      def serialize_model(model)
+        builder = Nokogiri::XML::Builder.new(encoding: "UTF-8") do |xml|
+          xml.definitions(
+            "xmlns"       => "https://www.omg.org/spec/DMN/20191111/MODEL/",
+            "xmlns:dmndi" => "https://www.omg.org/spec/DMN/20191111/DMNDI/",
+            "xmlns:dc"    => "http://www.omg.org/spec/DMN/20180521/DC/",
+            "id"          => "definitions_#{model.id}",
+            "name"        => model.name,
+            "namespace"   => model.namespace
+          ) do
+            model.decisions.each { |d| serialize_decision_node(xml, d) }
+          end
+        end
+        builder.to_xml
+      end
+
       # Export ruleset to DMN XML
       # @param rule_id [String] Rule ID to export
       # @param output_path [String, nil] Optional file path to write
@@ -32,6 +53,26 @@ module DecisionAgent
       end
 
       private
+
+      def serialize_decision_node(xml, decision)
+        xml.decision(id: decision.id, name: decision.name) do
+          xml.description(decision.description) if decision.description
+          if (dt = decision.decision_table)
+            xml.decisionTable(id: dt.id, hitPolicy: dt.hit_policy) do
+              dt.inputs.each do |inp|
+                xml.input(id: inp.id, label: inp.label) do
+                  xml.inputExpression(typeRef: inp.type_ref) do
+                    xml.text_ inp.expression
+                  end
+                end
+              end
+              dt.outputs.each do |out|
+                xml.output(id: out.id, label: out.label, name: out.name, typeRef: out.type_ref)
+              end
+            end
+          end
+        end
+      end
 
       # Helper to get hash value with both string and symbol key support
       def hash_get(hash, key)

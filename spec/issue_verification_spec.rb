@@ -15,7 +15,7 @@ RSpec.describe "Issue Verification Tests" do
         # Setup in-memory SQLite database with shared cache for multi-threading
         ActiveRecord::Base.establish_connection(
           adapter: "sqlite3",
-          database: "file::memory:?cache=shared"
+          database: "file:issue_verify?mode=memory&cache=shared"
         )
       end
 

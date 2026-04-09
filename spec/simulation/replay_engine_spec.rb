@@ -84,6 +84,7 @@ RSpec.describe DecisionAgent::Simulation::ReplayEngine do
             validates :created_by, presence: true
           end
         end
+        RuleVersion.reset_column_information
       end
     end
 
@@ -418,6 +419,7 @@ RSpec.describe DecisionAgent::Simulation::ReplayEngine do
           validates :created_by, presence: true
         end
       end
+      RuleVersion.reset_column_information
     end
 
     after(:each) do

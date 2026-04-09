@@ -292,7 +292,9 @@ module DecisionAgent
 
         return versions unless Dir.exist?(rule_dir)
 
-        Dir.glob(File.join(rule_dir, "*.json")).each do |file|
+        Dir.glob(File.join(rule_dir, "*.json"))
+           .reject { |f| File.basename(f).start_with?("_") }
+           .each do |file|
           versions << JSON.parse(File.read(file), symbolize_names: true)
         rescue JSON::ParserError, Errno::ENOENT
           # Skip corrupted or deleted files
@@ -307,7 +309,9 @@ module DecisionAgent
         versions = []
         return versions unless Dir.exist?(@storage_path)
 
-        Dir.glob(File.join(@storage_path, "*", "*.json")).each do |file|
+        Dir.glob(File.join(@storage_path, "*", "*.json"))
+           .reject { |f| File.basename(f).start_with?("_") }
+           .each do |file|
           versions << JSON.parse(File.read(file), symbolize_names: true)
         end
 

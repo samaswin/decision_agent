@@ -9,7 +9,7 @@ if defined?(ActiveRecord)
     before(:all) do
       ActiveRecord::Base.establish_connection(
         adapter: "sqlite3",
-        database: "file::memory:?cache=shared",
+        database: "file:ar_thread_safety?mode=memory&cache=shared",
         timeout: 10_000,
         pool: 110 # Support 100 thread test + some overhead
       )
@@ -83,6 +83,7 @@ if defined?(ActiveRecord)
           end
         end
       end
+      RuleVersion.reset_column_information
     end
 
     before(:each) do

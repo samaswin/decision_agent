@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.2.0] - 2026-04-10
+
 ### Added
 
 - **DMN Versioning Tag Support** (`lib/decision_agent/dmn/versioning.rb`, `lib/decision_agent/versioning/`)
@@ -2140,4 +2144,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Full explainability and auditability
 - Safe for regulated domains (healthcare, finance)
 
+[Unreleased]: https://github.com/samaswin/decision_agent/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/samaswin/decision_agent/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/samaswin/decision_agent/compare/v0.1.0...v1.1.0
 [0.1.0]: https://github.com/samaswin/decision_agent/releases/tag/v0.1.0
