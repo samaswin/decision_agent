@@ -20,10 +20,10 @@ RSpec.describe "Monitoring storage thread safety" do
 
   before(:all) do
     ActiveRecord::Base.establish_connection(
-      adapter:          "sqlite3",
-      database:         "file:monitoring_thread_safety?mode=memory&cache=shared",
-      flags:            SQLite3::Constants::Open::URI | SQLite3::Constants::Open::READWRITE | SQLite3::Constants::Open::CREATE,
-      pool:             32,
+      adapter: "sqlite3",
+      database: "file:monitoring_thread_safety?mode=memory&cache=shared",
+      flags: SQLite3::Constants::Open::URI | SQLite3::Constants::Open::READWRITE | SQLite3::Constants::Open::CREATE,
+      pool: 32,
       checkout_timeout: 15
     )
 
@@ -38,8 +38,8 @@ RSpec.describe "Monitoring storage thread safety" do
     connections.each do |conn|
       conn.execute("PRAGMA journal_mode=WAL")
       conn.execute("PRAGMA busy_timeout=10000")
+      ActiveRecord::Base.connection_pool.checkin(conn)
     end
-    connections.each { |conn| ActiveRecord::Base.connection_pool.checkin(conn) }
 
     ActiveRecord::Schema.define do
       create_table :ts_decision_logs, force: true do |t|
@@ -141,66 +141,85 @@ RSpec.describe "Monitoring storage thread safety" do
     # rubocop:enable Lint/ConstantDefinitionInBlock
 
     # Patch ActiveRecordAdapter to use the thread-safety test models
+    # rubocop:disable Lint/ConstantDefinitionInBlock
     module TsModelOverride
+      # Retry helper for transient SQLite lock/busy errors.
+      # busy_timeout covers SQLITE_BUSY but not SQLITE_LOCKED; we handle
+      # SQLITE_LOCKED here with short exponential backoff so no writes are lost.
+      def ts_with_retry(max_attempts: 10, &block)
+        attempts = 0
+        begin
+          block.call
+        rescue ActiveRecord::StatementInvalid => e
+          attempts += 1
+          if attempts < max_attempts && e.message =~ /locked|busy/i
+            sleep(0.005 * (2**attempts))
+            retry
+          end
+          raise
+        end
+      end
+
       def record_decision(decision, context, **kwargs)
-        TsDecisionLog.create!(
-          decision:          decision,
-          context:           context.to_json,
-          confidence:        kwargs[:confidence],
-          evaluations_count: kwargs[:evaluations_count] || 0,
-          duration_ms:       kwargs[:duration_ms],
-          status:            kwargs[:status]
-        )
-      rescue StandardError => e
-        warn "TS record_decision failed: #{e.message}"
+        ts_with_retry do
+          TsDecisionLog.create!(
+            decision: decision,
+            context: context.to_json,
+            confidence: kwargs[:confidence],
+            evaluations_count: kwargs[:evaluations_count] || 0,
+            duration_ms: kwargs[:duration_ms],
+            status: kwargs[:status]
+          )
+        end
       end
 
       def record_evaluation(evaluator_name, **kwargs)
-        TsEvaluationMetric.create!(
-          evaluator_name: evaluator_name,
-          score:          kwargs[:score],
-          success:        kwargs[:success],
-          duration_ms:    kwargs[:duration_ms],
-          details:        (kwargs[:details] || {}).to_json
-        )
-      rescue StandardError => e
-        warn "TS record_evaluation failed: #{e.message}"
+        ts_with_retry do
+          TsEvaluationMetric.create!(
+            evaluator_name: evaluator_name,
+            score: kwargs[:score],
+            success: kwargs[:success],
+            duration_ms: kwargs[:duration_ms],
+            details: (kwargs[:details] || {}).to_json
+          )
+        end
       end
 
       def record_performance(operation, **kwargs)
-        TsPerformanceMetric.create!(
-          operation:   operation,
-          duration_ms: kwargs[:duration_ms],
-          status:      kwargs[:status],
-          metadata:    (kwargs[:metadata] || {}).to_json
-        )
-      rescue StandardError => e
-        warn "TS record_performance failed: #{e.message}"
+        ts_with_retry do
+          TsPerformanceMetric.create!(
+            operation: operation,
+            duration_ms: kwargs[:duration_ms],
+            status: kwargs[:status],
+            metadata: (kwargs[:metadata] || {}).to_json
+          )
+        end
       end
 
       def record_error(error_type, **kwargs)
-        TsErrorMetric.create!(
-          error_type:  error_type,
-          message:     kwargs[:message],
-          stack_trace: kwargs[:stack_trace]&.to_json,
-          severity:    kwargs[:severity],
-          context:     (kwargs[:context] || {}).to_json
-        )
-      rescue StandardError => e
-        warn "TS record_error failed: #{e.message}"
+        ts_with_retry do
+          TsErrorMetric.create!(
+            error_type: error_type,
+            message: kwargs[:message],
+            stack_trace: kwargs[:stack_trace]&.to_json,
+            severity: kwargs[:severity],
+            context: (kwargs[:context] || {}).to_json
+          )
+        end
       end
 
       def metrics_count
         {
-          decisions:   TsDecisionLog.count,
+          decisions: TsDecisionLog.count,
           evaluations: TsEvaluationMetric.count,
           performance: TsPerformanceMetric.count,
-          errors:      TsErrorMetric.count
+          errors: TsErrorMetric.count
         }
       rescue StandardError
         { decisions: 0, evaluations: 0, performance: 0, errors: 0 }
       end
     end
+    # rubocop:enable Lint/ConstantDefinitionInBlock
   end
 
   before do
@@ -231,7 +250,7 @@ RSpec.describe "Monitoring storage thread safety" do
               "thread_decision_#{thread_id}_#{i}",
               { thread: thread_id, index: i },
               confidence: 0.8,
-              status:     "success"
+              status: "success"
             )
           end
         end
@@ -250,7 +269,7 @@ RSpec.describe "Monitoring storage thread safety" do
       threads = thread_count.times.map do |thread_id|
         Thread.new do
           each_count.times do |i|
-            adapter.record_decision("dec_#{thread_id}_#{i}",   {})
+            adapter.record_decision("dec_#{thread_id}_#{i}", {})
             adapter.record_evaluation("eval_#{thread_id}_#{i}")
             adapter.record_performance("perf_#{thread_id}_#{i}")
             adapter.record_error("err_#{thread_id}_#{i}")
@@ -270,8 +289,12 @@ RSpec.describe "Monitoring storage thread safety" do
     end
 
     it "returns correct metrics_count under concurrent reads and writes" do
-      adapter    = ts_adapter
-      write_done = Concurrent::AtomicBoolean.new(false) rescue nil # optional concurrency gem
+      adapter = ts_adapter
+      begin
+        Concurrent::AtomicBoolean.new(false)
+      rescue StandardError
+        nil
+      end
 
       writers = 8.times.map do
         Thread.new { 500.times { adapter.record_decision("concurrent", {}) } }

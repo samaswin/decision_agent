@@ -17,6 +17,17 @@ require_relative "../../lib/decision_agent/auth/user"
 require_relative "../../lib/decision_agent/auth/role"
 require_relative "../../lib/decision_agent/errors"
 
+ALL_PERMISSIONS = %i[read write delete approve deploy manage_users audit].freeze
+
+# Role → expected permission set (mirrors Role::ROLES)
+ROLE_PERMISSION_MAP = {
+  admin: %i[read write delete approve deploy manage_users audit],
+  editor: %i[read write],
+  viewer: %i[read],
+  auditor: %i[read audit],
+  approver: %i[read approve]
+}.freeze
+
 RSpec.describe "RBAC Integration" do
   # ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -30,17 +41,6 @@ RSpec.describe "RBAC Integration" do
       active: active
     )
   end
-
-  ALL_PERMISSIONS = %i[read write delete approve deploy manage_users audit].freeze
-
-  # Role → expected permission set (mirrors Role::ROLES)
-  ROLE_PERMISSION_MAP = {
-    admin:    %i[read write delete approve deploy manage_users audit],
-    editor:   %i[read write],
-    viewer:   %i[read],
-    auditor:  %i[read audit],
-    approver: %i[read approve]
-  }.freeze
 
   # ── DefaultAdapter: full permission × role matrix ─────────────────────────
 
@@ -85,7 +85,7 @@ RSpec.describe "RBAC Integration" do
       end
 
       it "has_role? returns false for every role" do
-        ROLE_PERMISSION_MAP.keys.each do |role|
+        ROLE_PERMISSION_MAP.each_key do |role|
           expect(adapter.has_role?(nil, role)).to be false
         end
       end
@@ -154,9 +154,9 @@ RSpec.describe "RBAC Integration" do
 
         def can?(action, _resource)
           granted = {
-            admin:    %i[read create destroy approve deploy manage audit],
-            editor:   %i[read create],
-            viewer:   %i[read],
+            admin: %i[read create destroy approve deploy manage audit],
+            editor: %i[read create],
+            viewer: %i[read],
             approver: %i[read approve]
           }
           roles = @user.respond_to?(:roles) ? Array(@user.roles).map(&:to_sym) : []
@@ -213,7 +213,7 @@ RSpec.describe "RBAC Integration" do
 
     describe "#has_role?" do
       let(:user_with_roles) do
-        role_struct = Struct.new(:name, :to_s) { alias_method :to_s, :name }
+        role_struct = Struct.new(:name, :to_s) { alias_method :to_s, :name } # rubocop:disable Lint/StructNewOverride
         stub_user_class.new(
           id: 6, email: "r@e.com",
           active_for_authentication?: true,
@@ -262,20 +262,20 @@ RSpec.describe "RBAC Integration" do
         end
 
         def show
-          has_role?(:viewer) || has_role?(:editor) || has_role?(:approver) || has_role?(:admin)
+          role?(:viewer) || role?(:editor) || role?(:approver) || role?(:admin)
         end
 
         def create
-          has_role?(:editor) || has_role?(:admin)
+          role?(:editor) || role?(:admin)
         end
 
         def approve
-          has_role?(:approver) || has_role?(:admin)
+          role?(:approver) || role?(:admin)
         end
 
         private
 
-        def has_role?(role)
+        def role?(role)
           Array(@user.roles).map(&:to_sym).include?(role)
         end
       end
@@ -397,12 +397,10 @@ end
 # Custom matcher helper used inline above
 RSpec::Matchers.define :not_raise_error do |error_class = StandardError|
   match do |block|
-    begin
-      block.call
-      true
-    rescue error_class
-      false
-    end
+    block.call
+    true
+  rescue error_class
+    false
   end
 
   def supports_block_expectations?

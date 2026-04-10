@@ -10,13 +10,23 @@ if defined?(ActiveRecord)
       ActiveRecord::Base.establish_connection(
         adapter: "sqlite3",
         database: "file:ar_thread_safety?mode=memory&cache=shared",
-        timeout: 10_000,
-        pool: 110 # Support 100 thread test + some overhead
+        flags: SQLite3::Constants::Open::URI | SQLite3::Constants::Open::READWRITE | SQLite3::Constants::Open::CREATE,
+        pool: 110, # Support 100 thread test + some overhead
+        checkout_timeout: 30
       )
 
-      # Enable WAL mode and busy timeout for better concurrency
       ActiveRecord::Base.connection.execute("PRAGMA journal_mode=WAL")
-      ActiveRecord::Base.connection.execute("PRAGMA busy_timeout=10000")
+      # Release the main thread's connection so all pool slots are available for pre-warming
+      ActiveRecord::Base.connection_pool.release_connection
+
+      # Pre-warm all pool connections and set busy_timeout on each so that
+      # concurrent threads wait instead of immediately raising SQLITE_BUSY
+      connections = 110.times.map { ActiveRecord::Base.connection_pool.checkout }
+      connections.each do |conn|
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=10000")
+        ActiveRecord::Base.connection_pool.checkin(conn)
+      end
 
       # Create the schema
       ActiveRecord::Schema.define do

@@ -295,10 +295,10 @@ module DecisionAgent
         Dir.glob(File.join(rule_dir, "*.json"))
            .reject { |f| File.basename(f).start_with?("_") }
            .each do |file|
-          versions << JSON.parse(File.read(file), symbolize_names: true)
-        rescue JSON::ParserError, Errno::ENOENT
-          # Skip corrupted or deleted files
-          next
+             versions << JSON.parse(File.read(file), symbolize_names: true)
+           rescue JSON::ParserError, Errno::ENOENT
+             # Skip corrupted or deleted files
+             next
         end
 
         versions.sort_by! { |v| -v[:version_number] }
@@ -312,7 +312,7 @@ module DecisionAgent
         Dir.glob(File.join(@storage_path, "*", "*.json"))
            .reject { |f| File.basename(f).start_with?("_") }
            .each do |file|
-          versions << JSON.parse(File.read(file), symbolize_names: true)
+             versions << JSON.parse(File.read(file), symbolize_names: true)
         end
 
         versions

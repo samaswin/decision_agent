@@ -21,12 +21,12 @@ module DecisionAgent
       def serialize_model(model)
         builder = Nokogiri::XML::Builder.new(encoding: "UTF-8") do |xml|
           xml.definitions(
-            "xmlns"       => "https://www.omg.org/spec/DMN/20191111/MODEL/",
+            "xmlns" => "https://www.omg.org/spec/DMN/20191111/MODEL/",
             "xmlns:dmndi" => "https://www.omg.org/spec/DMN/20191111/DMNDI/",
-            "xmlns:dc"    => "http://www.omg.org/spec/DMN/20180521/DC/",
-            "id"          => "definitions_#{model.id}",
-            "name"        => model.name,
-            "namespace"   => model.namespace
+            "xmlns:dc" => "http://www.omg.org/spec/DMN/20180521/DC/",
+            "id" => "definitions_#{model.id}",
+            "name" => model.name,
+            "namespace" => model.namespace
           ) do
             model.decisions.each { |d| serialize_decision_node(xml, d) }
           end
