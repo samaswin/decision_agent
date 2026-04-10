@@ -97,7 +97,7 @@ if defined?(ActiveRecord)
     end
 
     before(:each) do
-      RuleVersion.delete_all
+      with_retry(max_retries: 5) { RuleVersion.delete_all }
     end
 
     let(:adapter) { DecisionAgent::Versioning::ActiveRecordAdapter.new }
@@ -116,13 +116,15 @@ if defined?(ActiveRecord)
       }
     end
 
-    # Helper method to retry on SQLite busy exceptions (concurrency limitation)
+    # Helper method to retry on SQLite busy/locked exceptions (concurrency limitation)
     def with_retry(max_retries: 3, &block)
       retries = 0
       begin
         block.call
       rescue ActiveRecord::StatementInvalid => e
-        raise unless e.message.include?("database is locked") && retries < max_retries
+        sqlite_contention = e.message.include?("database is locked") ||
+                            e.message.include?("database table is locked")
+        raise unless sqlite_contention && retries < max_retries
 
         retries += 1
         sleep(0.01 * retries) # Exponential backoff
