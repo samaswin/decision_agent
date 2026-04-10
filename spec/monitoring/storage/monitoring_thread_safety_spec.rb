@@ -19,15 +19,23 @@ RSpec.describe "Monitoring storage thread safety" do
   # ── ActiveRecord adapter setup ──────────────────────────────────────────────
 
   before(:all) do
+    # Use a file-based SQLite database with WAL mode instead of shared-cache
+    # in-memory. Shared-cache mode uses table-level locking (SQLITE_LOCKED)
+    # which busy_timeout does not cover, causing spurious failures under high
+    # concurrency. File-based WAL only produces SQLITE_BUSY, which
+    # busy_timeout=10000 handles transparently.
+    require "tmpdir"
+    @ts_db_path = File.join(Dir.tmpdir, "monitoring_thread_safety_#{Process.pid}.db")
+
     ActiveRecord::Base.establish_connection(
       adapter: "sqlite3",
-      database: "file:monitoring_thread_safety?mode=memory&cache=shared",
-      flags: SQLite3::Constants::Open::URI | SQLite3::Constants::Open::READWRITE | SQLite3::Constants::Open::CREATE,
+      database: @ts_db_path,
       pool: 32,
       checkout_timeout: 15
     )
 
     ActiveRecord::Base.connection.execute("PRAGMA journal_mode=WAL")
+    ActiveRecord::Base.connection.execute("PRAGMA busy_timeout=10000")
     # Release the main thread's connection back to the pool so we can
     # checkout all 32 slots below without hitting the pool limit.
     ActiveRecord::Base.connection_pool.release_connection
@@ -220,6 +228,15 @@ RSpec.describe "Monitoring storage thread safety" do
       end
     end
     # rubocop:enable Lint/ConstantDefinitionInBlock
+  end
+
+  after(:all) do
+    ActiveRecord::Base.connection_pool.disconnect!
+    [
+      @ts_db_path,
+      "#{@ts_db_path}-wal",
+      "#{@ts_db_path}-shm"
+    ].each { |f| File.unlink(f) if f && File.exist?(f) }
   end
 
   before do
