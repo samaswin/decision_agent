@@ -55,7 +55,6 @@ module DecisionAgent
       #   - :feedback [Hash] Optional feedback to pass to agent
       #   - :checkpoint_file [String] Path to checkpoint file for resume capability (optional)
       # @return [Array<TestResult>] Array of test results
-      # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
       def run(scenarios, options = {})
         @results = []
         @checkpoint_file = options[:checkpoint_file]
@@ -141,7 +140,6 @@ module DecisionAgent
           total_execution_time_ms: execution_times.sum
         }
       end
-      # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
       private
 

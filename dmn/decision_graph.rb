@@ -92,7 +92,6 @@ module DecisionAgent
       end
 
       # Validate the graph (check for cycles, missing dependencies)
-      # rubocop:disable Naming/PredicateMethod
       def validate!
         # Check for missing decisions
         @dependencies.each do |decision_id, deps|
@@ -100,7 +99,6 @@ module DecisionAgent
             raise InvalidDmnModelError, "Decision '#{decision_id}' depends on missing decision '#{dep_id}'" unless @decisions.key?(dep_id)
           end
         end
-        # rubocop:enable Naming/PredicateMethod
 
         # Check for cycles
         begin
@@ -109,7 +107,7 @@ module DecisionAgent
           raise InvalidDmnModelError, "Decision graph contains cycles: #{e.message}"
         end
 
-        true
+        nil
       end
 
       # Get visual representation of the graph

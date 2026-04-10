@@ -70,14 +70,12 @@ module DecisionAgent
       end
 
       # Delete a DMN model
-      # rubocop:disable Naming/PredicateMethod
       def delete_model(model_id)
         @storage_mutex.synchronize do
           @storage.delete(model_id)
         end
         true
       end
-      # rubocop:enable Naming/PredicateMethod
 
       # Add a decision to a model
       def add_decision(model_id:, decision_id:, name:, type: "decision_table")
@@ -128,7 +126,6 @@ module DecisionAgent
       end
 
       # Delete a decision
-      # rubocop:disable Naming/PredicateMethod
       def delete_decision(model_id:, decision_id:)
         model = retrieve_model(model_id)
         return false unless model
@@ -137,7 +134,6 @@ module DecisionAgent
         store_model(model_id, model)
         true
       end
-      # rubocop:enable Naming/PredicateMethod
 
       # Add input to decision table
       def add_input(model_id:, decision_id:, input_id:, label:, type_ref: nil, expression: nil)
@@ -220,7 +216,6 @@ module DecisionAgent
       end
 
       # Delete rule
-      # rubocop:disable Naming/PredicateMethod
       def delete_rule(model_id:, decision_id:, rule_id:)
         model = retrieve_model(model_id)
         return false unless model
@@ -232,7 +227,6 @@ module DecisionAgent
         store_model(model_id, model)
         true
       end
-      # rubocop:enable Naming/PredicateMethod
 
       # Validate a DMN model
       def validate_model(model_id)

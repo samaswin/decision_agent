@@ -164,7 +164,7 @@ module DecisionAgent
       end
 
       # Delete a tag by name. Returns true if deleted, false if the tag did not exist.
-      def delete_tag(model_id:, name:) # rubocop:disable Naming/PredicateMethod
+      def delete_tag(model_id:, name:)
         tag = rule_version_tag_class.find_by(model_id: model_id, name: name)
         return false unless tag
 

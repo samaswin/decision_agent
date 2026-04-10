@@ -24,7 +24,6 @@ module DecisionAgent
       #   - :skip_header [Boolean] Skip first row (default: true)
       #   - :progress_callback [Proc] Callback for progress updates (called with { processed: N, total: M, percentage: X })
       # @return [Array<TestScenario>] Array of test scenarios
-      # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
       def import_csv(file_path, options = {})
         @errors = []
         @warnings = []
@@ -101,7 +100,6 @@ module DecisionAgent
 
         scenarios
       end
-      # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
       # Import test scenarios from an Excel file (.xlsx, .xls)
       # @param file_path [String] Path to Excel file
@@ -109,7 +107,6 @@ module DecisionAgent
       #   - :sheet [String|Integer] Sheet name or index (default: first sheet)
       #   - :progress_callback [Proc] Callback for progress updates
       # @return [Array<TestScenario>] Array of test scenarios
-      # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
       def import_excel(file_path, options = {})
         @errors = []
         @warnings = []
@@ -223,7 +220,6 @@ module DecisionAgent
           raise ImportError, "Failed to read Excel file: #{e.message}"
         end
       end
-      # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
       # Import test scenarios from an array of hashes (for programmatic use)
       # @param data [Array<Hash>] Array of hashes with test data

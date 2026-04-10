@@ -15,7 +15,6 @@ module DecisionAgent
       # Phase 2A: Basic comparisons, ranges, list membership (regex-based)
       # Phase 2B: Arithmetic, logical operators, functions (enhanced parser)
       # Maps FEEL expressions to DecisionAgent ConditionEvaluator
-      # rubocop:disable Metrics/ClassLength
       class Evaluator
         def initialize
           @simple_parser = SimpleParser.new
@@ -493,7 +492,6 @@ module DecisionAgent
         end
 
         # Evaluate Parslet AST node (Phase 2B - full FEEL support)
-        # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
         def evaluate_ast_node(node, context)
           return node unless node.is_a?(Hash)
 
@@ -549,7 +547,6 @@ module DecisionAgent
             raise FeelEvaluationError, "Unknown AST node type: #{node[:type]}"
           end
         end
-        # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
 
         # Get field value from context
         def get_field_value(field_name, context)
@@ -807,7 +804,6 @@ module DecisionAgent
           start_check && end_check
         end
       end
-      # rubocop:enable Metrics/ClassLength
     end
   end
 end

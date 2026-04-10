@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class CreateDecisionAgentMonitoringTables < ActiveRecord::Migration[7.0]
-  # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
   def change
     # Decision logs table
     create_table :decision_logs do |t|
@@ -105,5 +104,4 @@ class CreateDecisionAgentMonitoringTables < ActiveRecord::Migration[7.0]
     #   PARTITION BY RANGE (created_at);
     # SQL
   end
-  # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 end

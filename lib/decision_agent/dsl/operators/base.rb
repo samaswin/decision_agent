@@ -61,8 +61,8 @@ module DecisionAgent
         end
 
         # Epsilon comparison for floating point numbers
-        def self.epsilon_equal?(a, b, epsilon = 1e-10) # rubocop:disable Naming/MethodParameterName
-          (a - b).abs < epsilon
+        def self.epsilon_equal?(lhs, rhs, epsilon = 1e-10)
+          (lhs - rhs).abs < epsilon
         end
       end
     end

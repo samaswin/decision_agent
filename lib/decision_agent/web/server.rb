@@ -46,7 +46,6 @@ require_relative "../versioning/version_manager"
 
 module DecisionAgent
   module Web
-    # rubocop:disable Metrics/ClassLength
     # Framework-agnostic Rack application - works with any Rack-compatible server
     class Server
       include RackHelpers
@@ -2501,6 +2500,5 @@ module DecisionAgent
         )
       end
     end
-    # rubocop:enable Metrics/ClassLength
   end
 end

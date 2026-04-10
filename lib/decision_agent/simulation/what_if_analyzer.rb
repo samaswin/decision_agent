@@ -5,7 +5,6 @@ require_relative "errors"
 module DecisionAgent
   module Simulation
     # Analyzer for what-if scenario simulation
-    # rubocop:disable Metrics/ClassLength
     class WhatIfAnalyzer
       attr_reader :agent, :version_manager
 
@@ -1002,7 +1001,6 @@ module DecisionAgent
           "<div class='legend-item'><div class='legend-color' style='background: #{color};'></div><span>#{decision}</span></div>"
         end.join
       end
-      # rubocop:enable Metrics/ClassLength
     end
   end
 end
