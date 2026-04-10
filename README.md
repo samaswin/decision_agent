@@ -5,6 +5,8 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.txt)
 [![Ruby](https://img.shields.io/badge/ruby-%3E%3D%203.0.0-red.svg)](https://www.ruby-lang.org)
 
+**Current release:** [1.2.0](docs/CHANGELOG.md) — see the [changelog](docs/CHANGELOG.md) for what changed.
+
 A production-grade, deterministic, explainable, and auditable decision engine for Ruby.
 
 **Built for regulated domains. Deterministic by design. AI-optional.**
@@ -28,7 +30,7 @@ gem install decision_agent
 Or add to your Gemfile:
 
 ```ruby
-gem 'decision_agent'
+gem "decision_agent", "~> 1.2"
 ```
 
 ## Quick Start
