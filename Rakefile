@@ -187,7 +187,7 @@ namespace :benchmark do
 
   desc "Run benchmarks for all Ruby versions (requires rbenv/rvm)"
   task :all_versions do
-    versions = ["3.0", "3.1", "3.2", "3.3"]
+    versions = ["3.0", "3.1", "3.2", "3.3", "3.4"]
     versions.each do |version|
       puts "\n#{'=' * 80}"
       puts "Running benchmarks for Ruby #{version}"

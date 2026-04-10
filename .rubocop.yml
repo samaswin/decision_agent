@@ -45,6 +45,13 @@ Metrics/MethodLength:
     - 'lib/decision_agent/dsl/helpers/**/*'
     - 'lib/decision_agent/monitoring/dashboard_server.rb'
     - 'lib/decision_agent/web/server.rb'
+    - 'lib/decision_agent/dmn/feel/evaluator.rb'
+    - 'lib/decision_agent/dmn/testing.rb'
+    - 'lib/decision_agent/dmn/exporter.rb'
+    - 'lib/decision_agent/testing/batch_test_importer.rb'
+    - 'lib/decision_agent/testing/batch_test_runner.rb'
+    - 'lib/decision_agent/testing/test_result_comparator.rb'
+    - 'lib/generators/decision_agent/install/templates/monitoring_migration.rb'
 
 Metrics/BlockLength:
   Max: 99
@@ -60,6 +67,12 @@ Metrics/ClassLength:
   Exclude:
     - 'spec/**/*'
     - 'lib/decision_agent/monitoring/dashboard_server.rb'
+    - 'lib/decision_agent/web/server.rb'
+    - 'lib/decision_agent/dmn/feel/evaluator.rb'
+    - 'lib/decision_agent/simulation/monte_carlo_simulator.rb'
+    - 'lib/decision_agent/simulation/impact_analyzer.rb'
+    - 'lib/decision_agent/simulation/replay_engine.rb'
+    - 'lib/decision_agent/simulation/what_if_analyzer.rb'
 
 Metrics/ModuleLength:
   Max: 150
@@ -78,6 +91,11 @@ Metrics/AbcSize:
     - 'lib/decision_agent/dsl/helpers/**/*'
     - 'lib/decision_agent/monitoring/dashboard_server.rb'
     - 'lib/decision_agent/web/server.rb'
+    - 'lib/decision_agent/dmn/feel/evaluator.rb'
+    - 'lib/decision_agent/dmn/testing.rb'
+    - 'lib/decision_agent/testing/batch_test_importer.rb'
+    - 'lib/decision_agent/testing/batch_test_runner.rb'
+    - 'lib/generators/decision_agent/install/templates/monitoring_migration.rb'
 
 # Layout
 Layout/LineLength:
@@ -118,6 +136,9 @@ Naming/PredicateMethod:
     - 'lib/decision_agent/monitoring/alert_manager.rb'
     - 'lib/decision_agent/evaluation_validator.rb'
     - 'lib/decision_agent/auth/**/*'
+    - 'lib/decision_agent/web/dmn_editor.rb'
+    - 'lib/decision_agent/versioning/activerecord_adapter.rb'
+    - 'lib/decision_agent/versioning/file_storage_adapter.rb'
 
 # Complexity metrics for main library code
 Metrics/CyclomaticComplexity:
@@ -129,6 +150,9 @@ Metrics/CyclomaticComplexity:
     - 'lib/decision_agent/dsl/helpers/**/*'
     - 'lib/decision_agent/monitoring/dashboard_server.rb'
     - 'lib/decision_agent/web/server.rb'
+    - 'lib/decision_agent/dmn/feel/evaluator.rb'
+    - 'lib/decision_agent/testing/batch_test_importer.rb'
+    - 'lib/decision_agent/testing/batch_test_runner.rb'
 
 Metrics/PerceivedComplexity:
   Max: 16
@@ -140,6 +164,8 @@ Metrics/PerceivedComplexity:
     - 'lib/decision_agent/dsl/helpers/**/*'
     - 'lib/decision_agent/monitoring/dashboard_server.rb'
     - 'lib/decision_agent/web/server.rb'
+    - 'lib/decision_agent/testing/batch_test_importer.rb'
+    - 'lib/decision_agent/testing/batch_test_runner.rb'
 
 # Gemspec configuration
 Gemspec/DevelopmentDependencies:
@@ -182,6 +208,7 @@ Metrics/ParameterLists:
   Exclude:
     - 'lib/decision_agent/dsl/operators/**/*'
     - 'lib/decision_agent/dsl/helpers/**/*'
+    - 'lib/decision_agent/testing/test_result_comparator.rb'
 
 # Disable FormatStringToken for benchmark files (simple format strings are fine)
 Style/FormatStringToken:

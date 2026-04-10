@@ -5,47 +5,47 @@ require "rack/test"
 require "tempfile"
 require_relative "../../lib/decision_agent/web/server"
 
+# Every routed HTML page the server serves
+UI_PAGES = {
+  "/" => "index",
+  "/testing/batch" => "batch testing",
+  "/simulation" => "simulation dashboard",
+  "/simulation/replay" => "simulation replay",
+  "/simulation/whatif" => "simulation what-if",
+  "/simulation/impact" => "simulation impact",
+  "/simulation/shadow" => "simulation shadow",
+  "/auth/login" => "login",
+  "/auth/users" => "user management",
+  "/dmn/editor" => "DMN editor"
+}.freeze
+
+# Every asset referenced by <link> or <script src> across all HTML pages
+LINKED_ASSETS = {
+  "/styles.css" => "text/css",
+  "/app.js" => "application/javascript",
+  "/dmn-editor.css" => "text/css",
+  "/dmn-editor.js" => "application/javascript",
+  "/sample_rules.json" => "application/json",
+  "/sample_batch.csv" => "text/csv",
+  "/sample_replay.csv" => "text/csv",
+  "/sample_shadow.csv" => "text/csv",
+  "/sample_impact.csv" => "text/csv",
+  "/sample_whatif.csv" => "text/csv"
+}.freeze
+
 RSpec.describe "Web UI smoke" do
   include Rack::Test::Methods
 
   let(:app) { DecisionAgent::Web::Server }
 
-  # Every routed HTML page the server serves
-  UI_PAGES = {
-    "/" => "index",
-    "/testing/batch" => "batch testing",
-    "/simulation" => "simulation dashboard",
-    "/simulation/replay" => "simulation replay",
-    "/simulation/whatif" => "simulation what-if",
-    "/simulation/impact" => "simulation impact",
-    "/simulation/shadow" => "simulation shadow",
-    "/auth/login" => "login",
-    "/auth/users" => "user management",
-    "/dmn/editor" => "DMN editor"
-  }.freeze
-
-  # Every asset referenced by <link> or <script src> across all HTML pages
-  LINKED_ASSETS = {
-    "/styles.css" => "text/css",
-    "/app.js" => "application/javascript",
-    "/dmn-editor.css" => "text/css",
-    "/dmn-editor.js" => "application/javascript",
-    "/sample_rules.json" => "application/json",
-    "/sample_batch.csv" => "text/csv",
-    "/sample_replay.csv" => "text/csv",
-    "/sample_shadow.csv" => "text/csv",
-    "/sample_impact.csv" => "text/csv",
-    "/sample_whatif.csv" => "text/csv"
-  }.freeze
-
   describe "HTML pages" do
     UI_PAGES.each do |path, label|
       it "GET #{path} (#{label}) returns 200 with text/html" do
         get path
-        expect(last_response.status).to eq(200), \
-          "Expected 200 for #{path}, got #{last_response.status}: #{last_response.body[0, 120]}"
-        expect(last_response.content_type).to include("text/html"), \
-          "Expected text/html for #{path}, got #{last_response.content_type}"
+        expect(last_response.status).to eq(200),
+                                        "Expected 200 for #{path}, got #{last_response.status}: #{last_response.body[0, 120]}"
+        expect(last_response.content_type).to include("text/html"),
+                                              "Expected text/html for #{path}, got #{last_response.content_type}"
       end
     end
   end
@@ -54,10 +54,10 @@ RSpec.describe "Web UI smoke" do
     LINKED_ASSETS.each do |path, expected_type|
       it "GET #{path} returns 200 with #{expected_type}" do
         get path
-        expect(last_response.status).to eq(200), \
-          "Asset #{path} returned #{last_response.status} (expected 200)"
-        expect(last_response.content_type).to include(expected_type), \
-          "Asset #{path}: expected Content-Type #{expected_type}, got #{last_response.content_type}"
+        expect(last_response.status).to eq(200),
+                                        "Asset #{path} returned #{last_response.status} (expected 200)"
+        expect(last_response.content_type).to include(expected_type),
+                                              "Asset #{path}: expected Content-Type #{expected_type}, got #{last_response.content_type}"
       end
     end
   end
@@ -89,13 +89,13 @@ RSpec.describe "Web UI smoke" do
     it "every state.currentModel property access is preceded by a null guard" do
       bad = unguarded_accesses(js_lines, "currentModel", "currentModel")
       expect(bad).to be_empty,
-        "Unguarded state.currentModel accesses in dmn-editor.js:\n#{bad.join("\n")}"
+                     "Unguarded state.currentModel accesses in dmn-editor.js:\n#{bad.join("\n")}"
     end
 
     it "every state.currentDecision property access is preceded by a null guard" do
       bad = unguarded_accesses(js_lines, "currentDecision", "currentDecision")
       expect(bad).to be_empty,
-        "Unguarded state.currentDecision accesses in dmn-editor.js:\n#{bad.join("\n")}"
+                     "Unguarded state.currentDecision accesses in dmn-editor.js:\n#{bad.join("\n")}"
     end
   end
 

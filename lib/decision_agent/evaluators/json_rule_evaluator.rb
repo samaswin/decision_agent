@@ -63,37 +63,35 @@ module DecisionAgent
 
       def collect_explainability(context)
         rules = @ruleset["rules"] || []
-        rule_traces = []
 
+        # Fast pass: find the first matching rule without building trace objects.
+        # This avoids allocating TraceCollector + RuleTrace for every non-matching rule.
+        matched_index = nil
         rules.each_with_index do |rule, i|
-          rule_id = rule["id"] || "rule_#{i}"
-          if_clause = rule["if"]
-          next unless if_clause
+          next unless rule["if"]
 
-          # Create trace collector for this rule
+          if Dsl::ConditionEvaluator.evaluate(rule["if"], context)
+            matched_index = i
+            break
+          end
+        end
+
+        # Trace pass: re-evaluate only the matched rule with full condition tracing.
+        rule_traces = []
+        if matched_index
+          rule = rules[matched_index]
+          rule_id = rule["id"] || "rule_#{matched_index}"
           trace_collector = Explainability::TraceCollector.new
-
-          # Evaluate condition with tracing
-          matched = Dsl::ConditionEvaluator.evaluate(
-            if_clause,
-            context,
-            trace_collector: trace_collector
-          )
-
+          Dsl::ConditionEvaluator.evaluate(rule["if"], context, trace_collector: trace_collector)
           then_clause = rule["then"] || {}
-          rule_trace = Explainability::RuleTrace.new(
+          rule_traces << Explainability::RuleTrace.new(
             rule_id: rule_id,
-            matched: matched,
+            matched: true,
             condition_traces: trace_collector.traces,
             decision: then_clause["decision"],
             weight: then_clause["weight"],
             reason: then_clause["reason"]
           )
-
-          rule_traces << rule_trace
-
-          # Stop after first match (short-circuit evaluation)
-          break if matched
         end
 
         Explainability::ExplainabilityResult.new(

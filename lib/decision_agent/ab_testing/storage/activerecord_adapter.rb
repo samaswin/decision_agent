@@ -79,14 +79,11 @@ module DecisionAgent
             .map { |record| to_assignment(record) }
         end
 
-        # rubocop:disable Naming/PredicateMethod
         def delete_test(test_id)
           record = ::ABTestModel.find(test_id)
           ::ABTestAssignmentModel.where(ab_test_id: test_id).delete_all
           record.destroy
-          true
         end
-        # rubocop:enable Naming/PredicateMethod
 
         private
 

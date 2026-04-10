@@ -43,7 +43,6 @@ module DecisionAgent
       end
 
       # Run a single test scenario
-      # rubocop:disable Metrics/MethodLength
       def run_test(scenario, index = nil)
         decision = @model.find_decision(scenario[:decision_id])
 
@@ -92,11 +91,9 @@ module DecisionAgent
             passed: false
           }
         end
-        # rubocop:enable Metrics/MethodLength
       end
 
       # Generate test coverage report
-      # rubocop:disable Metrics/AbcSize
       def generate_coverage_report
         coverage = {
           total_decisions: @model.decisions.size,
@@ -328,7 +325,6 @@ module DecisionAgent
           model_results: results
         }
       end
-      # rubocop:enable Metrics/AbcSize
     end
   end
 end

@@ -508,16 +508,16 @@ RSpec.describe DecisionAgent::Monitoring::Storage::ActiveRecordAdapter do
     let(:sample_size) { 200 }
     let(:p95_threshold_ms) { 5.0 }
 
-    it "records a decision in under #{5.0} ms (P95) on in-memory SQLite" do
+    it "records a decision in under 5.0 ms (P95) on in-memory SQLite" do
       durations_ms = sample_size.times.map do
         start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         adapter.record_decision(
           "perf_bench",
           { user_id: rand(10_000) },
-          confidence:        rand,
+          confidence: rand,
           evaluations_count: 1,
-          duration_ms:       rand(100),
-          status:            "success"
+          duration_ms: rand(100),
+          status: "success"
         )
         (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000
       end
@@ -543,8 +543,8 @@ RSpec.describe DecisionAgent::Monitoring::Storage::ActiveRecordAdapter do
       TXT
 
       expect(p95).to be < p95_threshold_ms,
-        "record_decision P95 was #{p95} ms — exceeds #{p95_threshold_ms} ms threshold " \
-        "(p50=#{p50} ms, p99=#{p99} ms, avg=#{avg} ms)"
+                     "record_decision P95 was #{p95} ms — exceeds #{p95_threshold_ms} ms threshold " \
+                     "(p50=#{p50} ms, p99=#{p99} ms, avg=#{avg} ms)"
     end
   end
 end

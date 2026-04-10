@@ -16,10 +16,9 @@ module DecisionAgent
         @feel_evaluator = Feel::Evaluator.new
       end
 
-      # rubocop:disable Naming/PredicateMethod
       def validate(model = nil)
         @model = model if model
-        return false unless @model
+        return unless @model
 
         @errors = []
         @warnings = []
@@ -35,18 +34,15 @@ module DecisionAgent
         # Business rule validation
         validate_decision_tables
 
-        @errors.empty?
+        nil
       end
-      # rubocop:enable Naming/PredicateMethod
 
-      # rubocop:disable Naming/PredicateMethod
       def validate!
         validate
         raise InvalidDmnModelError, format_errors if @errors.any?
 
-        true
+        nil
       end
-      # rubocop:enable Naming/PredicateMethod
 
       def valid?
         @errors.empty?

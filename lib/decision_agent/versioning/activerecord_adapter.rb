@@ -207,7 +207,9 @@ module DecisionAgent
             cause = e.cause
             if cause
               cause.class.name.include?("BusyException") ||
-                cause.class.name.include?("SQLite3::BusyException")
+                cause.class.name.include?("SQLite3::BusyException") ||
+                cause.class.name.include?("LockedException") ||
+                cause.class.name.include?("SQLite3::LockedException")
             else
               false
             end
@@ -215,8 +217,10 @@ module DecisionAgent
             warn "[DecisionAgent] Error checking busy exception cause: #{cause_check_error.message}"
             false
           end || e.message.include?("database is locked") ||
+                    e.message.include?("database table is locked") ||
                     e.message.include?("SQLite3::BusyException") ||
-                    e.message.include?("BusyException")
+                    e.message.include?("BusyException") ||
+                    e.message.include?("LockedException")
 
           raise unless is_busy && retries < max_retries
 

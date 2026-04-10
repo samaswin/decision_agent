@@ -6,7 +6,6 @@ module DecisionAgent
     class ComparisonResult
       attr_reader :scenario_id, :match, :decision_match, :confidence_match, :differences, :actual, :expected
 
-      # rubocop:disable Metrics/ParameterLists
       def initialize(scenario_id:, match:, decision_match:, confidence_match:, differences:, actual:, expected:)
         @scenario_id = scenario_id.to_s.freeze
         @match = match
@@ -18,7 +17,6 @@ module DecisionAgent
 
         freeze
       end
-      # rubocop:enable Metrics/ParameterLists
 
       def to_h
         {
@@ -140,78 +138,71 @@ module DecisionAgent
 
       private
 
-      # rubocop:disable Metrics/MethodLength, Metrics/PerceivedComplexity
       def compare_single(scenario, result)
+        return failed_comparison_result(scenario, result) if result.nil? || !result.success?
+
         differences = []
-        confidence_match = false
-
-        if result.nil? || !result.success?
-          differences << "Test execution failed: #{result&.error&.message || 'No result'}"
-          return ComparisonResult.new(
-            scenario_id: scenario.id,
-            match: false,
-            decision_match: false,
-            confidence_match: false,
-            differences: differences,
-            actual: { decision: nil, confidence: nil },
-            expected: {
-              decision: scenario.expected_decision,
-              confidence: scenario.expected_confidence
-            }
-          )
-        end
-
-        # Compare decision
-        expected_decision = scenario.expected_decision&.to_s
-        actual_decision = result.decision&.to_s
-
-        decision_match = if expected_decision.nil?
-                           true # No expectation, so it matches
-                         elsif @options[:fuzzy_match]
-                           fuzzy_decision_match?(expected_decision, actual_decision)
-                         else
-                           expected_decision == actual_decision
-                         end
-
-        differences << "Decision mismatch: expected '#{expected_decision}', got '#{actual_decision}'" unless decision_match
-
-        # Compare confidence
-        expected_confidence = scenario.expected_confidence
-        actual_confidence = result.confidence
-
-        if expected_confidence.nil?
-          confidence_match = true # No expectation, so it matches
-        elsif actual_confidence.nil?
-          confidence_match = false
-          differences << "Confidence missing in actual result"
-        else
-          tolerance = @options[:confidence_tolerance]
-          confidence_match = (expected_confidence - actual_confidence).abs <= tolerance
-          unless confidence_match
-            diff = (expected_confidence - actual_confidence).abs.round(4)
-            differences << "Confidence mismatch: expected #{expected_confidence}, got #{actual_confidence} (diff: #{diff})"
-          end
-        end
-
-        match = decision_match && confidence_match
+        decision_match = compare_decision(scenario, result, differences)
+        confidence_match = compare_confidence(scenario, result, differences)
 
         ComparisonResult.new(
           scenario_id: scenario.id,
-          match: match,
+          match: decision_match && confidence_match,
           decision_match: decision_match,
           confidence_match: confidence_match,
           differences: differences,
-          actual: {
-            decision: actual_decision,
-            confidence: actual_confidence
-          },
-          expected: {
-            decision: expected_decision,
-            confidence: expected_confidence
-          }
+          actual: { decision: result.decision&.to_s, confidence: result.confidence },
+          expected: { decision: scenario.expected_decision&.to_s, confidence: scenario.expected_confidence }
         )
       end
-      # rubocop:enable Metrics/MethodLength, Metrics/PerceivedComplexity
+
+      def failed_comparison_result(scenario, result)
+        ComparisonResult.new(
+          scenario_id: scenario.id,
+          match: false,
+          decision_match: false,
+          confidence_match: false,
+          differences: ["Test execution failed: #{result&.error&.message || 'No result'}"],
+          actual: { decision: nil, confidence: nil },
+          expected: { decision: scenario.expected_decision, confidence: scenario.expected_confidence }
+        )
+      end
+
+      def compare_decision(scenario, result, differences)
+        expected = scenario.expected_decision&.to_s
+        actual = result.decision&.to_s
+
+        match = if expected.nil?
+                  true
+                elsif @options[:fuzzy_match]
+                  fuzzy_decision_match?(expected, actual)
+                else
+                  expected == actual
+                end
+
+        differences << "Decision mismatch: expected '#{expected}', got '#{actual}'" unless match
+        match
+      end
+
+      def compare_confidence(scenario, result, differences)
+        expected = scenario.expected_confidence
+        actual = result.confidence
+
+        return true if expected.nil?
+
+        if actual.nil?
+          differences << "Confidence missing in actual result"
+          return false
+        end
+
+        tolerance = @options[:confidence_tolerance]
+        match = (expected - actual).abs <= tolerance
+        unless match
+          diff = (expected - actual).abs.round(4)
+          differences << "Confidence mismatch: expected #{expected}, got #{actual} (diff: #{diff})"
+        end
+        match
+      end
 
       def fuzzy_decision_match?(expected, actual)
         return true if expected == actual

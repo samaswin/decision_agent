@@ -5,7 +5,7 @@ module DecisionAgent
     module Operators
       # Handles date/time operators: before_date, after_date, within_days, day_of_week
       module DateTimeOperators
-        def self.handle(op, actual_value, expected_value, date_cache: nil, date_cache_mutex: nil) # rubocop:disable Lint/UnusedMethodArgument
+        def self.handle(op, actual_value, expected_value, _date_cache: nil, _date_cache_mutex: nil)
           case op
           when "before_date"
             # Checks if date is before specified date

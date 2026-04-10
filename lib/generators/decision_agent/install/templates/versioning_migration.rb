@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class CreateDecisionAgentVersioningTables < ActiveRecord::Migration[7.0]
-  # rubocop:disable Metrics/MethodLength
   def change
     # Rule versions table — stores the full content of each version as JSON
     create_table :rule_versions do |t|
@@ -10,7 +9,7 @@ class CreateDecisionAgentVersioningTables < ActiveRecord::Migration[7.0]
       t.text    :content,        null: false # JSON rule definition
       t.string  :created_by,     null: false, default: "system"
       t.text    :changelog
-      t.string  :status,         null: false, default: "draft" # draft, active, archived
+      t.string  :status, null: false, default: "draft" # draft, active, archived
       t.timestamps
     end
 
@@ -42,5 +41,4 @@ class CreateDecisionAgentVersioningTables < ActiveRecord::Migration[7.0]
     # Index for efficient tag listing per model
     add_index :rule_version_tags, :model_id
   end
-  # rubocop:enable Metrics/MethodLength
 end

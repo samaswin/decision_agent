@@ -10,8 +10,14 @@ RSpec.describe DecisionAgent::Versioning::ActiveRecordAdapter do
   before(:all) do
     ActiveRecord::Base.establish_connection(
       adapter: "sqlite3",
-      database: ":memory:"
+      database: "file:ar_versioning_test?mode=memory&cache=shared",
+      flags: SQLite3::Constants::Open::URI | SQLite3::Constants::Open::READWRITE | SQLite3::Constants::Open::CREATE,
+      pool: 10,
+      checkout_timeout: 10
     )
+
+    ActiveRecord::Base.connection.execute("PRAGMA journal_mode=WAL")
+    ActiveRecord::Base.connection.execute("PRAGMA busy_timeout=5000")
 
     ActiveRecord::Schema.define do
       create_table :rule_versions, force: true do |t|
@@ -20,7 +26,7 @@ RSpec.describe DecisionAgent::Versioning::ActiveRecordAdapter do
         t.text    :content,        null: false
         t.string  :created_by,     null: false, default: "system"
         t.text    :changelog
-        t.string  :status,         null: false, default: "draft"
+        t.string  :status, null: false, default: "draft"
         t.timestamps
       end
 
@@ -54,6 +60,9 @@ RSpec.describe DecisionAgent::Versioning::ActiveRecordAdapter do
       validates :name, uniqueness: { scope: :model_id }
     end
     # rubocop:enable Lint/ConstantDefinitionInBlock
+
+    RuleVersion.reset_column_information
+    RuleVersionTag.reset_column_information
   end
 
   before do
@@ -206,7 +215,7 @@ RSpec.describe DecisionAgent::Versioning::ActiveRecordAdapter do
       adapter.activate_version(version_id: v1[:id])
 
       expect(adapter.get_active_version(rule_id: model_id)[:id]).to eq(v1[:id])
-      v2_refreshed = adapter.get_version(version_id: adapter.list_versions(rule_id: model_id).last[:id])
+      v2_refreshed = adapter.get_version(version_id: adapter.list_versions(rule_id: model_id).first[:id])
       expect(v2_refreshed[:status]).to eq("archived")
     end
 

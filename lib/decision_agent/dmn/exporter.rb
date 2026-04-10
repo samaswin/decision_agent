@@ -21,12 +21,12 @@ module DecisionAgent
       def serialize_model(model)
         builder = Nokogiri::XML::Builder.new(encoding: "UTF-8") do |xml|
           xml.definitions(
-            "xmlns"       => "https://www.omg.org/spec/DMN/20191111/MODEL/",
+            "xmlns" => "https://www.omg.org/spec/DMN/20191111/MODEL/",
             "xmlns:dmndi" => "https://www.omg.org/spec/DMN/20191111/DMNDI/",
-            "xmlns:dc"    => "http://www.omg.org/spec/DMN/20180521/DC/",
-            "id"          => "definitions_#{model.id}",
-            "name"        => model.name,
-            "namespace"   => model.namespace
+            "xmlns:dc" => "http://www.omg.org/spec/DMN/20180521/DC/",
+            "id" => "definitions_#{model.id}",
+            "name" => model.name,
+            "namespace" => model.namespace
           ) do
             model.decisions.each { |d| serialize_decision_node(xml, d) }
           end
@@ -79,7 +79,6 @@ module DecisionAgent
         hash[key.to_s] || hash[key.to_sym]
       end
 
-      # rubocop:disable Metrics/MethodLength
       def convert_to_dmn(rules_json, rule_id)
         # Handle both string and symbol keys
         ruleset_name = rules_json["ruleset"] || rules_json[:ruleset] || rule_id
@@ -126,7 +125,6 @@ module DecisionAgent
 
         builder.to_xml
       end
-      # rubocop:enable Metrics/MethodLength
 
       def extract_inputs(rules)
         # Extract all unique field names used in conditions

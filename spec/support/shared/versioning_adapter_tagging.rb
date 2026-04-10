@@ -86,7 +86,7 @@ RSpec.shared_examples "a versioning adapter with tag support" do
 
     it "returns the tag even when the version it points to has been deleted" do
       v1 = version1
-      v2 = version2
+      version2
       adapter.create_tag(model_id: model_id, version_id: v1[:id], name: "old-rc")
       # v2 is active; deactivate v1 so it can be deleted (it was archived on v2 creation)
       adapter.delete_version(version_id: v1[:id])

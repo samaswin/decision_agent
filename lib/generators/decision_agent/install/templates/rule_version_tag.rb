@@ -12,7 +12,7 @@ class RuleVersionTag < ApplicationRecord
   validates :version_id, presence: true
   validates :name, uniqueness: { scope: :model_id, message: "already exists for this model" }
 
-  scope :for_model,    ->(model_id) { where(model_id: model_id) }
+  scope :for_model, ->(model_id) { where(model_id: model_id) }
   scope :sorted_by_name, -> { order(name: :asc) }
 
   # Resolve the version this tag currently points to.
