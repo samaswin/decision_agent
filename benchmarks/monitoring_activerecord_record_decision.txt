@@ -1,7 +1,7 @@
 # monitoring ActiveRecordAdapter#record_decision — in-memory SQLite
-# Generated: 2026-04-10T00:50:55+00:00
+# Generated: 2026-04-10T00:58:05+00:00
 # Sample size: 200
-avg_ms=2.207
-p50_ms=2.065
-p95_ms=3.38
-p99_ms=3.913
+avg_ms=1.81
+p50_ms=1.603
+p95_ms=3.325
+p99_ms=4.4
